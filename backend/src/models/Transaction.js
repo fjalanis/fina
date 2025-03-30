@@ -55,22 +55,37 @@ TransactionSchema.methods.isTransactionBalanced = async function() {
     const entryLines = await EntryLine.find({ transaction: this._id });
     
     if (!entryLines || entryLines.length === 0) {
+      console.log(`Transaction ${this._id} has no entry lines - considered unbalanced`);
       return false;
     }
     
-    let total = 0;
+    let totalDebits = 0;
+    let totalCredits = 0;
     
     entryLines.forEach(entry => {
+      const amount = parseFloat(entry.amount);
       // Add debits, subtract credits
       if (entry.type === 'debit') {
-        total += entry.amount;
+        totalDebits += amount;
+      } else if (entry.type === 'credit') {
+        totalCredits += amount;
       } else {
-        total -= entry.amount;
+        console.warn(`Entry ${entry._id} has invalid type: ${entry.type}`);
       }
     });
     
+    const netBalance = totalDebits - totalCredits;
+    const isBalanced = Math.abs(netBalance) < 0.001;
+    
+    console.log(`Transaction ${this._id} balance check:
+      Total Debits: ${totalDebits}
+      Total Credits: ${totalCredits}
+      Net Balance: ${netBalance}
+      Is Balanced: ${isBalanced}
+    `);
+    
     // Transaction is balanced if total is zero (or very close to zero to account for floating point)
-    return Math.abs(total) < 0.001;
+    return isBalanced;
   } catch (error) {
     console.error('Error in isTransactionBalanced:', error);
     return false;

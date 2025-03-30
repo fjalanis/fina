@@ -487,6 +487,103 @@ describe('Transaction API', () => {
       expect(res.body.success).toBe(false);
       expect(res.body.error).toBe('Transaction is already balanced or does not exist');
     });
+
+    it('should handle subtle date and amount variations in real-world scenarios', async () => {
+      // Create three unbalanced transactions with various dates
+      // Transaction #1 - Today's date
+      const today = new Date();
+      const transaction1 = new Transaction({
+        date: today,
+        description: 'Today Transaction',
+        isBalanced: false
+      });
+      await transaction1.save();
+
+      // Transaction #2 - 10 days ago 
+      const tenDaysAgo = new Date(today);
+      tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+      const transaction2 = new Transaction({
+        date: tenDaysAgo,
+        description: 'Past Transaction',
+        isBalanced: false
+      });
+      await transaction2.save();
+
+      // Transaction #3 - 20 days ago (outside our default matching window of 15 days)
+      const twentyDaysAgo = new Date(today);
+      twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+      const transaction3 = new Transaction({
+        date: twentyDaysAgo,
+        description: 'Older Transaction',
+        isBalanced: false
+      });
+      await transaction3.save();
+
+      // Create three entry lines with exact same amount
+      const entryLine1 = new EntryLine({
+        transaction: transaction1._id,
+        account: expenseAccount._id,
+        amount: 200,
+        type: 'debit'
+      });
+      await entryLine1.save();
+
+      // Should match with entryLine1 (opposite type, same amount, within date range)
+      const entryLine2 = new EntryLine({
+        transaction: transaction2._id,
+        account: assetAccount._id,
+        amount: 200,
+        type: 'credit'
+      });
+      await entryLine2.save();
+
+      // Should NOT match with entryLine1 (outside date range)
+      const entryLine3 = new EntryLine({
+        transaction: transaction3._id,
+        account: assetAccount._id,
+        amount: 200,
+        type: 'credit'
+      });
+      await entryLine3.save();
+
+      // Wait for any async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Get matches for entryLine1
+      const res = await request(app).get(`/api/transactions/matches/${entryLine1._id}`);
+
+      // Verify result
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('targetEntry');
+      expect(res.body.data).toHaveProperty('matches');
+      
+      // Should only match with entryLine2, not entryLine3
+      expect(res.body.data.matches.length).toBe(1);
+      expect(res.body.data.matches[0]._id).toBe(entryLine2._id.toString());
+      
+      // Verify entryLine3 was excluded due to date range
+      const allEntries = await EntryLine.find({}).populate('transaction');
+      const oppositeType = entryLine1.type === 'debit' ? 'credit' : 'debit';
+      const matchingAmount = allEntries.filter(e => 
+        e._id.toString() !== entryLine1._id.toString() && 
+        e.amount === entryLine1.amount &&
+        e.type === oppositeType
+      );
+      
+      // We should have found 2 entries with matching criteria
+      expect(matchingAmount.length).toBe(2);
+      
+      // But only 1 is within date range
+      const withinDateRange = matchingAmount.filter(e => {
+        const entryDate = new Date(e.transaction.date);
+        const targetDate = new Date(transaction1.date);
+        const diffDays = Math.abs(entryDate - targetDate) / (1000 * 60 * 60 * 24);
+        return diffDays <= 15;
+      });
+      
+      expect(withinDateRange.length).toBe(1);
+    });
   });
 
   describe('POST /api/transactions/balance', () => {

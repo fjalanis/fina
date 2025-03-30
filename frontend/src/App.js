@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css';
 
 // Account Components
@@ -14,10 +14,27 @@ import TransactionBalancer from './components/transactions/TransactionBalancer';
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
 
+// Wrapper component to apply different container styles based on the route
+const MainContent = ({ children }) => {
+  const location = useLocation();
+  const isBalancerRoute = location.pathname === '/balance-transactions';
+  
+  // For the balancer page, use full height and width without extra padding
+  const containerClassName = isBalancerRoute 
+    ? "max-w-7xl mx-auto h-full" 
+    : "max-w-7xl mx-auto sm:px-6 lg:px-8";
+  
+  return (
+    <div className={containerClassName}>
+      {children}
+    </div>
+  );
+};
+
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-100 flex flex-col">
         <nav className="bg-white shadow-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
@@ -46,8 +63,8 @@ function App() {
           </div>
         </nav>
 
-        <main className="py-10">
-          <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <main className="py-6 flex-grow">
+          <MainContent>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/accounts" element={<AccountList />} />
@@ -57,7 +74,7 @@ function App() {
               <Route path="/balance-transactions" element={<TransactionBalancer />} />
               <Route path="/reports" element={<ReportDashboard />} />
             </Routes>
-          </div>
+          </MainContent>
         </main>
       </div>
     </Router>

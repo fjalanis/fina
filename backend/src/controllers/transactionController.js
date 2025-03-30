@@ -2,23 +2,10 @@ const Transaction = require('../models/Transaction');
 const EntryLine = require('../models/EntryLine');
 const mongoose = require('mongoose');
 
-// Helper to determine if we should use transactions
-const useTransactions = () => {
-  // In test environment, we might be using a standalone MongoDB which doesn't support transactions
-  return process.env.NODE_ENV !== 'test';
-};
-
 // @desc    Create a new transaction with entry lines
 // @route   POST /api/transactions
 // @access  Public
 exports.createTransaction = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
   try {
     const { date, description, reference, notes, entryLines } = req.body;
 
@@ -31,11 +18,7 @@ exports.createTransaction = async (req, res) => {
     });
 
     // Save the transaction to get an ID
-    if (session) {
-      await transaction.save({ session });
-    } else {
-      await transaction.save();
-    }
+    await transaction.save();
 
     // If entry lines are provided, add them
     if (entryLines && entryLines.length > 0) {
@@ -46,11 +29,7 @@ exports.createTransaction = async (req, res) => {
       }));
 
       // Insert all entry lines
-      if (session) {
-        await EntryLine.insertMany(entryLinesWithTransaction, { session });
-      } else {
-        await EntryLine.insertMany(entryLinesWithTransaction);
-      }
+      await EntryLine.insertMany(entryLinesWithTransaction);
 
       // Reload transaction with entry lines
       await transaction.populate('entryLines');
@@ -58,27 +37,13 @@ exports.createTransaction = async (req, res) => {
 
     // Check if transaction is balanced
     transaction.isBalanced = await transaction.isTransactionBalanced();
-    if (session) {
-      await transaction.save({ session });
-    } else {
-      await transaction.save();
-    }
-
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
-    }
+    await transaction.save();
 
     return res.status(201).json({
       success: true,
       data: transaction
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
-
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return res.status(400).json({
@@ -159,13 +124,6 @@ exports.getTransaction = async (req, res) => {
 // @route   PUT /api/transactions/:id
 // @access  Public
 exports.updateTransaction = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
   try {
     const { date, description, reference, notes } = req.body;
 
@@ -173,10 +131,6 @@ exports.updateTransaction = async (req, res) => {
     const transaction = await Transaction.findById(req.params.id);
 
     if (!transaction) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(404).json({
         success: false,
         error: 'Transaction not found'
@@ -189,27 +143,101 @@ exports.updateTransaction = async (req, res) => {
     transaction.reference = reference || transaction.reference;
     transaction.notes = notes || transaction.notes;
 
-    if (session) {
-      await transaction.save({ session });
-    } else {
-      await transaction.save();
-    }
-
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
-    }
+    await transaction.save();
 
     return res.status(200).json({
       success: true,
       data: transaction
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
+    return res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+// @desc    Delete transaction
+// @route   DELETE /api/transactions/:id
+// @access  Public
+exports.deleteTransaction = async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transaction not found'
+      });
     }
 
+    // Delete all associated entry lines
+    await EntryLine.deleteMany({ transaction: transaction._id });
+      
+    // Delete the transaction
+    await Transaction.deleteOne({ _id: transaction._id });
+
+    return res.status(200).json({
+      success: true,
+      data: {}
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+// @desc    Add entry line to transaction
+// @route   POST /api/transactions/:transactionId/entries
+// @access  Public
+exports.addEntryLine = async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    const { account, amount, type, description } = req.body;
+    
+    // Find the transaction
+    const transaction = await Transaction.findById(transactionId);
+    
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transaction not found'
+      });
+    }
+    
+    // Create a new entry line
+    const entryLine = new EntryLine({
+      transaction: transaction._id,
+      account,
+      amount,
+      type,
+      description
+    });
+    
+    // Save the entry line
+    await entryLine.save();
+    
+    // Update transaction balance status
+    transaction.isBalanced = await transaction.isTransactionBalanced();
+    await transaction.save();
+    
+    // Return the updated transaction
+    const updatedTransaction = await Transaction.findById(transactionId)
+      .populate({
+        path: 'entryLines',
+        populate: {
+          path: 'account',
+          select: 'name type'
+        }
+      });
+      
+    return res.status(200).json({
+      success: true,
+      data: updatedTransaction
+    });
+  } catch (error) {
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return res.status(400).json({
@@ -225,59 +253,94 @@ exports.updateTransaction = async (req, res) => {
   }
 };
 
-// @desc    Delete transaction
-// @route   DELETE /api/transactions/:id
+// @desc    Update entry line
+// @route   PUT /api/transactions/entries/:entryId
 // @access  Public
-exports.deleteTransaction = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
+exports.updateEntryLine = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id);
-
-    if (!transaction) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
+    const { entryId } = req.params;
+    const { account, amount, type, description } = req.body;
+    
+    // Find and update the entry line
+    const entryLine = await EntryLine.findById(entryId);
+    
+    if (!entryLine) {
       return res.status(404).json({
         success: false,
-        error: 'Transaction not found'
+        error: 'Entry line not found'
       });
     }
-
-    // Delete all associated entry lines
-    if (session) {
-      await EntryLine.deleteMany({ transaction: transaction._id }, { session });
-      
-      // Delete the transaction
-      await Transaction.deleteOne({ _id: transaction._id }, { session });
+    
+    // Update fields
+    if (account) entryLine.account = account;
+    if (amount) entryLine.amount = amount;
+    if (type) entryLine.type = type;
+    if (description !== undefined) entryLine.description = description;
+    
+    await entryLine.save();
+    
+    // Update transaction balance status
+    const transaction = await Transaction.findById(entryLine.transaction);
+    if (transaction) {
+      transaction.isBalanced = await transaction.isTransactionBalanced();
+      await transaction.save();
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data: entryLine
+    });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        error: messages
+      });
     } else {
-      await EntryLine.deleteMany({ transaction: transaction._id });
-      
-      // Delete the transaction
-      await Transaction.deleteOne({ _id: transaction._id });
+      return res.status(500).json({
+        success: false,
+        error: 'Server Error'
+      });
     }
+  }
+};
 
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
+// @desc    Delete entry line
+// @route   DELETE /api/transactions/entries/:entryId
+// @access  Public
+exports.deleteEntryLine = async (req, res) => {
+  try {
+    const { entryId } = req.params;
+    
+    // Find the entry line
+    const entryLine = await EntryLine.findById(entryId);
+    
+    if (!entryLine) {
+      return res.status(404).json({
+        success: false,
+        error: 'Entry line not found'
+      });
     }
-
+    
+    // Store the transaction ID before deleting
+    const transactionId = entryLine.transaction;
+    
+    // Delete the entry line
+    await EntryLine.findByIdAndDelete(entryId);
+    
+    // Update transaction balance status
+    const transaction = await Transaction.findById(transactionId);
+    if (transaction) {
+      transaction.isBalanced = await transaction.isTransactionBalanced();
+      await transaction.save();
+    }
+    
     return res.status(200).json({
       success: true,
       data: {}
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
-
     return res.status(500).json({
       success: false,
       error: 'Server Error'
@@ -291,7 +354,9 @@ exports.deleteTransaction = async (req, res) => {
 exports.getSuggestedMatches = async (req, res) => {
   try {
     const { id } = req.params;
-    const { maxMatches = 10 } = req.query;
+    const { maxMatches = 10, dateRange = 15 } = req.query;
+    
+    console.log(`Getting matches for entry line ${id}`);
     
     // First, get the target entry line
     const targetEntryLine = await EntryLine.findById(id).populate({
@@ -300,6 +365,7 @@ exports.getSuggestedMatches = async (req, res) => {
     }).populate('account');
     
     if (!targetEntryLine) {
+      console.log(`Entry line ${id} not found`);
       return res.status(404).json({
         success: false,
         error: 'Entry line not found'
@@ -310,6 +376,7 @@ exports.getSuggestedMatches = async (req, res) => {
     const transaction = targetEntryLine.transaction;
     
     if (!transaction) {
+      console.log(`Transaction not found for entry line ${id}`);
       return res.status(400).json({
         success: false,
         error: 'Transaction is already balanced or does not exist'
@@ -318,51 +385,69 @@ exports.getSuggestedMatches = async (req, res) => {
     
     // Check if transaction is balanced
     if (transaction.isBalanced) {
+      console.log(`Transaction ${transaction._id} is already balanced`);
       return res.status(400).json({
         success: false,
         error: 'Transaction is already balanced or does not exist'
       });
     }
 
+    console.log(`Finding matches for entry ${id}, type: ${targetEntryLine.type}, amount: ${targetEntryLine.amount}`);
+    
     // Find potential matches (entries that would balance this one)
     // Look for opposite entry types with similar absolute amounts
     const oppositeType = targetEntryLine.type === 'debit' ? 'credit' : 'debit';
     const targetAmount = targetEntryLine.amount;
     
-    // Calculate date range for matching
+    // Get the transaction date for date range filtering
     const targetDate = new Date(transaction.date);
-    const startDate = new Date(targetDate);
-    startDate.setDate(startDate.getDate() - 15);
-    const endDate = new Date(targetDate);
-    endDate.setDate(endDate.getDate() + 15);
     
-    // First, find all transactions in date range that are unbalanced
-    // and not the same as our source transaction
-    const matchingTransactions = await Transaction.find({
-      _id: { $ne: transaction._id },
-      date: { $gte: startDate, $lte: endDate },
-      isBalanced: false
-    }).select('_id');
-    
-    // Get the transaction IDs
-    const transactionIds = matchingTransactions.map(t => t._id);
-    
-    // Now find entry lines that match our criteria
+    // We'll use a simpler approach for matching
+    // Get all entry lines with opposite type and matching amount
+    // that don't belong to the same transaction
     const matchingEntries = await EntryLine.find({
-      transaction: { $in: transactionIds },
+      _id: { $ne: targetEntryLine._id },
       type: oppositeType,
       amount: targetAmount
     }).populate({
       path: 'transaction',
-      select: 'date description isBalanced'
-    }).populate('account')
-    .limit(parseInt(maxMatches));
-
+      select: 'date description isBalanced _id'
+    }).populate('account');
+    
+    // Filter out entries:
+    // 1. From the same transaction
+    // 2. From already balanced transactions
+    // 3. Outside the date range (if date is provided)
+    const validMatches = matchingEntries.filter(entry => {
+      // Check if the entry belongs to a valid transaction
+      if (!entry.transaction || 
+          entry.transaction._id.toString() === transaction._id.toString() ||
+          entry.transaction.isBalanced) {
+        return false;
+      }
+      
+      // Check if the transaction date is within range
+      if (entry.transaction.date) {
+        const entryDate = new Date(entry.transaction.date);
+        const diffInDays = Math.abs(entryDate - targetDate) / (1000 * 60 * 60 * 24);
+        
+        // Skip entries outside the date range
+        if (diffInDays > dateRange) {
+          console.log(`Entry ${entry._id} excluded: ${diffInDays} days apart (max: ${dateRange})`);
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    console.log(`Found ${validMatches.length} matches out of ${matchingEntries.length} total entries with matching criteria`);
+    
     return res.status(200).json({
       success: true,
       data: {
         targetEntry: targetEntryLine,
-        matches: matchingEntries
+        matches: validMatches.slice(0, parseInt(maxMatches))
       }
     });
   } catch (error) {
@@ -378,13 +463,6 @@ exports.getSuggestedMatches = async (req, res) => {
 // @route   POST /api/transactions/balance
 // @access  Public
 exports.balanceTransactions = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
   try {
     const { sourceEntryId, targetEntryId } = req.body;
     
@@ -393,10 +471,6 @@ exports.balanceTransactions = async (req, res) => {
     const targetEntry = await EntryLine.findById(targetEntryId);
     
     if (!sourceEntry || !targetEntry) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(404).json({
         success: false,
         error: 'One or both entries not found'
@@ -408,10 +482,6 @@ exports.balanceTransactions = async (req, res) => {
     const targetTransaction = await Transaction.findById(targetEntry.transaction);
     
     if (!sourceTransaction || !targetTransaction) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(404).json({
         success: false,
         error: 'One or both transactions not found'
@@ -420,10 +490,6 @@ exports.balanceTransactions = async (req, res) => {
     
     // Verify transactions aren't already balanced
     if (sourceTransaction.isBalanced && targetTransaction.isBalanced) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(400).json({
         success: false,
         error: 'Both transactions are already balanced'
@@ -432,10 +498,6 @@ exports.balanceTransactions = async (req, res) => {
     
     // Verify entries have opposite types (one debit, one credit)
     if (sourceEntry.type === targetEntry.type) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(400).json({
         success: false,
         error: 'Entries must have opposite types to balance'
@@ -450,11 +512,7 @@ exports.balanceTransactions = async (req, res) => {
     // Update each entry to point to the source transaction
     for (const entry of targetEntries) {
       entry.transaction = sourceTransaction._id;
-      if (session) {
-        await entry.save({ session });
-      } else {
-        await entry.save();
-      }
+      await entry.save();
     }
     
     // Create a merged description if needed
@@ -476,24 +534,10 @@ exports.balanceTransactions = async (req, res) => {
     
     // Check if it's balanced
     sourceTransaction.isBalanced = await sourceTransaction.isTransactionBalanced();
-    
-    if (session) {
-      await sourceTransaction.save({ session });
-    } else {
-      await sourceTransaction.save();
-    }
+    await sourceTransaction.save();
     
     // Delete the now-empty target transaction
-    if (session) {
-      await Transaction.findByIdAndDelete(targetTransaction._id, { session });
-    } else {
-      await Transaction.findByIdAndDelete(targetTransaction._id);
-    }
-    
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
-    }
+    await Transaction.findByIdAndDelete(targetTransaction._id);
     
     return res.status(200).json({
       success: true,
@@ -503,10 +547,6 @@ exports.balanceTransactions = async (req, res) => {
       message: 'Transactions successfully balanced'
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
     console.error('Error in balanceTransactions:', error);
     return res.status(500).json({
       success: false,

@@ -138,9 +138,18 @@ The Household Finance App is a personal finance management system that brings th
 
 #### 2.2 Transaction Completion
 - Interface to find and complete unbalanced transactions
-- Smart suggestions for matching entries
+- Smart suggestions for matching entries based on amount, entry type, and transaction date
 - Drag-and-drop functionality for combining entries
 - Filter and search capabilities
+- Independent scrolling for transaction list and suggested matches to maintain context
+- Visual feedback when dragging potential matches
+- Clear indication of the selected entry while viewing suggested matches
+- Matching algorithm should prioritize entries with:
+  - Opposite entry type (debit/credit)
+  - Exact matching amount
+  - Recent transaction date (within +/- 15 days)
+  - Unbalanced transaction status
+- Date range matching: Potential matches must be within 15 days (default) of the selected entry's transaction date to reduce noise and focus on related transactions
 
 #### 2.3 Recurring Transactions
 - System-suggested recurring transaction identification
@@ -253,6 +262,11 @@ The Household Finance App is a personal finance management system that brings th
 - Detail view with all entry lines
 - Completion suggestions for unbalanced transactions
 - Location display on map
+- Transaction balancer with dual-pane layout:
+  - Left pane: scrollable list of unbalanced transactions
+  - Right pane: selected entry with drop zone and scrollable matching suggestions
+  - Fixed position for the selected entry to maintain context while scrolling
+- Transaction filtering: Only transactions explicitly marked with `isBalanced === false` should appear in the unbalanced transactions list
 
 ### Visualization Hub
 - Sankey diagram as primary visualization
@@ -302,6 +316,12 @@ The Household Finance App is a personal finance management system that brings th
 - `PUT /api/rules/:id` - Update rule
 - `DELETE /api/rules/:id` - Delete rule
 - `POST /api/rules/:id/test` - Test rule against transactions
+
+### Backend Implementation Considerations
+- Simplified transaction flow: API endpoints should use simple, direct operations rather than complex MongoDB transactions to prevent timeouts and simplify error handling
+- Database operations should be designed for reliability over theoretical atomicity
+- Error handling should provide clear, actionable error messages for client-side recovery
+- Balance calculations and state updates should be explicit operations with proper validation
 
 ## Implementation Phases
 

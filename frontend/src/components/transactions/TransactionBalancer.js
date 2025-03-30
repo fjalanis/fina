@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext } from 'react-beautiful-dnd';
 import { transactionApi } from '../../services/api';
+import { 
+  addMatchPotentialFlags, 
+  createTestData as createTestDataUtil, 
+  diagnoseMatching as diagnoseMatchingUtil,
+  debugTransactionBalance
+} from './TransactionBalancerUtils';
+import {
+  SelectedEntryDropZone,
+  SuggestedMatchesList,
+  UnbalancedTransactionsList,
+  NoSelectionPlaceholder
+} from './BalancerComponents';
 
 const TransactionBalancer = () => {
   const [unbalancedTransactions, setUnbalancedTransactions] = useState([]);
@@ -12,8 +23,6 @@ const TransactionBalancer = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   
-  const navigate = useNavigate();
-
   useEffect(() => {
     fetchUnbalancedTransactions();
   }, []);
@@ -22,9 +31,15 @@ const TransactionBalancer = () => {
     try {
       setLoading(true);
       const response = await transactionApi.getTransactions();
-      // Filter only unbalanced transactions
-      const unbalanced = response.data.filter(t => !t.isBalanced);
-      setUnbalancedTransactions(unbalanced);
+      
+      // Filter only unbalanced transactions - explicitly check that they're not balanced 
+      // to avoid transactions with undefined isBalanced property
+      const unbalanced = response.data.filter(t => t.isBalanced === false);
+      
+      // Add a flag to highlight entries that potentially have matches
+      const updatedTransactions = await addMatchPotentialFlags(unbalanced);
+      setUnbalancedTransactions(updatedTransactions);
+      
       setError(null);
     } catch (err) {
       setError('Failed to load transactions. Please try again.');
@@ -40,12 +55,22 @@ const TransactionBalancer = () => {
       setMatchLoading(true);
       setSuggestedMatches([]);
       
+      console.log('Requesting matches for entry:', entry);
       const response = await transactionApi.getSuggestedMatches(entry._id);
-      setSuggestedMatches(response.data.matches || []);
+      console.log('API Response:', response);
+      
+      if (response.data && response.data.matches) {
+        console.log('Got matches:', response.data.matches.length);
+        setSuggestedMatches(response.data.matches);
+      } else {
+        console.log('No matches found in response:', response);
+        setSuggestedMatches([]);
+      }
+      
       setError(null);
     } catch (err) {
-      setError('Failed to find matching entries. Please try again.');
       console.error('Error finding matches:', err);
+      setError('Failed to find matching entries. Please try again.');
       setSuggestedMatches([]);
     } finally {
       setMatchLoading(false);
@@ -96,16 +121,31 @@ const TransactionBalancer = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+  // Wrapper functions to connect with utility functions
+  const createTestData = async () => {
+    await createTestDataUtil(setError, setSuccessMessage, fetchUnbalancedTransactions);
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+  const diagnoseMatching = async () => {
+    await diagnoseMatchingUtil(selectedEntry, setError, setMatchLoading);
+  };
+  
+  const debugSelectedTransaction = async () => {
+    if (!selectedEntry || !selectedEntry.transaction) {
+      setError('Please select an entry to debug its transaction');
+      return;
+    }
+    
+    try {
+      const result = await debugTransactionBalance(selectedEntry.transaction);
+      if (result) {
+        setSuccessMessage(`Debug info in console. Transaction ${result.isBalanced ? 'IS' : 'is NOT'} balanced.`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
+    } catch (err) {
+      console.error('Debug error:', err);
+      setError('Error debugging transaction. Check console.');
+    }
   };
 
   if (loading && !suggestedMatches.length) {
@@ -117,13 +157,7 @@ const TransactionBalancer = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">Transaction Balancer</h2>
-        <p className="text-gray-600">
-          Select an unbalanced entry and drag a matching entry to balance the transaction.
-        </p>
-      </div>
+    <div className="bg-white rounded-lg shadow p-6 mb-8 flex flex-col" style={{ height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
 
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
@@ -137,154 +171,56 @@ const TransactionBalancer = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Unbalanced Transactions */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="font-medium text-gray-700 mb-3">Unbalanced Transactions</h3>
+      {/* Use flex and flex-1 to ensure columns take up remaining space */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
+        {/* Left Column: Unbalanced Transactions - completely independent scrolling */}
+        <div className="bg-gray-50 p-4 rounded-lg flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-medium text-gray-700">Unbalanced Transactions</h3>
+            <div className="space-x-2">
+              <button 
+                onClick={debugSelectedTransaction}
+                className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded"
+                title="Debug transaction balance in console"
+              >
+                Debug Selected
+              </button>
+            </div>
+          </div>
           
-          {unbalancedTransactions.length === 0 ? (
-            <div className="text-center p-8">
-              <p className="text-gray-500">No unbalanced transactions found.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {unbalancedTransactions.map(transaction => (
-                <div 
-                  key={transaction._id} 
-                  className="bg-white rounded-lg shadow p-4"
-                >
-                  <div className="flex justify-between mb-2">
-                    <h4 className="font-medium">{transaction.description}</h4>
-                    <span className="text-sm text-gray-500">{formatDate(transaction.date)}</span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {transaction.entryLines && transaction.entryLines.map(entry => (
-                      <div 
-                        key={entry._id}
-                        onClick={() => handleEntrySelect(entry)}
-                        className={`p-2 rounded cursor-pointer transition ${
-                          selectedEntry && selectedEntry._id === entry._id
-                            ? 'bg-blue-100 border border-blue-300'
-                            : 'hover:bg-gray-100 border border-gray-200'
-                        }`}
-                      >
-                        <div className="flex justify-between">
-                          <span>{entry.account ? entry.account.name : 'Unknown Account'}</span>
-                          <span className={entry.type === 'debit' ? 'text-red-500' : 'text-green-500'}>
-                            {entry.type === 'debit' ? '+ ' : '- '}
-                            {formatCurrency(entry.amount)}
-                          </span>
-                        </div>
-                        {entry.description && (
-                          <p className="text-sm text-gray-500 mt-1">{entry.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Scrollable area for transactions */}
+          <div className="overflow-y-auto flex-1">
+            <UnbalancedTransactionsList 
+              unbalancedTransactions={unbalancedTransactions} 
+              handleEntrySelect={handleEntrySelect} 
+              selectedEntry={selectedEntry} 
+            />
+          </div>
         </div>
 
-        {/* Drag and Drop Area */}
+        {/* Right Column: Drag and Drop Area - independent scrolling */}
         <DragDropContext onDragEnd={handleDragEnd}>
           {selectedEntry ? (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium text-gray-700 mb-3">Balance with Matching Entry</h3>
+            <div className="bg-gray-50 p-4 rounded-lg flex flex-col overflow-hidden">
+              <div className="flex-none">
+                <h3 className="font-medium text-gray-700 mb-3">Balance with Matching Entry</h3>
+                
+                {/* Selected entry - fixed position */}
+                <SelectedEntryDropZone selectedEntry={selectedEntry} />
+                
+                <h4 className="font-medium text-gray-700 mb-2">Suggested Matches</h4>
+              </div>
               
-              {/* Selected entry */}
-              <Droppable droppableId="transaction">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="mb-4 p-3 min-h-[100px] bg-blue-50 rounded-lg border-2 border-dashed border-blue-300"
-                  >
-                    <h4 className="font-medium text-blue-600 mb-2">Selected Entry (Drop Match Here)</h4>
-                    <div className="bg-white rounded p-3 mb-2">
-                      <div className="flex justify-between">
-                        <span>
-                          {selectedEntry.account ? selectedEntry.account.name : 'Unknown Account'}
-                        </span>
-                        <span className={selectedEntry.type === 'debit' ? 'text-red-500' : 'text-green-500'}>
-                          {selectedEntry.type === 'debit' ? '+ ' : '- '}
-                          {formatCurrency(selectedEntry.amount)}
-                        </span>
-                      </div>
-                      {selectedEntry.description && (
-                        <p className="text-sm text-gray-500 mt-1">{selectedEntry.description}</p>
-                      )}
-                    </div>
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-              
-              {/* Suggested matches */}
-              <h4 className="font-medium text-gray-700 mb-2">Suggested Matches</h4>
-              {matchLoading ? (
-                <div className="flex justify-center p-5">
-                  <div className="animate-spin h-6 w-6 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-                </div>
-              ) : suggestedMatches.length > 0 ? (
-                <Droppable droppableId="matches">
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="space-y-2"
-                    >
-                      {suggestedMatches.map((match, index) => (
-                        <Draggable key={match._id} draggableId={match._id} index={index}>
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="p-3 bg-white rounded-lg shadow border border-gray-200 hover:border-blue-300 cursor-grab"
-                            >
-                              <div className="flex justify-between">
-                                <span>
-                                  {match.account ? match.account.name : 'Unknown Account'}
-                                </span>
-                                <span className={match.type === 'debit' ? 'text-red-500' : 'text-green-500'}>
-                                  {match.type === 'debit' ? '+ ' : '- '}
-                                  {formatCurrency(match.amount)}
-                                </span>
-                              </div>
-                              <div className="text-sm text-gray-500 mt-1">
-                                {match.transaction.description}
-                                {match.description && <p>{match.description}</p>}
-                                <p>{formatDate(match.transaction.date)}</p>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              ) : (
-                <div className="bg-white p-4 rounded-lg text-center">
-                  <p className="text-gray-500">No matching entries found.</p>
-                  <p className="text-sm text-gray-400 mt-1">Try selecting a different entry.</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-gray-50 p-6 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-gray-500 mb-4">
-                  Select an entry from an unbalanced transaction to find matching entries.
-                </p>
-                <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
+              {/* Scrollable matches section */}
+              <div className="overflow-y-auto flex-1">
+                <SuggestedMatchesList 
+                  matchLoading={matchLoading}
+                  suggestedMatches={suggestedMatches}
+                />
               </div>
             </div>
+          ) : (
+            <NoSelectionPlaceholder />
           )}
         </DragDropContext>
       </div>
