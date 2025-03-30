@@ -85,6 +85,20 @@ export const transactionApi = {
     method: 'POST',
     body: JSON.stringify(entryData),
   }),
+  
+  // Get suggested matches for an entry line
+  getSuggestedMatches: (entryLineId, maxMatches = 10) => 
+    fetchData(`/transactions/matches/${entryLineId}?maxMatches=${maxMatches}`),
+  
+  // Balance transactions by combining entries
+  balanceTransactions: (sourceEntryId, targetEntryId) => 
+    fetchData('/transactions/balance', {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceEntryId,
+        targetEntryId
+      }),
+    }),
 };
 
 // Entry Line API functions

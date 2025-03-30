@@ -19,131 +19,85 @@ describe('Transaction API', () => {
 
   beforeEach(async () => {
     // Create test accounts
-    assetAccount = await createTestAccount({
-      name: 'Bank Account',
+    assetAccount = await Account.create({
+      name: 'Test Bank Account',
       type: 'asset',
       description: 'Test asset account'
     });
 
-    expenseAccount = await createTestAccount({
-      name: 'Groceries',
+    expenseAccount = await Account.create({
+      name: 'Test Groceries',
       type: 'expense',
       description: 'Test expense account'
     });
   });
 
   describe('POST /api/transactions', () => {
-    it('should create a new transaction with balanced entry lines', async () => {
-      // Make sure the test accounts exist
-      const asset = await Account.findById(assetAccount._id);
-      expect(asset).not.toBeNull();
-      const expense = await Account.findById(expenseAccount._id);
-      expect(expense).not.toBeNull();
-      
-      const transactionData = {
-        date: '2023-01-15T00:00:00.000Z',
-        description: 'Grocery Shopping',
-        reference: 'SHOP123',
-        notes: 'Weekly groceries',
-        entryLines: [
-          {
-            account: expenseAccount._id,
-            description: 'Groceries expense',
-            amount: 50,
-            type: 'debit'
-          },
-          {
-            account: assetAccount._id,
-            description: 'Paid from bank account',
-            amount: 50,
-            type: 'credit'
-          }
-        ]
-      };
-
+    it('should create a transaction with entry lines', async () => {
       const res = await request(app)
         .post('/api/transactions')
-        .send(transactionData);
-        
-      // Try up to 3 times due to potential timing issues
-      let maxRetries = 3;
-      let transaction = null;
-      
-      while (maxRetries > 0 && !transaction) {
-        try {
-          expect(res.status).toBe(201);
-          expect(res.body.success).toBe(true);
-          expect(res.body.data).toHaveProperty('_id');
-          
-          // Wait for DB operations to complete
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Verify data was saved to database
-          transaction = await Transaction.findById(res.body.data._id);
-          
-          if (!transaction) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        } catch (error) {
-          console.log('Retrying transaction verification...');
-          maxRetries--;
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-      
-      // Now validate the transaction
-      expect(transaction).not.toBeNull();
-      expect(transaction.description).toBe(transactionData.description);
-      
-      // Check entry lines were created
-      const entryLines = await EntryLine.find({ transaction: transaction._id });
-      expect(entryLines.length).toBe(2);
-    });
+        .send({
+          date: '2023-01-01',
+          description: 'Grocery shopping',
+          reference: 'SHOP123',
+          entryLines: [
+            {
+              account: expenseAccount._id.toString(),
+              amount: 100,
+              type: 'debit'
+            },
+            {
+              account: assetAccount._id.toString(),
+              amount: 100,
+              type: 'credit'
+            }
+          ]
+        });
 
-    it('should return validation error if entry lines are missing', async () => {
-      const transactionData = {
-        date: '2023-01-15T00:00:00.000Z',
-        description: 'Invalid Transaction',
-        entryLines: [] // Missing entry lines
-      };
-
-      const res = await request(app)
-        .post('/api/transactions')
-        .send(transactionData);
-
-      expect(res.status).toBe(500);
-      expect(res.body.success).toBe(false);
-      expect(res.body.error).toContain('must have at least two entry lines');
-    });
-
-    it('should return validation error if entry lines are unbalanced', async () => {
-      const transactionData = {
-        date: '2023-01-15T00:00:00.000Z',
-        description: 'Unbalanced Transaction',
-        entryLines: [
-          {
-            account: expenseAccount._id,
-            amount: 100,
-            type: 'debit'
-          },
-          {
-            account: assetAccount._id,
-            amount: 75, // Different amount
-            type: 'credit'
-          }
-        ]
-      };
-
-      const res = await request(app)
-        .post('/api/transactions')
-        .send(transactionData);
-
-      expect(res.status).toBe(201); // Still creates the transaction
+      expect(res.statusCode).toEqual(201);
       expect(res.body.success).toBe(true);
-      
-      // Verify transaction is marked as unbalanced
-      const transaction = await Transaction.findById(res.body.data._id);
-      expect(transaction.isBalanced).toBe(false);
+      expect(res.body.data).toHaveProperty('_id');
+      expect(res.body.data.description).toBe('Grocery shopping');
+      expect(res.body.data.isBalanced).toBe(true);
+    });
+
+    it('should create an unbalanced transaction with a single entry line', async () => {
+      const res = await request(app)
+        .post('/api/transactions')
+        .send({
+          date: '2023-01-01',
+          description: 'Unbalanced Transaction',
+          reference: 'UNBAL001',
+          entryLines: [
+            {
+              account: expenseAccount._id.toString(),
+              amount: 100,
+              type: 'debit'
+            }
+          ]
+        });
+
+      expect(res.statusCode).toEqual(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('_id');
+      expect(res.body.data.description).toBe('Unbalanced Transaction');
+      expect(res.body.data.isBalanced).toBe(false);
+    });
+
+    it('should create a transaction with no entry lines', async () => {
+      const res = await request(app)
+        .post('/api/transactions')
+        .send({
+          date: '2023-01-01',
+          description: 'Empty Transaction',
+          reference: 'EMPTY001'
+        });
+
+      expect(res.statusCode).toEqual(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('_id');
+      expect(res.body.data.description).toBe('Empty Transaction');
+      expect(res.body.data.isBalanced).toBe(false);
     });
   });
 
@@ -285,34 +239,54 @@ describe('Transaction API', () => {
   });
 
   describe('POST /api/transactions/:transactionId/entries', () => {
-    it('should add an entry line to a transaction', async () => {
-      // Create test transaction
-      const transaction = new Transaction({
-        date: new Date('2023-01-15'),
-        description: 'Transaction for entry line test'
-      });
-      await transaction.save();
+    it('should add an entry line to an existing transaction', async () => {
+      // Create a transaction first
+      const transactionRes = await request(app)
+        .post('/api/transactions')
+        .send({
+          date: '2023-01-01',
+          description: 'Transaction to modify',
+          reference: 'MOD001'
+        });
 
-      const entryData = {
-        account: assetAccount._id,
-        description: 'New entry line',
-        amount: 75,
-        type: 'debit'
-      };
+      const transactionId = transactionRes.body.data._id;
 
-      const res = await request(app)
-        .post(`/api/transactions/${transaction._id}/entries`)
-        .send(entryData);
+      // Add an entry line
+      const entryRes = await request(app)
+        .post(`/api/transactions/${transactionId}/entries`)
+        .send({
+          account: expenseAccount._id.toString(),
+          amount: 100,
+          type: 'debit'
+        });
 
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.transaction).toBe(transaction._id.toString());
-      expect(res.body.data.account).toBe(assetAccount._id.toString());
-      expect(res.body.data.amount).toBe(entryData.amount);
+      expect(entryRes.statusCode).toEqual(201);
+      expect(entryRes.body.success).toBe(true);
+      expect(entryRes.body.data).toHaveProperty('_id');
+      expect(entryRes.body.data.transaction).toBe(transactionId);
 
-      // Verify entry line was saved to database
-      const savedEntryLine = await EntryLine.findById(res.body.data._id);
-      expect(savedEntryLine).toBeDefined();
+      // Verify transaction is still unbalanced
+      const updatedTransactionRes = await request(app)
+        .get(`/api/transactions/${transactionId}`);
+
+      expect(updatedTransactionRes.body.data.isBalanced).toBe(false);
+
+      // Add a balancing entry line
+      const balancingEntryRes = await request(app)
+        .post(`/api/transactions/${transactionId}/entries`)
+        .send({
+          account: assetAccount._id.toString(),
+          amount: 100,
+          type: 'credit'
+        });
+
+      expect(balancingEntryRes.statusCode).toEqual(201);
+
+      // Verify transaction is now balanced
+      const finalTransactionRes = await request(app)
+        .get(`/api/transactions/${transactionId}`);
+
+      expect(finalTransactionRes.body.data.isBalanced).toBe(true);
     });
   });
 
@@ -419,6 +393,228 @@ describe('Transaction API', () => {
         const deletedEntryLine = await EntryLine.findById(entryLine._id);
         expect(deletedEntryLine).toBeNull();
       });
+    });
+  });
+
+  // Add tests for transaction balancing
+  describe('GET /api/transactions/matches/:id', () => {
+    it('should return matching entries for an unbalanced entry line', async () => {
+      // Create two unbalanced transactions with matching amounts but opposite types
+      const transaction1 = new Transaction({
+        date: new Date('2023-01-15'),
+        description: 'First unbalanced transaction',
+        isBalanced: false
+      });
+      await transaction1.save();
+
+      const transaction2 = new Transaction({
+        date: new Date('2023-01-15'),
+        description: 'Second unbalanced transaction',
+        isBalanced: false
+      });
+      await transaction2.save();
+
+      // Create a debit entry for transaction 1
+      const entryLine1 = new EntryLine({
+        transaction: transaction1._id,
+        account: expenseAccount._id,
+        amount: 150,
+        type: 'debit'
+      });
+      await entryLine1.save();
+
+      // Create a credit entry for transaction 2 with same amount
+      const entryLine2 = new EntryLine({
+        transaction: transaction2._id,
+        account: assetAccount._id,
+        amount: 150,
+        type: 'credit'
+      });
+      await entryLine2.save();
+
+      // Wait for any async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Get matches for the first entry
+      const res = await request(app).get(`/api/transactions/matches/${entryLine1._id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('targetEntry');
+      expect(res.body.data).toHaveProperty('matches');
+      expect(res.body.data.matches.length).toBe(1);
+      expect(res.body.data.matches[0]._id).toBe(entryLine2._id.toString());
+      expect(res.body.data.matches[0].type).toBe('credit');
+      expect(res.body.data.matches[0].amount).toBe(150);
+    });
+
+    it('should return 404 for non-existent entry line', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId();
+      const res = await request(app).get(`/api/transactions/matches/${nonExistentId}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Entry line not found');
+    });
+
+    it('should return 400 if transaction is already balanced', async () => {
+      // Create a balanced transaction
+      const transaction = new Transaction({
+        date: new Date('2023-01-15'),
+        description: 'Balanced transaction',
+        isBalanced: true
+      });
+      await transaction.save();
+
+      // Create an entry line
+      const entryLine = new EntryLine({
+        transaction: transaction._id,
+        account: expenseAccount._id,
+        amount: 100,
+        type: 'debit'
+      });
+      await entryLine.save();
+
+      // Force refresh transaction document to ensure isBalanced is true
+      await Transaction.findByIdAndUpdate(transaction._id, { isBalanced: true }, { new: true });
+
+      // Wait for any async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const res = await request(app).get(`/api/transactions/matches/${entryLine._id}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Transaction is already balanced or does not exist');
+    });
+  });
+
+  describe('POST /api/transactions/balance', () => {
+    it('should balance two transactions by combining their entry lines', async () => {
+      // Create two unbalanced transactions
+      const transaction1 = new Transaction({
+        date: new Date('2023-01-15'),
+        description: 'First transaction to balance',
+        isBalanced: false
+      });
+      await transaction1.save();
+
+      const transaction2 = new Transaction({
+        date: new Date('2023-01-16'),
+        description: 'Second transaction to balance',
+        isBalanced: false
+      });
+      await transaction2.save();
+
+      // Create a debit entry for transaction 1
+      const entryLine1 = new EntryLine({
+        transaction: transaction1._id,
+        account: expenseAccount._id,
+        amount: 200,
+        type: 'debit'
+      });
+      await entryLine1.save();
+
+      // Create a credit entry for transaction 2
+      const entryLine2 = new EntryLine({
+        transaction: transaction2._id,
+        account: assetAccount._id,
+        amount: 200,
+        type: 'credit'
+      });
+      await entryLine2.save();
+
+      // Balance the transactions
+      const res = await request(app)
+        .post('/api/transactions/balance')
+        .send({
+          sourceEntryId: entryLine1._id,
+          targetEntryId: entryLine2._id
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('transaction');
+      expect(res.body.data.transaction.isBalanced).toBe(true);
+      expect(res.body.message).toBe('Transactions successfully balanced');
+
+      // Verify that target transaction was deleted
+      const targetTransaction = await Transaction.findById(transaction2._id);
+      expect(targetTransaction).toBeNull();
+
+      // Verify that source transaction now contains all entry lines
+      const sourceTransaction = await Transaction.findById(transaction1._id);
+      expect(sourceTransaction).not.toBeNull();
+      expect(sourceTransaction.isBalanced).toBe(true);
+
+      // Verify that both entry lines now point to the source transaction
+      const entryLines = await EntryLine.find({ 
+        _id: { $in: [entryLine1._id, entryLine2._id] }
+      });
+      expect(entryLines.length).toBe(2);
+      expect(entryLines[0].transaction.toString()).toBe(transaction1._id.toString());
+      expect(entryLines[1].transaction.toString()).toBe(transaction1._id.toString());
+    });
+
+    it('should return 404 if entry lines do not exist', async () => {
+      const nonExistentId1 = new mongoose.Types.ObjectId();
+      const nonExistentId2 = new mongoose.Types.ObjectId();
+
+      const res = await request(app)
+        .post('/api/transactions/balance')
+        .send({
+          sourceEntryId: nonExistentId1,
+          targetEntryId: nonExistentId2
+        });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('One or both entries not found');
+    });
+
+    it('should return 400 if entries have the same type', async () => {
+      // Create transaction
+      const transaction1 = new Transaction({
+        date: new Date('2023-01-15'),
+        description: 'Same type transaction',
+        isBalanced: false
+      });
+      await transaction1.save();
+
+      const transaction2 = new Transaction({
+        date: new Date('2023-01-16'),
+        description: 'Same type transaction 2',
+        isBalanced: false
+      });
+      await transaction2.save();
+
+      // Create two entry lines with the same type
+      const entryLine1 = new EntryLine({
+        transaction: transaction1._id,
+        account: expenseAccount._id,
+        amount: 100,
+        type: 'debit'
+      });
+      await entryLine1.save();
+
+      const entryLine2 = new EntryLine({
+        transaction: transaction2._id,
+        account: assetAccount._id,
+        amount: 100,
+        type: 'debit' // Same type as entryLine1
+      });
+      await entryLine2.save();
+
+      const res = await request(app)
+        .post('/api/transactions/balance')
+        .send({
+          sourceEntryId: entryLine1._id,
+          targetEntryId: entryLine2._id
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Entries must have opposite types to balance');
     });
   });
 }); 

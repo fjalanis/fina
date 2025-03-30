@@ -6,6 +6,11 @@ import './App.css';
 import AccountList from './components/accounts/AccountList';
 import AccountDetail from './components/accounts/AccountDetail';
 
+// Transaction Components
+import TransactionList from './components/transactions/TransactionList';
+import TransactionDetail from './components/transactions/TransactionDetail';
+import TransactionBalancer from './components/transactions/TransactionBalancer';
+
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
 
@@ -26,10 +31,15 @@ function App() {
                   <Link to="/accounts" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Accounts
                   </Link>
+                  <Link to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Transactions
+                  </Link>
+                  <Link to="/balance-transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Balance Transactions
+                  </Link>
                   <Link to="/reports" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Reports
                   </Link>
-                  {/* Add more nav links here as we build more features */}
                 </div>
               </div>
             </div>
@@ -42,6 +52,9 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/accounts" element={<AccountList />} />
               <Route path="/accounts/:id" element={<AccountDetail />} />
+              <Route path="/transactions" element={<TransactionList />} />
+              <Route path="/transactions/:id" element={<TransactionDetail />} />
+              <Route path="/balance-transactions" element={<TransactionBalancer />} />
               <Route path="/reports" element={<ReportDashboard />} />
             </Routes>
           </div>
@@ -67,6 +80,13 @@ const Home = () => {
             View Accounts
           </Link>
         </div>
+        <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-100">
+          <h2 className="text-lg font-semibold text-yellow-800 mb-3">Transactions</h2>
+          <p className="text-gray-600 mb-4">Record and track financial transactions.</p>
+          <Link to="/transactions" className="inline-block px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
+            View Transactions
+          </Link>
+        </div>
         <div className="bg-green-50 p-6 rounded-lg border border-green-100">
           <h2 className="text-lg font-semibold text-green-800 mb-3">Reports</h2>
           <p className="text-gray-600 mb-4">Generate financial reports and summaries.</p>
@@ -74,7 +94,6 @@ const Home = () => {
             View Reports
           </Link>
         </div>
-        {/* Add more feature cards as we build them */}
       </div>
     </div>
   );

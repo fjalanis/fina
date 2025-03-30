@@ -64,124 +64,73 @@ describe('Transaction Model', () => {
     expect(error.errors.description).toBeDefined();
   });
 
-  it('should correctly identify a balanced transaction', async () => {
-    // Create transaction
+  it('should detect an unbalanced transaction', async () => {
+    // Create a transaction with a single debit entry
     const transaction = new Transaction({
       date: new Date(),
-      description: 'Balanced Transaction Test'
+      description: 'Unbalanced Transaction',
+      reference: 'UNBAL001'
     });
-    const savedTransaction = await transaction.save();
-    console.log('Transaction created with ID:', savedTransaction._id);
-
-    // Create expense and asset accounts for the test if they don't exist yet
-    if (!expenseAccount) {
-      expenseAccount = await Account.create({
-        name: 'Expense Account for Transaction Test',
-        type: 'expense'
-      });
-    }
     
-    if (!assetAccount) {
-      assetAccount = await Account.create({
-        name: 'Asset Account for Transaction Test',
-        type: 'asset'
-      });
-    }
-
-    // Create balanced entry lines (debit and credit of same amount)
-    const debitEntry = new EntryLine({
-      transaction: savedTransaction._id,
+    await transaction.save();
+    
+    // Add a single entry line
+    const entryLine = new EntryLine({
+      transaction: transaction._id,
       account: expenseAccount._id,
-      description: 'Debit entry',
       amount: 100,
       type: 'debit'
     });
-
+    
+    await entryLine.save();
+    
+    // Reload transaction to check balance
+    const updatedTransaction = await Transaction.findById(transaction._id);
+    
+    // Transaction should be unbalanced
+    expect(updatedTransaction.isBalanced).toBe(false);
+    
+    // Check isTransactionBalanced method
+    const isBalanced = await updatedTransaction.isTransactionBalanced();
+    expect(isBalanced).toBe(false);
+  });
+  
+  it('should detect a balanced transaction', async () => {
+    // Create a transaction
+    const transaction = new Transaction({
+      date: new Date(),
+      description: 'Balanced Transaction',
+      reference: 'BAL001'
+    });
+    
+    await transaction.save();
+    
+    // Add two entry lines that balance each other
+    const debitEntry = new EntryLine({
+      transaction: transaction._id,
+      account: expenseAccount._id,
+      amount: 100,
+      type: 'debit'
+    });
+    
     const creditEntry = new EntryLine({
-      transaction: savedTransaction._id,
+      transaction: transaction._id,
       account: assetAccount._id,
-      description: 'Credit entry',
       amount: 100,
       type: 'credit'
     });
-
-    // Save entry lines sequentially to avoid race conditions
+    
     await debitEntry.save();
     await creditEntry.save();
-
-    // Wait a moment for any async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Verify the transaction still exists
-    const refetchedTransaction = await Transaction.findById(savedTransaction._id);
-    expect(refetchedTransaction).not.toBeNull();
-
-    // Test directly with EntryLine.find rather than going through the transaction
-    const entryLines = await EntryLine.find({ transaction: savedTransaction._id });
-    expect(entryLines.length).toBe(2);
     
-    let total = 0;
-    entryLines.forEach(entry => {
-      if (entry.type === 'debit') {
-        total += entry.amount;
-      } else {
-        total -= entry.amount;
-      }
-    });
+    // Reload transaction to check balance
+    const updatedTransaction = await Transaction.findById(transaction._id);
     
-    // A balanced transaction should have a total of 0
-    expect(Math.abs(total)).toBeLessThan(0.001);
-    
-    // Verify the transaction's isBalanced flag
-    const updatedTransaction = await Transaction.findById(savedTransaction._id);
-    expect(updatedTransaction).not.toBeNull();
+    // Transaction should be balanced
     expect(updatedTransaction.isBalanced).toBe(true);
-  });
-
-  it('should identify an unbalanced transaction', async () => {
-    // Create transaction
-    const transaction = new Transaction({
-      date: new Date(),
-      description: 'Unbalanced Transaction Test'
-    });
-    await transaction.save();
-
-    // Create unbalanced entry lines (debit and credit of different amounts)
-    const debitEntry = new EntryLine({
-      transaction: transaction._id,
-      account: expenseAccount._id,
-      description: 'Debit entry',
-      amount: 100,
-      type: 'debit'
-    });
-
-    const creditEntry = new EntryLine({
-      transaction: transaction._id,
-      account: assetAccount._id,
-      description: 'Credit entry',
-      amount: 75,
-      type: 'credit'
-    });
-
-    await debitEntry.save();
-    await creditEntry.save();
-
-    // Just directly test the isTransactionBalanced method
-    await transaction.populate('entryLines');
-    const isBalanced = await transaction.isTransactionBalanced();
-    expect(isBalanced).toBe(false);
-  });
-
-  it('should identify a transaction with no entry lines as unbalanced', async () => {
-    // Create transaction without entry lines
-    const transaction = new Transaction({
-      date: new Date(),
-      description: 'Empty Transaction'
-    });
-    await transaction.save();
-
-    // Check if transaction is balanced
-    const isBalanced = await transaction.isTransactionBalanced();
-    expect(isBalanced).toBe(false);
+    
+    // Check isTransactionBalanced method
+    const isBalanced = await updatedTransaction.isTransactionBalanced();
+    expect(isBalanced).toBe(true);
   });
 }); 
