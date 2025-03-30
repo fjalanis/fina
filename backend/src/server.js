@@ -11,6 +11,8 @@ const connectDB = require('./config/database');
 
 // Import routes
 const accountRoutes = require('./routes/accountRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const entryLineRoutes = require('./routes/entryLineRoutes');
 
 // Create Express app
 const app = express();
@@ -33,6 +35,8 @@ app.get('/', (req, res) => {
 
 // Mount routes
 app.use('/api/accounts', accountRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/entries', entryLineRoutes);
 
 // Basic error handling middleware
 app.use((err, req, res, next) => {

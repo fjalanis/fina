@@ -1,5 +1,8 @@
-const mongoose = require('mongoose');
 const Account = require('../../src/models/Account');
+const { setupDB } = require('../setup');
+
+// Setup a fresh database before each test
+setupDB();
 
 describe('Account Model', () => {
   // Test account creation and validation
@@ -61,20 +64,29 @@ describe('Account Model', () => {
 
   // Test the updatedAt field is set on save
   it('should update the updatedAt field on save', async () => {
+    // Create the account using create which returns a saved document
     const account = await Account.create({
       name: 'Update Test Account',
       type: 'asset'
     });
     
+    // Store original values
+    const accountId = account._id;
     const originalUpdatedAt = account.updatedAt;
     
     // Wait a bit to ensure timestamps are different
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    account.name = 'Modified Name';
-    await account.save();
+    // Retrieve the account again
+    const fetchedAccount = await Account.findById(accountId);
     
-    expect(account.updatedAt).not.toEqual(originalUpdatedAt);
+    // Update properties and save using .save() to trigger middleware
+    fetchedAccount.name = 'Modified Name';
+    await fetchedAccount.save();
+    
+    // Verify update worked and updatedAt changed
+    expect(fetchedAccount.name).toBe('Modified Name');
+    expect(fetchedAccount.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime());
   });
 
   // Test virtual population of children

@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest --forceExit"
+    "test": "jest --forceExit --no-cache",
+    "test:unit": "jest --forceExit --no-cache 'tests/unit/'",
+    "test:integration": "jest --forceExit --no-cache 'tests/integration/'",
+    "test:transactions": "jest --forceExit --no-cache '(transaction|entryLine).*\\.test\\.js'"
   },
   "keywords": [
     "finance",

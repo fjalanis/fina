@@ -52,7 +52,63 @@ export const accountApi = {
   getAccountHierarchy: () => fetchData('/accounts/hierarchy'),
 };
 
+// Transaction API functions
+export const transactionApi = {
+  // Get all transactions
+  getTransactions: () => fetchData('/transactions'),
+
+  // Get transaction by ID
+  getTransaction: (id) => fetchData(`/transactions/${id}`),
+
+  // Create a new transaction with entry lines
+  createTransaction: (transactionData) => fetchData('/transactions', {
+    method: 'POST',
+    body: JSON.stringify(transactionData),
+  }),
+
+  // Update a transaction
+  updateTransaction: (id, transactionData) => fetchData(`/transactions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(transactionData),
+  }),
+
+  // Delete a transaction
+  deleteTransaction: (id) => fetchData(`/transactions/${id}`, {
+    method: 'DELETE',
+  }),
+
+  // Get entry lines for a transaction
+  getTransactionEntries: (transactionId) => fetchData(`/transactions/${transactionId}/entries`),
+
+  // Add entry line to a transaction
+  addEntryLine: (transactionId, entryData) => fetchData(`/transactions/${transactionId}/entries`, {
+    method: 'POST',
+    body: JSON.stringify(entryData),
+  }),
+};
+
+// Entry Line API functions
+export const entryLineApi = {
+  // Get entry line by ID
+  getEntryLine: (id) => fetchData(`/entries/${id}`),
+
+  // Update an entry line
+  updateEntryLine: (id, entryData) => fetchData(`/entries/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(entryData),
+  }),
+
+  // Delete an entry line
+  deleteEntryLine: (id) => fetchData(`/entries/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
 // Create API object with all services
-const api = { accountApi };
+const api = { 
+  accountApi,
+  transactionApi,
+  entryLineApi
+};
 
 export default api; 

@@ -1,5 +1,11 @@
 const Account = require('../src/models/Account');
 
+// Helper function to create a test account
+const createTestAccount = async (accountData) => {
+  const account = await Account.create(accountData);
+  return account;
+};
+
 // Helper function to create multiple accounts with parent-child relationships
 const createAccountHierarchy = async () => {
   // Create parent accounts for different types
@@ -100,4 +106,4 @@ const createAccountHierarchy = async () => {
   };
 };
 
-module.exports = { createAccountHierarchy }; 
+module.exports = { createAccountHierarchy, createTestAccount }; 

@@ -2,6 +2,10 @@ const request = require('supertest');
 const mongoose = require('mongoose');
 const app = require('../../src/server');
 const Account = require('../../src/models/Account');
+const { setupDB } = require('../setup');
+
+// Setup fresh database
+setupDB();
 
 describe('Account API Endpoints', () => {
   // Test data
@@ -148,7 +152,7 @@ describe('Account API Endpoints', () => {
       expect(res.body.success).toBe(false);
       expect(res.body.error).toContain('Cannot delete account with child accounts');
       
-      // Verify parent still exists
+      // Verify parent still exists by querying fresh
       const existingParent = await Account.findById(parent._id);
       expect(existingParent).not.toBeNull();
     });
@@ -177,18 +181,19 @@ describe('Account API Endpoints', () => {
     it('should get account hierarchy', async () => {
       // Create parent account
       const parent = await Account.create(parentAccount);
+      const parentId = parent._id;
       
       // Create child accounts with parent reference
       await Account.create({
         name: 'Child 1',
         type: 'asset',
-        parent: parent._id
+        parent: parentId
       });
       
       await Account.create({
         name: 'Child 2',
         type: 'asset',
-        parent: parent._id
+        parent: parentId
       });
       
       // Get hierarchy
@@ -199,14 +204,15 @@ describe('Account API Endpoints', () => {
       
       // Find the parent in the hierarchy
       const parentInHierarchy = res.body.data.find(
-        account => account._id === parent._id.toString()
+        account => account._id === parentId.toString()
       );
       
       // Parent should exist in the response
       expect(parentInHierarchy).toBeDefined();
       
-      // Get the parent with populated children
-      const parentWithChildren = await Account.findById(parent._id).populate('children');
+      // Verify parent still exists
+      const parentWithChildren = await Account.findById(parentId).populate('children');
+      expect(parentWithChildren).not.toBeNull();
       
       // Parent should have children
       expect(parentWithChildren.children.length).toBe(2);

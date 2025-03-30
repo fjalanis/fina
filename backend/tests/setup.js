@@ -1,36 +1,63 @@
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
-const logger = require('../src/config/logger');
+const path = require('path');
+const dotenv = require('dotenv');
 
-// Suppress console output during tests
-logger.transports.forEach((t) => {
-  t.silent = true;
-});
+// Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-let mongoServer;
+// Base MongoDB connection string from .env
+const BASE_MONGO_URI = process.env.MONGO_URI;
 
-// Connect to in-memory database before all tests
-beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
+// Function to setup database for testing
+const setupDB = () => {
+  // Create a unique database name for this test file
+  const uniqueDbName = `test_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
+  console.log(`Creating test database: ${uniqueDbName}`);
   
-  await mongoose.connect(mongoUri);
-});
-
-// Clear all data between tests
-afterEach(async () => {
-  const collections = mongoose.connection.collections;
+  // Use the base MongoDB URI but with a unique database name
+  const MONGODB_URI = BASE_MONGO_URI.replace(/\/[^/]*$/, `/${uniqueDbName}`);
   
-  for (const key in collections) {
-    const collection = collections[key];
-    await collection.deleteMany({});
-  }
-});
+  // Connect to MongoDB before all tests
+  beforeAll(async () => {
+    try {
+      await mongoose.connect(MONGODB_URI);
+      console.log(`Connected to MongoDB using database: ${uniqueDbName}`);
+    } catch (error) {
+      console.error('MongoDB connection error:', error);
+      throw error;
+    }
+  });
 
-// Disconnect and stop MongoDB server after all tests
-afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
-});
+  // Clear all data between tests
+  afterEach(async () => {
+    if (mongoose.connection.readyState !== 0) {
+      const collections = mongoose.connection.collections;
+      
+      for (const key in collections) {
+        const collection = collections[key];
+        await collection.deleteMany({});
+      }
+    }
+  });
 
-module.exports = { mongoose }; 
+  // Disconnect MongoDB after all tests
+  afterAll(async () => {
+    if (mongoose.connection.readyState !== 0) {
+      try {
+        // Drop the entire test database to clean up
+        await mongoose.connection.dropDatabase();
+        console.log(`Dropped test database: ${uniqueDbName}`);
+        
+        // Then disconnect
+        await mongoose.disconnect();
+        console.log(`Disconnected from MongoDB database: ${uniqueDbName}`);
+      } catch (error) {
+        console.error(`Error cleaning up test database: ${error.message}`);
+        // Still try to disconnect even if drop fails
+        await mongoose.disconnect();
+      }
+    }
+  });
+};
+
+module.exports = { mongoose, setupDB }; 
