@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { accountApi } from '../../services/api';
+import Modal from '../common/Modal';
+import AccountForm from './AccountForm';
 
 const AccountDetail = () => {
   const { id } = useParams();
@@ -8,22 +10,23 @@ const AccountDetail = () => {
   const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const fetchAccount = async () => {
+    try {
+      setLoading(true);
+      const response = await accountApi.getAccount(id);
+      setAccount(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load account details. Please try again later.');
+      console.error('Error fetching account:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAccount = async () => {
-      try {
-        setLoading(true);
-        const response = await accountApi.getAccount(id);
-        setAccount(response.data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load account details. Please try again later.');
-        console.error('Error fetching account:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (id) {
       fetchAccount();
     }
@@ -38,6 +41,15 @@ const AccountDetail = () => {
         setError(err.message || 'Failed to delete account');
       }
     }
+  };
+
+  const handleEditAccount = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveAccount = (savedAccount) => {
+    setAccount(savedAccount);
+    setIsEditModalOpen(false);
   };
 
   if (loading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
@@ -62,9 +74,12 @@ const AccountDetail = () => {
           <Link to="/accounts" className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
             Back to List
           </Link>
-          <Link to={`/accounts/${id}/edit`} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+          <button 
+            onClick={handleEditAccount}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
             Edit
-          </Link>
+          </button>
           <button
             onClick={handleDelete}
             className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
@@ -146,6 +161,20 @@ const AccountDetail = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Account Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Account: ${account.name}`}
+        size="lg"
+      >
+        <AccountForm
+          account={account}
+          onSave={handleSaveAccount}
+          onCancel={() => setIsEditModalOpen(false)}
+        />
+      </Modal>
     </div>
   );
 };

@@ -227,6 +227,21 @@ The Household Finance App is a personal finance management system that brings th
 - Recent activity feed
 - Key metrics display
 
+### Edit/Create Operations
+- All add/edit operations (accounts, transactions, entries, rules) should use modal windows
+- No page navigation for CRUD operations to maintain context
+- Forms should be consistent across different entity types
+- Modal windows should include validation and confirmation controls
+- All deletion operations must use confirmation modal dialogs rather than browser alerts
+- Deletion confirmation modals should clearly communicate what will be deleted and any cascade effects
+
+#### Implementation Pattern
+- Entity form components should be standalone and reusable
+- Forms should accept entity data, onSave, and onCancel callback props
+- Parent components should manage modal state (open/closed) and entity data
+- Entity lists should update immediately after successful save operations
+- Consistent keyboard shortcuts (Escape to close, Enter to submit where appropriate)
+
 ### Account View
 - Account hierarchy browser
 - Balance display and history

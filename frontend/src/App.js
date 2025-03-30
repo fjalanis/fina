@@ -5,7 +5,6 @@ import './App.css';
 // Account Components
 import AccountList from './components/accounts/AccountList';
 import AccountDetail from './components/accounts/AccountDetail';
-import AccountForm from './components/accounts/AccountForm';
 
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
@@ -42,8 +41,6 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/accounts" element={<AccountList />} />
-              <Route path="/accounts/new" element={<AccountForm />} />
-              <Route path="/accounts/:id/edit" element={<AccountForm />} />
               <Route path="/accounts/:id" element={<AccountDetail />} />
               <Route path="/reports" element={<ReportDashboard />} />
             </Routes>

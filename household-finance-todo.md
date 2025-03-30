@@ -151,8 +151,20 @@
 2. Add bulk operations for transactions and accounts
 3. Create guided workflows for new users
 4. Implement context-sensitive help
-5. **Test**: Measure task completion time with enhancements
-6. **Test**: Gather feedback on UX improvements
+5. Implement modal windows for all add/edit operations:
+   - Create reusable Modal component
+   - Convert account forms to use modals
+   - Update transaction forms to use modals
+   - Convert entry line forms to use modals
+   - Implement rule editing in modals
+   - Ensure consistent keyboard navigation in all modals
+6. Implement modal confirmation dialogs for all deletion operations:
+   - Replace all window.confirm() calls with modal dialogs
+   - Include specific messaging about what will be deleted
+   - Show any dependent items that might be affected
+   - Provide options to cancel or confirm the deletion
+7. **Test**: Measure task completion time with enhancements
+8. **Test**: Gather feedback on UX improvements
 
 ### Step 19: Documentation and Deployment
 1. Create comprehensive user documentation

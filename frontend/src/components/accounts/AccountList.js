@@ -1,29 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { accountApi } from '../../services/api';
 import { Link } from 'react-router-dom';
+import Modal from '../common/Modal';
+import AccountForm from './AccountForm';
 
 const AccountList = () => {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editAccount, setEditAccount] = useState(null);
 
   useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        setLoading(true);
-        const response = await accountApi.getAccounts();
-        setAccounts(response.data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load accounts. Please try again later.');
-        console.error('Error fetching accounts:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAccounts();
   }, []);
+
+  const fetchAccounts = async () => {
+    try {
+      setLoading(true);
+      const response = await accountApi.getAccounts();
+      setAccounts(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load accounts. Please try again later.');
+      console.error('Error fetching accounts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeleteAccount = async (id) => {
     if (window.confirm('Are you sure you want to delete this account?')) {
@@ -33,6 +37,29 @@ const AccountList = () => {
       } catch (err) {
         setError(err.message || 'Failed to delete account');
       }
+    }
+  };
+
+  const handleCreateAccount = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleEditAccount = (account) => {
+    setEditAccount(account);
+  };
+
+  const handleSaveAccount = (savedAccount) => {
+    // If we're editing an existing account
+    if (editAccount) {
+      setAccounts(accounts.map(account => 
+        account._id === savedAccount._id ? savedAccount : account
+      ));
+      setEditAccount(null);
+    } 
+    // If we're creating a new account
+    else {
+      setAccounts([...accounts, savedAccount]);
+      setIsCreateModalOpen(false);
     }
   };
 
@@ -52,9 +79,12 @@ const AccountList = () => {
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Accounts</h2>
-        <Link to="/accounts/new" className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+        <button 
+          onClick={handleCreateAccount}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+        >
           Add Account
-        </Link>
+        </button>
       </div>
 
       {accounts.length === 0 ? (
@@ -95,9 +125,12 @@ const AccountList = () => {
                     </span>
                   </td>
                   <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link to={`/accounts/${account._id}/edit`} className="text-indigo-600 hover:text-indigo-900 mr-4">
+                    <button
+                      onClick={() => handleEditAccount(account)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    >
                       Edit
-                    </Link>
+                    </button>
                     <button
                       onClick={() => handleDeleteAccount(account._id)}
                       className="text-red-600 hover:text-red-900"
@@ -111,6 +144,33 @@ const AccountList = () => {
           </table>
         </div>
       )}
+
+      {/* Create Account Modal */}
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Create New Account"
+        size="lg"
+      >
+        <AccountForm
+          onSave={handleSaveAccount}
+          onCancel={() => setIsCreateModalOpen(false)}
+        />
+      </Modal>
+
+      {/* Edit Account Modal */}
+      <Modal
+        isOpen={Boolean(editAccount)}
+        onClose={() => setEditAccount(null)}
+        title={`Edit Account: ${editAccount?.name || ''}`}
+        size="lg"
+      >
+        <AccountForm
+          account={editAccount}
+          onSave={handleSaveAccount}
+          onCancel={() => setEditAccount(null)}
+        />
+      </Modal>
     </div>
   );
 };

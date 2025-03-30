@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
 import { accountApi } from '../../services/api';
 
-const AccountForm = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const isEditing = Boolean(id);
+const AccountForm = ({ account = null, onSave, onCancel }) => {
+  const isEditing = Boolean(account);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -20,7 +17,7 @@ const AccountForm = () => {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   
-  // Fetch account if editing and get all accounts for parent selection
+  // Fetch account data if editing and get all accounts for parent selection
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -30,11 +27,8 @@ const AccountForm = () => {
         const accountsResponse = await accountApi.getAccounts();
         setAccounts(accountsResponse.data);
         
-        // If editing, get current account data
-        if (isEditing) {
-          const accountResponse = await accountApi.getAccount(id);
-          const account = accountResponse.data;
-          
+        // If editing, use provided account data
+        if (isEditing && account) {
           setFormData({
             name: account.name,
             type: account.type,
@@ -54,7 +48,7 @@ const AccountForm = () => {
     };
 
     fetchData();
-  }, [id, isEditing]);
+  }, [account, isEditing]);
   
   // Handle form input changes
   const handleChange = (e) => {
@@ -80,14 +74,18 @@ const AccountForm = () => {
         parent: formData.parent || null
       };
       
+      let savedAccount;
+      
       if (isEditing) {
-        await accountApi.updateAccount(id, accountData);
+        const response = await accountApi.updateAccount(account._id, accountData);
+        savedAccount = response.data;
       } else {
-        await accountApi.createAccount(accountData);
+        const response = await accountApi.createAccount(accountData);
+        savedAccount = response.data;
       }
       
-      // Navigate back to accounts list on success
-      navigate('/accounts');
+      // Call the onSave callback with the saved account
+      onSave(savedAccount);
     } catch (err) {
       setError(err.message || 'Failed to save account. Please check your inputs and try again.');
       console.error('Error saving account:', err);
@@ -99,16 +97,7 @@ const AccountForm = () => {
   if (loading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
   
   return (
-    <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">
-          {isEditing ? `Edit Account: ${formData.name}` : 'Create New Account'}
-        </h2>
-        <Link to="/accounts" className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
-          Cancel
-        </Link>
-      </div>
-      
+    <div>
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded mb-6">
           {error}
@@ -166,10 +155,10 @@ const AccountForm = () => {
               >
                 <option value="">None</option>
                 {accounts
-                  .filter(account => account._id !== id) // Filter out current account to prevent circular reference
-                  .map(account => (
-                    <option key={account._id} value={account._id}>
-                      {account.name} ({account.type})
+                  .filter(account => isEditing ? account._id !== account._id : true) // Filter out current account to prevent circular reference
+                  .map(acct => (
+                    <option key={acct._id} value={acct._id}>
+                      {acct.name} ({acct.type})
                     </option>
                   ))}
               </select>
@@ -205,7 +194,14 @@ const AccountForm = () => {
           </div>
         </div>
         
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={submitting}
