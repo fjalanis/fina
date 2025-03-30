@@ -104,11 +104,40 @@ export const entryLineApi = {
   }),
 };
 
+// Report API functions
+export const reportApi = {
+  // Get account balance report
+  getAccountBalanceReport: (startDate, endDate, accountId = null) => {
+    let endpoint = `/reports/account-balance?startDate=${startDate}&endDate=${endDate}`;
+    if (accountId) {
+      endpoint += `&accountId=${accountId}`;
+    }
+    return fetchData(endpoint);
+  },
+  
+  // Get monthly income/expense summary
+  getMonthlyIncomeExpenseSummary: (year, month) => {
+    let endpoint = `/reports/monthly-summary`;
+    
+    // Add parameters if they're provided
+    const params = [];
+    if (year) params.push(`year=${year}`);
+    if (month) params.push(`month=${month}`);
+    
+    if (params.length > 0) {
+      endpoint += `?${params.join('&')}`;
+    }
+    
+    return fetchData(endpoint);
+  }
+};
+
 // Create API object with all services
 const api = { 
   accountApi,
   transactionApi,
-  entryLineApi
+  entryLineApi,
+  reportApi
 };
 
 export default api; 

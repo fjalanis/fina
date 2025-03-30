@@ -7,6 +7,9 @@ import AccountList from './components/accounts/AccountList';
 import AccountDetail from './components/accounts/AccountDetail';
 import AccountForm from './components/accounts/AccountForm';
 
+// Report Components
+import ReportDashboard from './components/reports/ReportDashboard';
+
 function App() {
   return (
     <Router>
@@ -24,6 +27,9 @@ function App() {
                   <Link to="/accounts" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Accounts
                   </Link>
+                  <Link to="/reports" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Reports
+                  </Link>
                   {/* Add more nav links here as we build more features */}
                 </div>
               </div>
@@ -39,6 +45,7 @@ function App() {
               <Route path="/accounts/new" element={<AccountForm />} />
               <Route path="/accounts/:id/edit" element={<AccountForm />} />
               <Route path="/accounts/:id" element={<AccountDetail />} />
+              <Route path="/reports" element={<ReportDashboard />} />
             </Routes>
           </div>
         </main>
@@ -61,6 +68,13 @@ const Home = () => {
           <p className="text-gray-600 mb-4">Create and manage your financial accounts.</p>
           <Link to="/accounts" className="inline-block px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
             View Accounts
+          </Link>
+        </div>
+        <div className="bg-green-50 p-6 rounded-lg border border-green-100">
+          <h2 className="text-lg font-semibold text-green-800 mb-3">Reports</h2>
+          <p className="text-gray-600 mb-4">Generate financial reports and summaries.</p>
+          <Link to="/reports" className="inline-block px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition">
+            View Reports
           </Link>
         </div>
         {/* Add more feature cards as we build them */}
