@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 
 // Account Components
@@ -9,23 +9,14 @@ import AccountDetail from './components/accounts/AccountDetail';
 // Transaction Components
 import TransactionList from './components/transactions/TransactionList';
 import TransactionDetail from './components/transactions/TransactionDetail';
-import TransactionBalancer from './components/transactions/TransactionBalancer';
 
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
 
-// Wrapper component to apply different container styles based on the route
+// Wrapper component to apply container styles
 const MainContent = ({ children }) => {
-  const location = useLocation();
-  const isBalancerRoute = location.pathname === '/balance-transactions';
-  
-  // For the balancer page, use full height and width without extra padding
-  const containerClassName = isBalancerRoute 
-    ? "max-w-7xl mx-auto h-full" 
-    : "max-w-7xl mx-auto sm:px-6 lg:px-8";
-  
   return (
-    <div className={containerClassName}>
+    <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
       {children}
     </div>
   );
@@ -51,9 +42,6 @@ function App() {
                   <Link to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Transactions
                   </Link>
-                  <Link to="/balance-transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    Balance Transactions
-                  </Link>
                   <Link to="/reports" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Reports
                   </Link>
@@ -71,7 +59,6 @@ function App() {
               <Route path="/accounts/:id" element={<AccountDetail />} />
               <Route path="/transactions" element={<TransactionList />} />
               <Route path="/transactions/:id" element={<TransactionDetail />} />
-              <Route path="/balance-transactions" element={<TransactionBalancer />} />
               <Route path="/reports" element={<ReportDashboard />} />
             </Routes>
           </MainContent>
