@@ -7,8 +7,9 @@ const {
   updateTransaction, 
   deleteTransaction,
   getSuggestedMatches,
-  balanceTransactions,
-  extractEntry
+  extractEntry,
+  searchEntries,
+  mergeTransaction
 } = require('../controllers/transactionController');
 
 const { 
@@ -22,17 +23,11 @@ router
   .get(getTransactions)
   .post(createTransaction);
 
+// Special routes that might conflict with dynamic parameters should come first
+// Add route for manual entry search
 router
-  .route('/:id')
-  .get(getTransaction)
-  .put(updateTransaction)
-  .delete(deleteTransaction);
-
-// Entry line routes for a specific transaction
-router
-  .route('/:transactionId/entries')
-  .get(getEntryLines)
-  .post(createEntryLine);
+  .route('/search-entries')
+  .get(searchEntries);
 
 // Transaction balancing routes
 router
@@ -44,11 +39,25 @@ router
   .get(getSuggestedMatches);
 
 router
-  .route('/balance')
-  .post(balanceTransactions);
-
-router
   .route('/extract-entry')
   .post(extractEntry);
+
+// Add route for merging transactions
+router
+  .route('/merge-transaction')
+  .post(mergeTransaction);
+
+// Routes with dynamic parameters should come last
+router
+  .route('/:id')
+  .get(getTransaction)
+  .put(updateTransaction)
+  .delete(deleteTransaction);
+
+// Entry line routes for a specific transaction
+router
+  .route('/:transactionId/entries')
+  .get(getEntryLines)
+  .post(createEntryLine);
 
 module.exports = router; 

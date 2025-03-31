@@ -153,11 +153,12 @@ The Household Finance App is a personal finance management system that brings th
 - Visual feedback when dragging potential matches
 - Clear indication of the selected entry while viewing suggested matches
 - Matching algorithm should prioritize entries with:
-  - Opposite entry type (debit/credit)
-  - Exact matching amount
+  - The SAME entry type as the needed fix (if transaction needs a credit, find credit entries)
+  - Exact matching amount (must match the imbalance amount) 
   - Recent transaction date (within +/- 15 days)
   - Unbalanced transaction status
 - Date range matching: Potential matches must be within 15 days (default) of the selected entry's transaction date to reduce noise and focus on related transactions
+- Auto-matching entries will be displayed when an unbalanced transaction is opened, showing entries that would help balance the transaction
 
 #### 2.3 Transaction and Entry Line Behavior
 - When all entries from a transaction are removed, the transaction itself should be automatically deleted
@@ -165,6 +166,11 @@ The Household Finance App is a personal finance management system that brings th
 - When a transaction is deleted, all its associated entries should be deleted
 - The UI should allow for the deletion of the last entry in a transaction with proper confirmation
 - The transaction list should update immediately to reflect balance changes without a full page refresh
+- Moving entries between transactions:
+  - An entry can be moved from one transaction to another using the "Move" action
+  - The source transaction will be deleted if it becomes empty after the move
+  - Both source and destination transactions will have their balance status recalculated
+  - No transaction merging is performed - only the specific entry is moved
 
 #### 2.4 Recurring Transactions
 - System-suggested recurring transaction identification
@@ -289,6 +295,15 @@ The Household Finance App is a personal finance management system that brings th
   - Right pane: selected entry with drop zone and scrollable matching suggestions
   - Fixed position for the selected entry to maintain context while scrolling
 - Transaction filtering: Only transactions explicitly marked with `isBalanced === false` should appear in the unbalanced transactions list
+- Transaction Balance Modal:
+  - Balance Analysis section showing total debits, credits, and net balance
+  - Suggested fix displayed as a message (e.g., "Add a credit entry of $300.00 to balance this transaction")
+  - Transaction Entry Lines section with ability to add/edit/delete entries
+  - Matching Entries Found section showing entries of the same type and amount from other transactions
+  - Each matching entry displays transaction description, date, account, amount, and type
+  - "Move" button next to each matching entry to move it to the current transaction
+  - Success/error messages displayed within the modal after actions
+  - Option to add a new balancing entry manually if no suitable matches are found
 
 ### Visualization Hub
 - Sankey diagram as primary visualization
@@ -338,6 +353,9 @@ The Household Finance App is a personal finance management system that brings th
 - `POST /api/transactions` - Create transaction
 - `PUT /api/transactions/:id` - Update transaction
 - `DELETE /api/transactions/:id` - Delete transaction (should cascade delete all associated entries)
+- `GET /api/transactions/matches/:id` - Get suggested matching entries for an entry line
+- `GET /api/transactions/matches/direct` - Get matching entries by amount and type
+- `POST /api/transactions/extract-entry` - Move an entry from one transaction to another
 - `GET /api/entries` - List entry lines
 - `POST /api/entries` - Create entry line
 - `PUT /api/entries/:id` - Update entry line

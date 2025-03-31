@@ -7,6 +7,8 @@ import EntryLineTable from './EntryLineTable';
 import EntryLineEditForm from './EntryLineEditForm';
 import EntryLineAddForm from './EntryLineAddForm';
 import SuggestedMatchesTable from './SuggestedMatchesTable';
+import ComplementaryTransactionsTable from './ComplementaryTransactionsTable';
+import ManualEntrySearch from './ManualEntrySearch';
 import { analyzeTransactionBalance } from './TransactionBalanceLogic';
 
 const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBalanced }) => {
@@ -14,7 +16,13 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
   const [matchLoading, setMatchLoading] = useState(false);
   const [balanceData, setBalanceData] = useState(null);
   const [suggestedMatches, setSuggestedMatches] = useState([]);
-  const [autoMatches, setAutoMatches] = useState([]);
+  const [complementaryTransactions, setComplementaryTransactions] = useState([]);
+  const [transactionPagination, setTransactionPagination] = useState({
+    page: 1,
+    limit: 5,
+    total: 0,
+    pages: 0
+  });
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -32,6 +40,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     type: 'debit',
     description: ''
   });
+  const [showManualSearch, setShowManualSearch] = useState(false);
 
   // Load transaction balance data when opened
   useEffect(() => {
@@ -46,11 +55,12 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     if (!isOpen) {
       setSelectedEntry(null);
       setSuggestedMatches([]);
-      setAutoMatches([]);
+      setComplementaryTransactions([]);
       setError(null);
       setSuccessMessage(null);
       setEditingEntry(null);
       setShowAddEntryForm(false);
+      setShowManualSearch(false);
     }
   }, [isOpen]);
 
@@ -92,10 +102,10 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
           description: `Balancing entry for ${freshTransaction.description}`
         });
         
-        // Automatically fetch candidate matching entries
-        await fetchAutoMatchingEntries(analysis.suggestedFix.amount, analysis.suggestedFix.type);
+        // Automatically fetch complementary transactions
+        await fetchComplementaryTransactions(analysis.suggestedFix.amount, analysis.suggestedFix.type);
       } else {
-        setAutoMatches([]);
+        setComplementaryTransactions([]);
       }
       
       setError(null);
@@ -107,8 +117,8 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     }
   };
   
-  // Fetch automatically matching entries based on balance amount and type
-  const fetchAutoMatchingEntries = async (amount, type) => {
+  // Fetch complementary transactions based on balance amount and type
+  const fetchComplementaryTransactions = async (amount, type, page = 1) => {
     try {
       setMatchLoading(true);
       
@@ -119,35 +129,38 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       // Only proceed if we have valid values
       if (isNaN(numericAmount) || !fixType) {
         console.error('Invalid amount or type for matching:', { amount, type });
-        setAutoMatches([]);
+        setComplementaryTransactions([]);
         setMatchLoading(false);
         return;
       }
       
-      console.log(`We need to add a ${fixType} of ${numericAmount} to balance`);
+      // Get the opposite type to find truly complementary transactions
+      const complementaryType = fixType === 'credit' ? 'debit' : 'credit';
       
-      // We need entries of the SAME type as the fix we need
-      // If our analysis says "add a credit of $300", we need to find credits of $300
+      console.log(`Looking for transactions with ${complementaryType} imbalance of ${numericAmount}`);
       
-      // Use the direct matching API with properly formatted values
+      // Use the updated matching API with complementary type
       const response = await transactionApi.getSuggestedMatches(
         null, // No entry ID
         10, // maxMatches
         15, // dateRange
         numericAmount, 
-        fixType, // Same type as what we need to add
-        balanceData?.transaction?._id // Exclude current transaction
+        complementaryType, // Use the complementary type
+        balanceData?.transaction?._id, // Exclude current transaction
+        page, // Page number for pagination
+        transactionPagination.limit // Items per page
       );
       
-      if (response.data && response.data.matches) {
-        console.log(`Found ${response.data.matches.length} matching entries of type ${fixType}`);
-        setAutoMatches(response.data.matches);
+      if (response.success && response.data) {
+        console.log(`Found ${response.data.transactions.length} complementary transactions`);
+        setComplementaryTransactions(response.data.transactions);
+        setTransactionPagination(response.data.pagination);
       } else {
-        setAutoMatches([]);
+        setComplementaryTransactions([]);
       }
     } catch (err) {
-      console.error('Error finding automatic matches:', err);
-      setAutoMatches([]);
+      console.error('Error finding complementary transactions:', err);
+      setComplementaryTransactions([]);
     } finally {
       setMatchLoading(false);
     }
@@ -185,6 +198,96 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     }
   };
 
+  // Handle transaction page change for pagination
+  const handleTransactionPageChange = async (page) => {
+    if (!balanceData || !balanceData.suggestedFix) return;
+    
+    await fetchComplementaryTransactions(
+      balanceData.suggestedFix.amount,
+      balanceData.suggestedFix.type,
+      page
+    );
+  };
+
+  // Handle moving a complementary transaction
+  const handleMoveTransaction = async (sourceTransaction) => {
+    if (!sourceTransaction || !balanceData?.transaction?._id) return;
+    
+    try {
+      setLoading(true);
+      
+      console.log(`Merging transaction ${sourceTransaction._id} to transaction ${balanceData.transaction._id}`);
+      
+      // Call the mergeTransaction API
+      await transactionApi.mergeTransaction(
+        sourceTransaction._id,
+        balanceData.transaction._id
+      );
+      
+      setSuccessMessage('Transaction merged successfully!');
+      
+      // Reset selection state
+      setSelectedEntry(null);
+      setSuggestedMatches([]);
+      setComplementaryTransactions([]);
+      
+      // Update transaction data in modal
+      await fetchTransactionData();
+      
+      // Notify parent to update its transaction list
+      if (onTransactionBalanced) {
+        onTransactionBalanced();
+      }
+      
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 1500);
+      
+    } catch (err) {
+      setError(`Failed to merge transaction: ${err.message || 'Please try again.'}`);
+      console.error('Error merging transaction:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle moving an entry from manual search
+  const handleMoveEntry = async (entry) => {
+    if (!entry || !balanceData?.transaction?._id) return;
+    
+    try {
+      setLoading(true);
+      
+      console.log(`Moving entry ${entry._id} to transaction ${balanceData.transaction._id}`);
+      
+      // Call the extractEntry API to move this single entry
+      await transactionApi.extractEntry(
+        entry._id,
+        balanceData.transaction._id
+      );
+      
+      setSuccessMessage('Entry moved successfully!');
+      
+      // Update transaction data in modal
+      await fetchTransactionData();
+      
+      // Notify parent to update its transaction list
+      if (onTransactionBalanced) {
+        onTransactionBalanced();
+      }
+      
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 1500);
+      
+    } catch (err) {
+      setError(`Failed to move entry: ${err.message || 'Please try again.'}`);
+      console.error('Error moving entry:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle balancing with automatically suggested match
   const handleAutoBalanceWithMatch = async (matchedEntry) => {
     if (!matchedEntry || !balanceData?.transaction?._id) return;
@@ -205,7 +308,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       // Reset selection state
       setSelectedEntry(null);
       setSuggestedMatches([]);
-      setAutoMatches([]);
+      setComplementaryTransactions([]);
       
       // Update transaction data in modal
       await fetchTransactionData();
@@ -240,62 +343,51 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     });
   };
 
-  // Handle updating an entry
+  // Update edited entry
   const handleUpdateEntry = async () => {
     if (!editingEntry) return;
     
     try {
       setLoading(true);
       
-      // Validate amount
-      const amount = parseFloat(editForm.amount);
-      if (isNaN(amount) || amount <= 0) {
-        setError('Please enter a valid positive amount.');
-        setLoading(false);
-        return;
-      }
-      
-      // Update entry
       await entryLineApi.updateEntryLine(editingEntry._id, {
-        amount,
+        amount: parseFloat(editForm.amount),
         type: editForm.type,
         description: editForm.description
       });
       
       setSuccessMessage('Entry updated successfully!');
+      setEditingEntry(null);
       
-      // Update transaction data locally
+      // Update transaction data in modal
       await fetchTransactionData();
       
-      // Also update the transaction list to reflect balance changes
+      // Notify parent to update its transaction list
       if (onTransactionBalanced) {
         onTransactionBalanced();
       }
-      
-      // Reset editing state
-      setEditingEntry(null);
       
       setTimeout(() => {
         setSuccessMessage(null);
       }, 1500);
       
     } catch (err) {
-      setError('Failed to update entry. Please try again.');
+      setError('Failed to update entry: ' + (err.message || 'Please try again.'));
       console.error('Error updating entry:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle adding a new entry form display
+  // Handle adding new entry
   const handleAddEntry = () => {
     setShowAddEntryForm(true);
     setSelectedEntry(null);
     setSuggestedMatches([]);
     setEditingEntry(null);
   };
-  
-  // Handle new entry form changes
+
+  // Handle input change for new entry form
   const handleNewEntryChange = (e) => {
     const { name, value } = e.target;
     setNewEntryForm({
@@ -303,62 +395,42 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       [name]: value
     });
   };
-  
-  // Handle saving new entry
-  const handleSaveNewEntry = async (e) => {
-    e.preventDefault();
+
+  // Save new entry
+  const handleSaveNewEntry = async () => {
+    if (!newEntryForm.account || !newEntryForm.amount) {
+      setError('Account and amount are required.');
+      return;
+    }
     
     try {
       setLoading(true);
       
-      // Validate form
-      if (!newEntryForm.account) {
-        setError('Please select an account.');
-        setLoading(false);
-        return;
-      }
-      
-      const amount = parseFloat(newEntryForm.amount);
-      if (isNaN(amount) || amount <= 0) {
-        setError('Please enter a valid positive amount.');
-        setLoading(false);
-        return;
-      }
-      
-      // Create new entry
-      await transactionApi.addEntryLine(transaction._id, {
+      await transactionApi.addEntryLine(balanceData.transaction._id, {
         account: newEntryForm.account,
-        amount: amount,
+        amount: parseFloat(newEntryForm.amount),
         type: newEntryForm.type,
         description: newEntryForm.description
       });
       
-      setSuccessMessage('New entry added successfully!');
+      setSuccessMessage('Entry added successfully!');
+      setShowAddEntryForm(false);
       
-      // Reset form immediately
-      setNewEntryForm({
-        account: '',
-        amount: '',
-        type: 'debit',
-        description: ''
-      });
-      
-      // Update transaction data locally
+      // Update transaction data in modal
       await fetchTransactionData();
       
-      // Also update the transaction list to reflect balance changes
+      // Notify parent to update its transaction list
       if (onTransactionBalanced) {
         onTransactionBalanced();
       }
       
       setTimeout(() => {
         setSuccessMessage(null);
-        setShowAddEntryForm(false);
       }, 1500);
       
     } catch (err) {
-      setError('Failed to add new entry. Please try again.');
-      console.error('Error adding new entry:', err);
+      setError('Failed to add entry: ' + (err.message || 'Please try again.'));
+      console.error('Error adding entry:', err);
     } finally {
       setLoading(false);
     }
@@ -418,55 +490,47 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       }
       
     } catch (err) {
+      setError('Failed to delete entry: ' + (err.message || 'Please try again.'));
       console.error('Error deleting entry:', err);
-      
-      // More specific error message
-      if (err.message === 'Server Error') {
-        setError('The server refused to delete this entry. It may be needed to maintain transaction integrity.');
-      } else {
-        setError(`Failed to delete entry: ${err.message || 'Unknown error'}`);
-      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle deleting the entire transaction
+  // Handle deleting the transaction
   const handleDeleteTransaction = async () => {
-    if (!transaction) return;
-
-    if (!window.confirm(`Are you sure you want to delete the entire transaction "${transaction.description}"? This cannot be undone.`)) {
+    if (!balanceData || !balanceData.transaction || !balanceData.transaction._id) {
       return;
     }
-
+    
+    if (!window.confirm(`Are you sure you want to delete this transaction? This will delete all ${balanceData.transaction.entryLines.length} entry lines.`)) {
+      return;
+    }
+    
     try {
       setLoading(true);
       
-      // Delete the transaction
-      await transactionApi.deleteTransaction(transaction._id);
+      await transactionApi.deleteTransaction(balanceData.transaction._id);
       
       setSuccessMessage('Transaction deleted successfully!');
+      
       setTimeout(() => {
+        setSuccessMessage(null);
         // Close the modal
         onClose();
         
-        // Notify parent component to refresh the list
+        // Notify parent component when transaction is gone
         if (onTransactionBalanced) {
           onTransactionBalanced();
         }
       }, 1500);
       
     } catch (err) {
+      setError('Failed to delete transaction: ' + (err.message || 'Please try again.'));
       console.error('Error deleting transaction:', err);
-      setError(`Failed to delete transaction: ${err.message || 'Unknown error'}`);
-    } finally {
       setLoading(false);
     }
   };
-
-  if (!transaction) {
-    return null;
-  }
 
   return (
     <Modal
@@ -546,26 +610,37 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                 )}
               </div>
               
-                            
-              {/* Auto-Suggested Matches Section */}
-              {!balanceData.isBalanced && autoMatches.length > 0 && (
+              {/* Complementary Transactions Section */}
+              {!balanceData.isBalanced && complementaryTransactions.length > 0 && (
                 <div className="mt-3">
                   <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-                    <h3 className="font-medium mb-2 text-blue-800">Matching Entries Found</h3>
+                    <h3 className="font-medium mb-2 text-blue-800">Complementary Transactions</h3>
                     <p className="text-sm text-blue-600 mb-4">
-                      We found {autoMatches.length} {balanceData.suggestedFix.type} {autoMatches.length === 1 ? 'entry' : 'entries'} from other transactions.
-                      Click "Move" to add one to this transaction and help balance it.
+                      We found {transactionPagination.total} unbalanced {balanceData.suggestedFix.type} {transactionPagination.total === 1 ? 'transaction' : 'transactions'} with a matching imbalance.
+                      Click "Move All" to add all entries from a transaction to help balance this one.
                     </p>
-                    <SuggestedMatchesTable 
+                    <ComplementaryTransactionsTable 
                       isLoading={matchLoading}
-                      suggestedMatches={autoMatches}
-                      onBalanceWithMatch={handleAutoBalanceWithMatch}
-                      actionLabel="Move"
+                      transactions={complementaryTransactions}
+                      pagination={transactionPagination}
+                      onPageChange={handleTransactionPageChange}
+                      onMoveTransaction={handleMoveTransaction}
                     />
                   </div>
                 </div>
               )}
-
+              
+              {/* Manual Entry Search */}
+              {!balanceData.isBalanced && (
+                <ManualEntrySearch
+                  isOpen={showManualSearch}
+                  setIsOpen={setShowManualSearch}
+                  targetTransaction={balanceData.transaction}
+                  suggestedFix={balanceData.suggestedFix}
+                  onEntrySelect={handleMoveEntry}
+                  accounts={accounts}
+                />
+              )}
             </div>
           )}
         </div>

@@ -96,17 +96,17 @@ export const transactionApi = {
   }),
   
   // Get suggested matches for an entry line
-  getSuggestedMatches: (entryLineId, maxMatches = 10, dateRange = 15, amount, type, excludeTransactionId) => {
+  getSuggestedMatches: (entryLineId, maxMatches = 10, dateRange = 15, amount, type, excludeTransactionId, page = 1, limit = 10) => {
     let endpoint = '';
     
     // Check if we're matching by entry ID or directly by amount/type
     if (entryLineId) {
       // Original case - match by entry ID
-      endpoint = `/transactions/matches/${entryLineId}?maxMatches=${maxMatches}&dateRange=${dateRange}`;
+      endpoint = `/transactions/matches/${entryLineId}?maxMatches=${maxMatches}&dateRange=${dateRange}&page=${page}&limit=${limit}`;
     } else if (amount !== undefined && type) {
       // New case - match directly by amount and type
       // Ensure values are properly encoded
-      endpoint = `/transactions/matches/direct?amount=${encodeURIComponent(amount)}&type=${encodeURIComponent(type)}&maxMatches=${maxMatches}&dateRange=${dateRange}`;
+      endpoint = `/transactions/matches/direct?amount=${encodeURIComponent(amount)}&type=${encodeURIComponent(type)}&maxMatches=${maxMatches}&dateRange=${dateRange}&page=${page}&limit=${limit}`;
       
       // If we need to exclude a transaction, add it to the query
       if (excludeTransactionId) {
@@ -120,22 +120,52 @@ export const transactionApi = {
     return fetchData(endpoint);
   },
   
-  // Balance transactions by combining entries
-  balanceTransactions: (sourceEntryId, targetEntryId) => 
-    fetchData('/transactions/balance', {
-      method: 'POST',
-      body: JSON.stringify({
-        sourceEntryId,
-        targetEntryId
-      }),
-    }),
-
+  // Search for entries with filters
+  searchEntries: (filters = {}, page = 1, limit = 10) => {
+    const {
+      minAmount,
+      maxAmount,
+      accountId,
+      type,
+      searchText,
+      dateRange,
+      excludeTransactionId
+    } = filters;
+    
+    let params = new URLSearchParams();
+    
+    // Add pagination params
+    params.append('page', page);
+    params.append('limit', limit);
+    
+    // Add optional filters if they exist
+    if (minAmount !== undefined) params.append('minAmount', minAmount);
+    if (maxAmount !== undefined) params.append('maxAmount', maxAmount);
+    if (accountId) params.append('accountId', accountId);
+    if (type) params.append('type', type);
+    if (searchText) params.append('searchText', searchText);
+    if (dateRange) params.append('dateRange', dateRange);
+    if (excludeTransactionId) params.append('excludeTransactionId', excludeTransactionId);
+    
+    return fetchData(`/transactions/search-entries?${params.toString()}`);
+  },
+  
   // Extract an entry
   extractEntry: (entryId, destinationTransactionId) => 
     fetchData('/transactions/extract-entry', {
       method: 'POST',
       body: JSON.stringify({
         entryId,
+        destinationTransactionId
+      }),
+    }),
+    
+  // Merge all entries from one transaction to another
+  mergeTransaction: (sourceTransactionId, destinationTransactionId) => 
+    fetchData('/transactions/merge-transaction', {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceTransactionId,
         destinationTransactionId
       }),
     }),

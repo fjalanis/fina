@@ -8,7 +8,6 @@ jest.mock('../src/services/api', () => ({
   transactionApi: {
     getTransaction: jest.fn(),
     getSuggestedMatches: jest.fn(),
-    balanceTransactions: jest.fn(),
     addEntryLine: jest.fn(),
     deleteTransaction: jest.fn()
   },
@@ -83,15 +82,6 @@ describe('TransactionBalanceModal', () => {
       }
     });
     
-    transactionApi.balanceTransactions.mockResolvedValue({
-      success: true,
-      data: {
-        transaction: {
-          ...mockTransaction,
-          isBalanced: true
-        }
-      }
-    });
   });
 
   test('displays automatically suggested complementary entries for unbalanced transactions', async () => {
@@ -153,11 +143,6 @@ describe('TransactionBalanceModal', () => {
     // Click the Balance button on the match
     const balanceButton = await screen.findByRole('button', { name: 'Balance' });
     fireEvent.click(balanceButton);
-
-    // Verify the balanceTransactions API was called
-    await waitFor(() => {
-      expect(transactionApi.balanceTransactions).toHaveBeenCalled();
-    });
 
     // Check success message appears
     await waitFor(() => {
