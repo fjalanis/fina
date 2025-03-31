@@ -29,7 +29,7 @@ The Household Finance App is a personal finance management system that brings th
 ### Backend
 - **Runtime**: Node.js
 - **Framework**: Express
-- **Database**: MongoDB
+- **Database**: MongoDB (standalone mode)
 - **ODM**: Mongoose
 
 ### Microservices
@@ -37,6 +37,14 @@ The Household Finance App is a personal finance management system that brings th
 2. **Transaction Service**
 3. **Analytics Service**
 4. **Rules Service**
+
+## Database Requirements
+
+- Must work with MongoDB in standalone mode (not requiring replica sets)
+- No MongoDB transactions should be used for data consistency
+- Sequential operations with proper validation and error handling
+- Cascade deletions for linked entities (transaction-entries relationship)
+- Proper data integrity checks at the application level
 
 ## Data Model
 
@@ -151,7 +159,14 @@ The Household Finance App is a personal finance management system that brings th
   - Unbalanced transaction status
 - Date range matching: Potential matches must be within 15 days (default) of the selected entry's transaction date to reduce noise and focus on related transactions
 
-#### 2.3 Recurring Transactions
+#### 2.3 Transaction and Entry Line Behavior
+- When all entries from a transaction are removed, the transaction itself should be automatically deleted
+- When deleting the last entry in a transaction, the user should be warned that the transaction will also be deleted
+- When a transaction is deleted, all its associated entries should be deleted
+- The UI should allow for the deletion of the last entry in a transaction with proper confirmation
+- The transaction list should update immediately to reflect balance changes without a full page refresh
+
+#### 2.4 Recurring Transactions
 - System-suggested recurring transaction identification
 - User confirmation workflow
 - Template creation for common transactions
@@ -244,6 +259,13 @@ The Household Finance App is a personal finance management system that brings th
 - All deletion operations must use confirmation modal dialogs rather than browser alerts
 - Deletion confirmation modals should clearly communicate what will be deleted and any cascade effects
 
+### Modal Interface Behavior
+- Modifying entries in modals should not trigger full page refreshes
+- The transaction list should update in real-time when transaction balance status changes
+- Filter views (All/Balanced/Unbalanced) should update immediately when transaction status changes
+- Success and error messages should be displayed within the modal
+- Loading indicators should be non-intrusive and not cause layout shifts
+
 #### Implementation Pattern
 - Entity form components should be standalone and reusable
 - Forms should accept entity data, onSave, and onCancel callback props
@@ -274,6 +296,23 @@ The Household Finance App is a personal finance management system that brings th
 - Time range controls
 - Export/share options
 
+## Error Handling
+
+- Global error handling should provide detailed information in server logs
+- User-facing errors should be clear and actionable
+- Different error types should be properly identified and handled:
+  - Validation errors (400)
+  - Resource not found errors (404)
+  - Server errors (500)
+- Error responses should have consistent structure:
+  - Success flag
+  - Error message
+  - Additional details (in non-production environments)
+- Specific error scenarios:
+  - When attempting database operations that would violate data integrity rules
+  - When attempting to delete resources with dependent entities
+  - When MongoDB operations fail
+
 ## Performance Considerations
 
 - Background processing for analytics
@@ -298,11 +337,11 @@ The Household Finance App is a personal finance management system that brings th
 - `GET /api/transactions/:id` - Get transaction details
 - `POST /api/transactions` - Create transaction
 - `PUT /api/transactions/:id` - Update transaction
-- `DELETE /api/transactions/:id` - Delete transaction
+- `DELETE /api/transactions/:id` - Delete transaction (should cascade delete all associated entries)
 - `GET /api/entries` - List entry lines
 - `POST /api/entries` - Create entry line
 - `PUT /api/entries/:id` - Update entry line
-- `DELETE /api/entries/:id` - Delete entry line
+- `DELETE /api/entries/:id` - Delete entry line (should delete transaction if it's the last entry)
 
 #### Analytics Service
 - `GET /api/analytics/cashflow` - Get Sankey diagram data
@@ -318,10 +357,12 @@ The Household Finance App is a personal finance management system that brings th
 - `POST /api/rules/:id/test` - Test rule against transactions
 
 ### Backend Implementation Considerations
-- Simplified transaction flow: API endpoints should use simple, direct operations rather than complex MongoDB transactions to prevent timeouts and simplify error handling
-- Database operations should be designed for reliability over theoretical atomicity
+- Simplified transaction flow: API endpoints should use simple, direct operations rather than complex MongoDB transactions
+- Must work with MongoDB in standalone mode (not requiring replica sets)
+- Database operations should be designed for reliability and maintainability
 - Error handling should provide clear, actionable error messages for client-side recovery
 - Balance calculations and state updates should be explicit operations with proper validation
+- Data integrity should be maintained through application-level checks and sequential operations
 
 ## Implementation Phases
 

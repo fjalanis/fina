@@ -2,33 +2,16 @@ const EntryLine = require('../models/EntryLine');
 const Transaction = require('../models/Transaction');
 const mongoose = require('mongoose');
 
-// Helper to determine if we should use transactions
-const useTransactions = () => {
-  // In test environment, we might be using a standalone MongoDB which doesn't support transactions
-  return process.env.NODE_ENV !== 'test';
-};
-
 // @desc    Create a new entry line for a transaction
 // @route   POST /api/transactions/:transactionId/entries
 // @access  Public
 exports.createEntryLine = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
   try {
     const { account, description, amount, type } = req.body;
 
     // Verify transaction exists
     const transaction = await Transaction.findById(req.params.transactionId);
     if (!transaction) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(404).json({
         success: false,
         error: 'Transaction not found'
@@ -44,37 +27,18 @@ exports.createEntryLine = async (req, res) => {
       type
     });
 
-    if (session) {
-      await entryLine.save({ session });
-    } else {
-      await entryLine.save();
-    }
+    await entryLine.save();
 
     // Reload transaction with entry lines to update balance
     await transaction.populate('entryLines');
     transaction.isBalanced = await transaction.isTransactionBalanced();
-    
-    if (session) {
-      await transaction.save({ session });
-    } else {
-      await transaction.save();
-    }
-
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
-    }
+    await transaction.save();
 
     return res.status(201).json({
       success: true,
       data: entryLine
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
-
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return res.status(400).json({
@@ -143,13 +107,6 @@ exports.getEntryLine = async (req, res) => {
 // @route   PUT /api/entries/:id
 // @access  Public
 exports.updateEntryLine = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
   try {
     const { account, description, amount, type } = req.body;
 
@@ -157,10 +114,6 @@ exports.updateEntryLine = async (req, res) => {
     const entryLine = await EntryLine.findById(req.params.id);
 
     if (!entryLine) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(404).json({
         success: false,
         error: 'Entry line not found'
@@ -173,28 +126,14 @@ exports.updateEntryLine = async (req, res) => {
     entryLine.amount = amount || entryLine.amount;
     entryLine.type = type || entryLine.type;
 
-    if (session) {
-      await entryLine.save({ session });
-    } else {
-      await entryLine.save();
-    }
+    await entryLine.save();
 
     // Update transaction balance
     const transaction = await Transaction.findById(entryLine.transaction);
     if (transaction) {
       await transaction.populate('entryLines');
       transaction.isBalanced = await transaction.isTransactionBalanced();
-      
-      if (session) {
-        await transaction.save({ session });
-      } else {
-        await transaction.save();
-      }
-    }
-
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
+      await transaction.save();
     }
 
     return res.status(200).json({
@@ -202,11 +141,6 @@ exports.updateEntryLine = async (req, res) => {
       data: entryLine
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
-
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return res.status(400).json({
@@ -226,21 +160,10 @@ exports.updateEntryLine = async (req, res) => {
 // @route   DELETE /api/entries/:id
 // @access  Public
 exports.deleteEntryLine = async (req, res) => {
-  let session;
-  
-  if (useTransactions()) {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  }
-
   try {
     const entryLine = await EntryLine.findById(req.params.id);
 
     if (!entryLine) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
       return res.status(404).json({
         success: false,
         error: 'Entry line not found'
@@ -250,29 +173,30 @@ exports.deleteEntryLine = async (req, res) => {
     // Save transaction ID before removing entry line
     const transactionId = entryLine.transaction;
 
+    // Check if this is the only entry in the transaction
+    const entryCount = await EntryLine.countDocuments({ transaction: transactionId });
+    
     // Remove entry line
-    if (session) {
-      await EntryLine.deleteOne({ _id: entryLine._id }, { session });
-    } else {
-      await EntryLine.deleteOne({ _id: entryLine._id });
+    await EntryLine.deleteOne({ _id: entryLine._id });
+
+    // If this was the last entry, delete the transaction too
+    if (entryCount <= 1) {
+      console.log(`Automatically deleting transaction ${transactionId} as its last entry was removed`);
+      await Transaction.findByIdAndDelete(transactionId);
+      
+      return res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Entry and its parent transaction were deleted since this was the last entry'
+      });
     }
 
-    // Update transaction balance
+    // Otherwise, update transaction balance
     const transaction = await Transaction.findById(transactionId);
     if (transaction) {
       await transaction.populate('entryLines');
       transaction.isBalanced = await transaction.isTransactionBalanced();
-      
-      if (session) {
-        await transaction.save({ session });
-      } else {
-        await transaction.save();
-      }
-    }
-
-    if (session) {
-      await session.commitTransaction();
-      session.endSession();
+      await transaction.save();
     }
 
     return res.status(200).json({
@@ -280,14 +204,27 @@ exports.deleteEntryLine = async (req, res) => {
       data: {}
     });
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
+    // Log the detailed error
+    console.error(`Error deleting entry line ${req.params.id}:`, error);
+    
+    // Return more specific error message if possible
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid entry ID format'
+      });
+    } else if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: Object.values(error.errors).map(err => err.message)
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: 'Server Error',
+        message: error.message || 'Unknown error occurred when deleting entry'
+      });
     }
-
-    return res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
   }
 }; 

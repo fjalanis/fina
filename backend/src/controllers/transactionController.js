@@ -162,29 +162,33 @@ exports.updateTransaction = async (req, res) => {
 // @access  Public
 exports.deleteTransaction = async (req, res) => {
   try {
+    // Find the transaction
     const transaction = await Transaction.findById(req.params.id);
-
+    
     if (!transaction) {
       return res.status(404).json({
         success: false,
         error: 'Transaction not found'
       });
     }
-
-    // Delete all associated entry lines
-    await EntryLine.deleteMany({ transaction: transaction._id });
-      
-    // Delete the transaction
-    await Transaction.deleteOne({ _id: transaction._id });
-
+    
+    // Delete all associated entry lines first
+    const result = await EntryLine.deleteMany({ transaction: req.params.id });
+    console.log(`Deleted ${result.deletedCount} entry lines for transaction ${req.params.id}`);
+    
+    // Then delete the transaction
+    await Transaction.findByIdAndDelete(req.params.id);
+    
     return res.status(200).json({
       success: true,
       data: {}
     });
   } catch (error) {
+    console.error(`Error deleting transaction ${req.params.id}:`, error);
     return res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: 'Server Error',
+      message: error.message || 'Unknown error occurred'
     });
   }
 };

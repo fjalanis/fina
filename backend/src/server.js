@@ -42,8 +42,22 @@ app.use('/api/reports', reportRoutes);
 
 // Basic error handling middleware
 app.use((err, req, res, next) => {
-  logger.error(`Error: ${err.message}`);
-  res.status(500).json({ error: 'Internal Server Error' });
+  // Log detailed error information
+  logger.error('Server Error:');
+  logger.error(`Request: ${req.method} ${req.url}`);
+  logger.error(`Error message: ${err.message}`);
+  logger.error(`Stack trace: ${err.stack}`);
+  
+  // Send appropriate response based on environment
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  res.status(500).json({ 
+    success: false,
+    error: 'Internal Server Error',
+    // Only include detailed error info in non-production environments
+    message: isProduction ? undefined : err.message,
+    stack: isProduction ? undefined : err.stack
+  });
 });
 
 // Set default port

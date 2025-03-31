@@ -5,7 +5,7 @@ import {
   SelectedEntryDropZone,
   SuggestedMatchesList,
   UnbalancedTransactionsList
-} from './BalancerComponents';
+} from '../src/components/transactions/BalancerComponents';
 
 // Mock the react-beautiful-dnd functionality
 // This is required because jsdom doesn't support drag and drop

@@ -2,20 +2,29 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 
 // Generic fetch function with error handling
 const fetchData = async (endpoint, options = {}) => {
+  const baseUrl = API_BASE_URL;
+  const url = `${baseUrl}${endpoint}`;
+  
+  // Set default headers
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const response = await fetch(url, {
       ...options,
+      headers
     });
-
+    
     const data = await response.json();
-
+    
     if (!response.ok) {
-      throw new Error(data.error || 'Something went wrong');
+      // Improved error handling - extract server error message if available
+      const errorMessage = data.error || data.message || `HTTP Error ${response.status}`;
+      throw new Error(errorMessage);
     }
-
+    
     return data;
   } catch (error) {
     console.error('API Error:', error);

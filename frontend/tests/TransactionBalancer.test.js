@@ -2,8 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DragDropContext } from 'react-beautiful-dnd';
 import TransactionBalancer from './TransactionBalancer';
-import { transactionApi } from '../../services/api';
-import { addMatchPotentialFlags, debugTransactionBalance } from './TransactionBalancerUtils';
+import { transactionApi } from '../src/services/api';
+import { addMatchPotentialFlags, debugTransactionBalance } from '../src/components/transactions/TransactionBalancerUtils';
 
 // Mock API and utility functions
 jest.mock('../../services/api', () => ({

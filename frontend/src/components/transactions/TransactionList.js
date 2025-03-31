@@ -4,6 +4,7 @@ import { transactionApi } from '../../services/api';
 import Modal from '../common/Modal';
 import TransactionForm from './TransactionForm';
 import SingleEntryForm from './SingleEntryForm';
+import TransactionBalanceModal from './TransactionBalanceModal';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
@@ -12,10 +13,19 @@ const TransactionList = () => {
   const [filter, setFilter] = useState('all'); // 'all', 'balanced', 'unbalanced'
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isSingleEntryModalOpen, setIsSingleEntryModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [unbalancedCount, setUnbalancedCount] = useState(0);
 
   useEffect(() => {
     fetchTransactions();
   }, []);
+
+  // Update unbalanced count when transactions change
+  useEffect(() => {
+    const count = transactions.filter(t => !t.isBalanced).length;
+    setUnbalancedCount(count);
+  }, [transactions]);
 
   const fetchTransactions = async () => {
     try {
@@ -47,6 +57,37 @@ const TransactionList = () => {
   const handleSaveSingleEntry = async () => {
     setIsSingleEntryModalOpen(false);
     await fetchTransactions();
+  };
+  
+  const handleOpenBalanceModal = (transaction) => {
+    setSelectedTransaction(transaction);
+    setIsBalanceModalOpen(true);
+  };
+  
+  const handleCloseBalanceModal = () => {
+    setIsBalanceModalOpen(false);
+    setSelectedTransaction(null);
+  };
+  
+  const handleTransactionBalanced = async () => {
+    // Refresh the transaction list to reflect changes
+    // This doesn't cause a full page refresh, it just updates the data
+    try {
+      // Don't show loading indicator for quick refreshes
+      // to avoid layout shifts
+      const wasLoading = loading;
+      if (!wasLoading) {
+        // We're not setting loading to true here to avoid flicker
+        const response = await transactionApi.getTransactions();
+        setTransactions(response.data);
+      } else {
+        // We're already loading, just do the normal fetch
+        await fetchTransactions();
+      }
+    } catch (err) {
+      console.error('Error refreshing transactions:', err);
+      // Don't show error for background refreshes
+    }
   };
 
   const filteredTransactions = transactions.filter(transaction => {
@@ -109,13 +150,20 @@ const TransactionList = () => {
           </button>
           <button
             onClick={() => setFilter('unbalanced')}
-            className={`px-3 py-1 rounded ${
+            className={`px-3 py-1 rounded flex items-center ${
               filter === 'unbalanced' 
                 ? 'bg-red-600 text-white' 
                 : 'bg-red-100 text-red-700 hover:bg-red-200'
             }`}
           >
-            Unbalanced
+            <span>Unbalanced</span>
+            {unbalancedCount > 0 && (
+              <span className={`ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
+                filter === 'unbalanced' ? 'bg-white text-red-600' : 'bg-red-600 text-white'
+              }`}>
+                {unbalancedCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -174,6 +222,14 @@ const TransactionList = () => {
                     >
                       View
                     </Link>
+                    {!transaction.isBalanced && (
+                      <button
+                        onClick={() => handleOpenBalanceModal(transaction)}
+                        className="text-orange-600 hover:text-orange-900"
+                      >
+                        Balance
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -207,6 +263,16 @@ const TransactionList = () => {
           onCancel={() => setIsSingleEntryModalOpen(false)}
         />
       </Modal>
+      
+      {/* Transaction Balance Modal */}
+      {selectedTransaction && (
+        <TransactionBalanceModal
+          isOpen={isBalanceModalOpen}
+          onClose={handleCloseBalanceModal}
+          transaction={selectedTransaction}
+          onTransactionBalanced={handleTransactionBalanced}
+        />
+      )}
     </div>
   );
 };
