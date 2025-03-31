@@ -14,6 +14,7 @@ const accountRoutes = require('./routes/accountRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const entryLineRoutes = require('./routes/entryLineRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const ruleRoutes = require('./routes/ruleRoutes');
 
 // Create Express app
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/entries', entryLineRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/rules', ruleRoutes);
 
 // Basic error handling middleware
 app.use((err, req, res, next) => {

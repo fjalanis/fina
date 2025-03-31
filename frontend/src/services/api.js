@@ -1,9 +1,18 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { getEnvVar } from '../utils/env';
+
+const API_BASE_URL = getEnvVar('FRONTEND_API_URL');  
 
 // Generic fetch function with error handling
 const fetchData = async (endpoint, options = {}) => {
   const baseUrl = API_BASE_URL;
   const url = `${baseUrl}${endpoint}`;
+  
+  console.log('Making API request:', {
+    url,
+    method: options.method || 'GET',
+    endpoint,
+    baseUrl
+  });
   
   // Set default headers
   const headers = {
@@ -17,17 +26,32 @@ const fetchData = async (endpoint, options = {}) => {
       headers
     });
     
+    console.log('API response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url
+    });
+    
     const data = await response.json();
     
     if (!response.ok) {
       // Improved error handling - extract server error message if available
       const errorMessage = data.error || data.message || `HTTP Error ${response.status}`;
+      console.error('API Error:', {
+        status: response.status,
+        message: errorMessage,
+        data
+      });
       throw new Error(errorMessage);
     }
     
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('API Error:', {
+      error: error.message,
+      url,
+      method: options.method || 'GET'
+    });
     throw error;
   }
 };
@@ -216,12 +240,56 @@ export const reportApi = {
   }
 };
 
-// Create API object with all services
+// Rule API functions
+export const ruleApi = {
+  // Get all rules
+  getRules: () => fetchData('/rules'),
+
+  // Get rule by ID
+  getRule: (id) => fetchData(`/rules/${id}`),
+
+  // Create a new rule
+  createRule: (ruleData) => fetchData('/rules', {
+    method: 'POST',
+    body: JSON.stringify(ruleData),
+  }),
+
+  // Update a rule
+  updateRule: (id, ruleData) => fetchData(`/rules/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(ruleData),
+  }),
+
+  // Delete a rule
+  deleteRule: (id) => fetchData(`/rules/${id}`, {
+    method: 'DELETE',
+  }),
+
+  // Test a rule
+  testRule: (id, testData) => fetchData(`/rules/${id}/test`, {
+    method: 'POST',
+    body: JSON.stringify(testData),
+  }),
+
+  // Apply rule to transaction
+  applyRuleToTransaction: (transactionId) => fetchData(`/rules/apply/${transactionId}`, {
+    method: 'POST'
+  }),
+
+  // Apply all rules to all transactions
+  applyRulesToAllTransactions: () => fetchData('/rules/apply-all', {
+    method: 'POST'
+  }),
+};
+
+// Create API object with all services and export API_BASE_URL
 const api = { 
   accountApi,
   transactionApi,
   entryLineApi,
-  reportApi
+  reportApi,
+  ruleApi,
+  API_BASE_URL // Export the base URL for direct usage
 };
 
 export default api; 

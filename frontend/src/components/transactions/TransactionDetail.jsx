@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { transactionApi, entryLineApi } from '../../services/api';
+import { transactionApi } from '../../services/api';
+import { applyRuleToTransaction } from '../../services/ruleService';
 import Modal from '../common/Modal';
 import SingleEntryForm from './SingleEntryForm';
+import { toast } from 'react-toastify';
 
 const TransactionDetail = () => {
   const { id } = useParams();
@@ -10,6 +12,7 @@ const TransactionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = useState(false);
+  const [applyingRules, setApplyingRules] = useState(false);
   
   useEffect(() => {
     fetchTransaction();
@@ -36,6 +39,27 @@ const TransactionDetail = () => {
   const handleSaveEntry = async () => {
     setIsAddEntryModalOpen(false);
     await fetchTransaction();
+  };
+
+  const handleApplyRules = async () => {
+    try {
+      setApplyingRules(true);
+      const response = await applyRuleToTransaction(id);
+      
+      if (response.success) {
+        toast.success('Rules applied successfully');
+        if (response.data.isNowBalanced) {
+          toast.success('Transaction is now balanced');
+        }
+        await fetchTransaction();
+      } else {
+        toast.error(response.message || 'Failed to apply rules');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to apply rules');
+    } finally {
+      setApplyingRules(false);
+    }
   };
   
   const formatDate = (dateString) => {
@@ -86,12 +110,21 @@ const TransactionDetail = () => {
             Back to List
           </Link>
           {!transaction.isBalanced && (
-            <button 
-              onClick={handleAddEntry}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-            >
-              Add Entry
-            </button>
+            <>
+              <button 
+                onClick={handleApplyRules}
+                disabled={applyingRules}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition disabled:bg-green-300"
+              >
+                {applyingRules ? 'Applying...' : 'Apply Rules'}
+              </button>
+              <button 
+                onClick={handleAddEntry}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+              >
+                Add Entry
+              </button>
+            </>
           )}
         </div>
       </div>
