@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TransactionBalanceModal from '../src/components/transactions/TransactionBalanceModal';
-import { transactionApi, entryLineApi, accountApi } from '../src/services/api';
+import { transactionApi, accountApi } from '../src/services/api';
 
 // Mock the API
 jest.mock('../src/services/api', () => ({

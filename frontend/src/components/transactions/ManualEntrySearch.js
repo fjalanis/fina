@@ -102,7 +102,7 @@ const ManualEntrySearch = ({
       
       setSearchForm(updatedForm);
     }
-  }, [isOpen, suggestedFix]);
+  }, [isOpen, suggestedFix]); // eslint-disable-line react-hooks/exhaustive-deps
   
   if (!isOpen) {
     return (

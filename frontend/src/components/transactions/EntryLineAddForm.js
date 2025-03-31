@@ -5,7 +5,8 @@ const EntryLineAddForm = ({
   newEntryForm, 
   handleNewEntryChange,
   onCancel, 
-  onSubmit 
+  onSubmit,
+  balanceData
 }) => {
   return (
     <div className="bg-blue-50 p-4 rounded-lg mb-4">

@@ -153,12 +153,16 @@ The Household Finance App is a personal finance management system that brings th
 - Visual feedback when dragging potential matches
 - Clear indication of the selected entry while viewing suggested matches
 - Matching algorithm should prioritize entries with:
-  - The SAME entry type as the needed fix (if transaction needs a credit, find credit entries)
+  - The OPPOSITE entry type as the needed fix (if transaction needs a credit, find transactions with excess debits)
   - Exact matching amount (must match the imbalance amount) 
   - Recent transaction date (within +/- 15 days)
   - Unbalanced transaction status
 - Date range matching: Potential matches must be within 15 days (default) of the selected entry's transaction date to reduce noise and focus on related transactions
 - Auto-matching entries will be displayed when an unbalanced transaction is opened, showing entries that would help balance the transaction
+- Manual entry search will default to:
+  - Minimum amount: $0.01 (one cent)
+  - Maximum amount: Equal to the transaction's imbalance amount
+  - Type: The type needed to balance the transaction (credit or debit)
 
 #### 2.3 Transaction and Entry Line Behavior
 - When all entries from a transaction are removed, the transaction itself should be automatically deleted
@@ -170,7 +174,8 @@ The Household Finance App is a personal finance management system that brings th
   - An entry can be moved from one transaction to another using the "Move" action
   - The source transaction will be deleted if it becomes empty after the move
   - Both source and destination transactions will have their balance status recalculated
-  - No transaction merging is performed - only the specific entry is moved
+  - Full transaction merging is supported through "Merge" action, which moves all entries from one transaction to another and updates the destination transaction description to include both descriptions
+  - When transactions are merged, source transaction notes are appended to destination transaction notes
 
 #### 2.4 Recurring Transactions
 - System-suggested recurring transaction identification
@@ -299,11 +304,13 @@ The Household Finance App is a personal finance management system that brings th
   - Balance Analysis section showing total debits, credits, and net balance
   - Suggested fix displayed as a message (e.g., "Add a credit entry of $300.00 to balance this transaction")
   - Transaction Entry Lines section with ability to add/edit/delete entries
-  - Matching Entries Found section showing entries of the same type and amount from other transactions
-  - Each matching entry displays transaction description, date, account, amount, and type
-  - "Move" button next to each matching entry to move it to the current transaction
+  - Complementary Transactions section showing transactions with opposite imbalance that could help balance the current transaction
+  - Each complementary transaction displays transaction description, date, number of entries, imbalance amount, and a "Merge" button
+  - Manual Entry Search section with smart defaults for finding individual entries to move:
+    - Minimum amount defaulted to $0.01 (one cent)
+    - Maximum amount defaulted to match the transaction's imbalance
+    - Type defaulted to the type needed to balance the transaction
   - Success/error messages displayed within the modal after actions
-  - Option to add a new balancing entry manually if no suitable matches are found
 
 ### Visualization Hub
 - Sankey diagram as primary visualization
@@ -354,12 +361,10 @@ The Household Finance App is a personal finance management system that brings th
 - `PUT /api/transactions/:id` - Update transaction
 - `DELETE /api/transactions/:id` - Delete transaction (should cascade delete all associated entries)
 - `GET /api/transactions/matches/:id` - Get suggested matching entries for an entry line
-- `GET /api/transactions/matches/direct` - Get matching entries by amount and type
+- `GET /api/transactions/matches/direct` - Get complementary transactions by amount and opposite entry type
 - `POST /api/transactions/extract-entry` - Move an entry from one transaction to another
+- `POST /api/transactions/merge-transaction` - Merge all entries from source transaction to destination transaction
 - `GET /api/entries` - List entry lines
-- `POST /api/entries` - Create entry line
-- `PUT /api/entries/:id` - Update entry line
-- `DELETE /api/entries/:id` - Delete entry line (should delete transaction if it's the last entry)
 
 #### Analytics Service
 - `GET /api/analytics/cashflow` - Get Sankey diagram data
