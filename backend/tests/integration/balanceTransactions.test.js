@@ -301,4 +301,226 @@ describe('Balance Transactions API', () => {
       expect(res.body.error).toBe('Both transactions are already balanced');
     });
   });
+
+  describe('GET /api/transactions/matches/:id', () => {
+    it('finds matching entries for an unbalanced entry', async () => {
+      // Create first transaction with a single debit (unbalanced)
+      const transaction1 = new Transaction({
+        date: new Date(),
+        description: 'Restaurant purchase',
+        isBalanced: false
+      });
+      await transaction1.save();
+      
+      const debitEntry = new EntryLine({
+        transaction: transaction1._id,
+        account: expenseAccount._id,
+        amount: 75,
+        type: 'debit'
+      });
+      await debitEntry.save();
+      
+      // Update transaction balance status
+      transaction1.isBalanced = await transaction1.isTransactionBalanced();
+      await transaction1.save();
+      
+      // Create second transaction with a matching credit (unbalanced)
+      const transaction2 = new Transaction({
+        date: new Date(),
+        description: 'Credit card charge',
+        isBalanced: false
+      });
+      await transaction2.save();
+      
+      const creditEntry = new EntryLine({
+        transaction: transaction2._id,
+        account: liabilityAccount._id,
+        amount: 75, // Same amount
+        type: 'credit' // Opposite type
+      });
+      await creditEntry.save();
+      
+      // Update transaction balance status
+      transaction2.isBalanced = await transaction2.isTransactionBalanced();
+      await transaction2.save();
+      
+      // Create a third transaction that shouldn't match (different amount)
+      const transaction3 = new Transaction({
+        date: new Date(),
+        description: 'Another transaction',
+        isBalanced: false
+      });
+      await transaction3.save();
+      
+      const nonMatchingEntry = new EntryLine({
+        transaction: transaction3._id,
+        account: liabilityAccount._id,
+        amount: 100, // Different amount
+        type: 'credit'
+      });
+      await nonMatchingEntry.save();
+      
+      // Create a fourth balanced transaction that shouldn't match
+      const transaction4 = new Transaction({
+        date: new Date(),
+        description: 'Balanced transaction',
+        isBalanced: true
+      });
+      await transaction4.save();
+      
+      const balancedDebit = new EntryLine({
+        transaction: transaction4._id,
+        account: expenseAccount._id,
+        amount: 75,
+        type: 'debit'
+      });
+      await balancedDebit.save();
+      
+      const balancedCredit = new EntryLine({
+        transaction: transaction4._id,
+        account: liabilityAccount._id,
+        amount: 75,
+        type: 'credit'
+      });
+      await balancedCredit.save();
+      
+      // Update transaction balance status
+      transaction4.isBalanced = await transaction4.isTransactionBalanced();
+      await transaction4.save();
+      
+      // Query for matches for the debit entry
+      const res = await request(app)
+        .get(`/api/transactions/matches/${debitEntry._id}`)
+        .query({ maxMatches: 10, dateRange: 30 });
+      
+      // Check response
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.targetEntry._id.toString()).toBe(debitEntry._id.toString());
+      
+      // Should find exactly one match (the creditEntry)
+      expect(res.body.data.matches.length).toBe(1);
+      expect(res.body.data.matches[0]._id.toString()).toBe(creditEntry._id.toString());
+      
+      // Verify it has the right properties
+      const match = res.body.data.matches[0];
+      expect(match.type).toBe('credit');
+      expect(match.amount).toBe(75);
+      expect(match.transaction._id.toString()).toBe(transaction2._id.toString());
+    });
+    
+    it('returns 404 for non-existent entry line', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId();
+      
+      const res = await request(app)
+        .get(`/api/transactions/matches/${nonExistentId}`);
+      
+      expect(res.statusCode).toEqual(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Entry line not found');
+    });
+    
+    it('returns 400 for entries from balanced transactions', async () => {
+      // Create a balanced transaction
+      const transaction = new Transaction({
+        date: new Date(),
+        description: 'Balanced transaction',
+        isBalanced: true
+      });
+      await transaction.save();
+      
+      const debitEntry = new EntryLine({
+        transaction: transaction._id,
+        account: expenseAccount._id,
+        amount: 50,
+        type: 'debit'
+      });
+      await debitEntry.save();
+      
+      const creditEntry = new EntryLine({
+        transaction: transaction._id,
+        account: liabilityAccount._id,
+        amount: 50,
+        type: 'credit'
+      });
+      await creditEntry.save();
+      
+      // Update transaction balance status
+      transaction.isBalanced = true;
+      await transaction.save();
+      
+      // Try to get matches for an entry from a balanced transaction
+      const res = await request(app)
+        .get(`/api/transactions/matches/${debitEntry._id}`);
+      
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Transaction is already balanced or does not exist');
+    });
+  });
+
+  it('finds matching entries directly using amount and type parameters', async () => {
+    // Create a transaction with a single debit (unbalanced)
+    const transaction1 = new Transaction({
+      date: new Date(),
+      description: 'First transaction',
+      isBalanced: false
+    });
+    await transaction1.save();
+    
+    const debitEntry = new EntryLine({
+      transaction: transaction1._id,
+      account: expenseAccount._id,
+      amount: 50,
+      type: 'debit'
+    });
+    await debitEntry.save();
+    
+    // Update transaction balance status
+    transaction1.isBalanced = await transaction1.isTransactionBalanced();
+    await transaction1.save();
+    
+    // Create another transaction with a matching credit
+    const transaction2 = new Transaction({
+      date: new Date(),
+      description: 'Second transaction',
+      isBalanced: false
+    });
+    await transaction2.save();
+    
+    const creditEntry = new EntryLine({
+      transaction: transaction2._id,
+      account: liabilityAccount._id,
+      amount: 50, // Same amount
+      type: 'credit' // Opposite type
+    });
+    await creditEntry.save();
+    
+    // Update transaction balance status
+    transaction2.isBalanced = await transaction2.isTransactionBalanced();
+    await transaction2.save();
+    
+    // Query for matches using direct parameters
+    const res = await request(app)
+      .get(`/api/transactions/matches/direct`)
+      .query({ 
+        amount: 50, 
+        type: 'debit', 
+        excludeTransactionId: transaction1._id.toString() 
+      });
+    
+    // Check response
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+    
+    // Should find exactly one match (the creditEntry)
+    expect(res.body.data.matches.length).toBe(1);
+    expect(res.body.data.matches[0]._id.toString()).toBe(creditEntry._id.toString());
+    
+    // Verify it has the right properties
+    const match = res.body.data.matches[0];
+    expect(match.type).toBe('credit');
+    expect(match.amount).toBe(50);
+    expect(match.transaction._id.toString()).toBe(transaction2._id.toString());
+  });
 }); 

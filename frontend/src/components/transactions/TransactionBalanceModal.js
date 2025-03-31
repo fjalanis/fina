@@ -14,6 +14,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
   const [matchLoading, setMatchLoading] = useState(false);
   const [balanceData, setBalanceData] = useState(null);
   const [suggestedMatches, setSuggestedMatches] = useState([]);
+  const [autoMatches, setAutoMatches] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -45,6 +46,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     if (!isOpen) {
       setSelectedEntry(null);
       setSuggestedMatches([]);
+      setAutoMatches([]);
       setError(null);
       setSuccessMessage(null);
       setEditingEntry(null);
@@ -89,6 +91,11 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
           type: fix.type,
           description: `Balancing entry for ${freshTransaction.description}`
         });
+        
+        // Automatically fetch candidate matching entries
+        await fetchAutoMatchingEntries(analysis.suggestedFix.amount, analysis.suggestedFix.type);
+      } else {
+        setAutoMatches([]);
       }
       
       setError(null);
@@ -97,6 +104,52 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       setError('Failed to analyze transaction balance.');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Fetch automatically matching entries based on balance amount and type
+  const fetchAutoMatchingEntries = async (amount, type) => {
+    try {
+      setMatchLoading(true);
+      
+      // Make sure amount is a number and type is a string
+      const numericAmount = parseFloat(amount);
+      const fixType = String(type);
+      
+      // Only proceed if we have valid values
+      if (isNaN(numericAmount) || !fixType) {
+        console.error('Invalid amount or type for matching:', { amount, type });
+        setAutoMatches([]);
+        setMatchLoading(false);
+        return;
+      }
+      
+      console.log(`We need to add a ${fixType} of ${numericAmount} to balance`);
+      
+      // We need entries of the SAME type as the fix we need
+      // If our analysis says "add a credit of $300", we need to find credits of $300
+      
+      // Use the direct matching API with properly formatted values
+      const response = await transactionApi.getSuggestedMatches(
+        null, // No entry ID
+        10, // maxMatches
+        15, // dateRange
+        numericAmount, 
+        fixType, // Same type as what we need to add
+        balanceData?.transaction?._id // Exclude current transaction
+      );
+      
+      if (response.data && response.data.matches) {
+        console.log(`Found ${response.data.matches.length} matching entries of type ${fixType}`);
+        setAutoMatches(response.data.matches);
+      } else {
+        setAutoMatches([]);
+      }
+    } catch (err) {
+      console.error('Error finding automatic matches:', err);
+      setAutoMatches([]);
+    } finally {
+      setMatchLoading(false);
     }
   };
 
@@ -132,21 +185,27 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     }
   };
 
-  // Handle matching entries to balance transaction
-  const handleBalanceWithMatch = async (matchedEntry) => {
-    if (!selectedEntry || !matchedEntry) return;
+  // Handle balancing with automatically suggested match
+  const handleAutoBalanceWithMatch = async (matchedEntry) => {
+    if (!matchedEntry || !balanceData?.transaction?._id) return;
     
     try {
       setLoading(true);
       
-      // Call the balanceTransactions API
-      await transactionApi.balanceTransactions(selectedEntry._id, matchedEntry._id);
+      console.log(`Moving entry ${matchedEntry._id} to transaction ${balanceData.transaction._id}`);
       
-      setSuccessMessage('Transactions successfully balanced!');
+      // Call the extractEntry API to move this single entry
+      await transactionApi.extractEntry(
+        matchedEntry._id,
+        balanceData.transaction._id
+      );
+      
+      setSuccessMessage('Entry moved successfully!');
       
       // Reset selection state
       setSelectedEntry(null);
       setSuggestedMatches([]);
+      setAutoMatches([]);
       
       // Update transaction data in modal
       await fetchTransactionData();
@@ -161,8 +220,8 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       }, 1500);
       
     } catch (err) {
-      setError('Failed to balance transactions. Please try again.');
-      console.error('Error balancing transactions:', err);
+      setError(`Failed to move entry: ${err.message || 'Please try again.'}`);
+      console.error('Error moving entry:', err);
     } finally {
       setLoading(false);
     }
@@ -445,6 +504,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
               {/* Balance Analysis */}
               <TransactionBalanceAnalysis balanceData={balanceData} />
 
+
               {/* Entry Lines */}
               <div>
                 <div className="flex justify-between items-center mb-3">
@@ -486,17 +546,26 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                 )}
               </div>
               
-              {/* Suggested Matches Section */}
-              {selectedEntry && (
-                <div className="mt-6">
-                  <h3 className="font-medium mb-3">Suggested Matches for Selected Entry</h3>
-                  <SuggestedMatchesTable 
-                    isLoading={matchLoading}
-                    suggestedMatches={suggestedMatches}
-                    onBalanceWithMatch={handleBalanceWithMatch}
-                  />
+                            
+              {/* Auto-Suggested Matches Section */}
+              {!balanceData.isBalanced && autoMatches.length > 0 && (
+                <div className="mt-3">
+                  <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+                    <h3 className="font-medium mb-2 text-blue-800">Matching Entries Found</h3>
+                    <p className="text-sm text-blue-600 mb-4">
+                      We found {autoMatches.length} {balanceData.suggestedFix.type} {autoMatches.length === 1 ? 'entry' : 'entries'} from other transactions.
+                      Click "Move" to add one to this transaction and help balance it.
+                    </p>
+                    <SuggestedMatchesTable 
+                      isLoading={matchLoading}
+                      suggestedMatches={autoMatches}
+                      onBalanceWithMatch={handleAutoBalanceWithMatch}
+                      actionLabel="Move"
+                    />
+                  </div>
                 </div>
               )}
+
             </div>
           )}
         </div>

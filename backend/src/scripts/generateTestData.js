@@ -1031,6 +1031,78 @@ const generateTestData = async () => {
       await generateMonthlyTransactions(accounts, 2025, month);
     }
     
+    // Create imbalanced transactions (for testing the matching entries feature)
+    logger.info('Creating imbalanced test transactions...');
+    
+    // Helper to create imbalanced transactions with single entry
+    const createImbalancedTransaction = async (date, description, account, amount, type) => {
+      const transaction = await Transaction.create({
+        date,
+        description,
+        isBalanced: false
+      });
+      
+      await EntryLine.create({
+        transaction: transaction._id,
+        account: account._id,
+        amount,
+        type,
+        description
+      });
+      
+      return transaction;
+    };
+    
+    // Create transactions with only debit entries
+    await createImbalancedTransaction(
+      new Date(2025, 4, 10),
+      'Imbalanced transaction - debit only',
+      accounts.checkingAccount,
+      300.00,
+      'debit'
+    );
+    
+    await createImbalancedTransaction(
+      new Date(2025, 4, 12),
+      'Imbalanced transaction - debit only',
+      accounts.groceries,
+      125.50,
+      'debit'
+    );
+    
+    await createImbalancedTransaction(
+      new Date(2025, 4, 15),
+      'Imbalanced transaction - debit only',
+      accounts.diningOut,
+      88.75,
+      'debit'
+    );
+    
+    // Create transactions with only credit entries
+    await createImbalancedTransaction(
+      new Date(2025, 4, 11),
+      'Imbalanced transaction - credit only',
+      accounts.checkingAccount,
+      300.00,
+      'credit'
+    );
+    
+    await createImbalancedTransaction(
+      new Date(2025, 4, 13),
+      'Imbalanced transaction - credit only',
+      accounts.visaCard,
+      125.49,
+      'credit'
+    );
+    
+    await createImbalancedTransaction(
+      new Date(2025, 4, 16),
+      'Imbalanced transaction - credit only',
+      accounts.primarySalary,
+      1500.00,
+      'credit'
+    );
+    
     logger.info('Test data generation complete!');
     
     process.exit(0);

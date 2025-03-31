@@ -96,8 +96,29 @@ export const transactionApi = {
   }),
   
   // Get suggested matches for an entry line
-  getSuggestedMatches: (entryLineId, maxMatches = 10) => 
-    fetchData(`/transactions/matches/${entryLineId}?maxMatches=${maxMatches}`),
+  getSuggestedMatches: (entryLineId, maxMatches = 10, dateRange = 15, amount, type, excludeTransactionId) => {
+    let endpoint = '';
+    
+    // Check if we're matching by entry ID or directly by amount/type
+    if (entryLineId) {
+      // Original case - match by entry ID
+      endpoint = `/transactions/matches/${entryLineId}?maxMatches=${maxMatches}&dateRange=${dateRange}`;
+    } else if (amount !== undefined && type) {
+      // New case - match directly by amount and type
+      // Ensure values are properly encoded
+      endpoint = `/transactions/matches/direct?amount=${encodeURIComponent(amount)}&type=${encodeURIComponent(type)}&maxMatches=${maxMatches}&dateRange=${dateRange}`;
+      
+      // If we need to exclude a transaction, add it to the query
+      if (excludeTransactionId) {
+        endpoint += `&excludeTransactionId=${encodeURIComponent(excludeTransactionId)}`;
+      }
+    } else {
+      throw new Error('Either entryLineId or both amount and type must be provided');
+    }
+    
+    console.log(`API request to endpoint: ${endpoint}`);
+    return fetchData(endpoint);
+  },
   
   // Balance transactions by combining entries
   balanceTransactions: (sourceEntryId, targetEntryId) => 
@@ -106,6 +127,16 @@ export const transactionApi = {
       body: JSON.stringify({
         sourceEntryId,
         targetEntryId
+      }),
+    }),
+
+  // Extract an entry
+  extractEntry: (entryId, destinationTransactionId) => 
+    fetchData('/transactions/extract-entry', {
+      method: 'POST',
+      body: JSON.stringify({
+        entryId,
+        destinationTransactionId
       }),
     }),
 };

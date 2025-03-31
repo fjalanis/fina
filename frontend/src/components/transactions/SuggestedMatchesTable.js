@@ -4,7 +4,8 @@ import { formatCurrency, formatDate } from './TransactionBalancerUtils';
 const SuggestedMatchesTable = ({ 
   isLoading, 
   suggestedMatches, 
-  onBalanceWithMatch 
+  onBalanceWithMatch,
+  actionLabel = 'Balance'
 }) => {
   if (isLoading) {
     return (
@@ -64,7 +65,7 @@ const SuggestedMatchesTable = ({
                   onClick={() => onBalanceWithMatch(match)}
                   className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
                 >
-                  Balance
+                  {actionLabel}
                 </button>
               </td>
             </tr>

@@ -7,7 +7,8 @@ const {
   updateTransaction, 
   deleteTransaction,
   getSuggestedMatches,
-  balanceTransactions
+  balanceTransactions,
+  extractEntry
 } = require('../controllers/transactionController');
 
 const { 
@@ -35,11 +36,19 @@ router
 
 // Transaction balancing routes
 router
+  .route('/matches/direct')
+  .get(getSuggestedMatches);
+
+router
   .route('/matches/:id')
   .get(getSuggestedMatches);
 
 router
   .route('/balance')
   .post(balanceTransactions);
+
+router
+  .route('/extract-entry')
+  .post(extractEntry);
 
 module.exports = router; 

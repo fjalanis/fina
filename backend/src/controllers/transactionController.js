@@ -358,81 +358,134 @@ exports.deleteEntryLine = async (req, res) => {
 exports.getSuggestedMatches = async (req, res) => {
   try {
     const { id } = req.params;
-    const { maxMatches = 10, dateRange = 15 } = req.query;
+    const { maxMatches = 10, dateRange = 15, amount, type, excludeTransactionId } = req.query;
     
-    console.log(`Getting matches for entry line ${id}`);
+    let targetEntryLine = null;
+    let targetTransaction = null;
+    let oppositeType = null;
+    let targetAmount = null;
     
-    // First, get the target entry line
-    const targetEntryLine = await EntryLine.findById(id).populate({
-      path: 'transaction',
-      select: 'date description isBalanced'
-    }).populate('account');
-    
-    if (!targetEntryLine) {
-      console.log(`Entry line ${id} not found`);
-      return res.status(404).json({
-        success: false,
-        error: 'Entry line not found'
-      });
-    }
+    // Check if we're matching directly by amount/type or by entry ID
+    if (amount && type) {
+      // Direct matching by amount and type
+      console.log(`Getting matches for amount ${amount} and type ${type}`);
+      
+      // Make sure amount is a proper number
+      try {
+        // Use the exact type provided (no longer calculating opposite)
+        oppositeType = type; // Direct match with the requested type
+        targetAmount = parseFloat(amount);
+        
+        if (isNaN(targetAmount) || !isFinite(targetAmount)) {
+          console.error(`Invalid amount value: ${amount}`);
+          return res.status(400).json({
+            success: false,
+            error: 'Amount must be a valid number'
+          });
+        }
+        
+        console.log(`Parsed amount: ${targetAmount}, requested type: ${oppositeType}`);
+      } catch (err) {
+        console.error(`Error parsing amount parameter: ${err.message}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid amount format'
+        });
+      }
+      
+      // If excludeTransactionId is provided, we'll exclude that transaction's entries
+      if (excludeTransactionId) {
+        console.log(`Excluding entries from transaction ${excludeTransactionId}`);
+      }
+    } else if (id) {
+      // Matching by entry ID (original behavior)
+      console.log(`Getting matches for entry line ${id}`);
+      
+      // First, get the target entry line
+      targetEntryLine = await EntryLine.findById(id).populate({
+        path: 'transaction',
+        select: 'date description isBalanced'
+      }).populate('account');
+      
+      if (!targetEntryLine) {
+        console.log(`Entry line ${id} not found`);
+        return res.status(404).json({
+          success: false,
+          error: 'Entry line not found'
+        });
+      }
 
-    // Get the transaction for this entry
-    const transaction = targetEntryLine.transaction;
-    
-    if (!transaction) {
-      console.log(`Transaction not found for entry line ${id}`);
+      // Get the transaction for this entry
+      targetTransaction = targetEntryLine.transaction;
+      
+      if (!targetTransaction) {
+        console.log(`Transaction not found for entry line ${id}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Transaction is already balanced or does not exist'
+        });
+      }
+      
+      // Check if transaction is balanced
+      if (targetTransaction.isBalanced) {
+        console.log(`Transaction ${targetTransaction._id} is already balanced`);
+        return res.status(400).json({
+          success: false,
+          error: 'Transaction is already balanced or does not exist'
+        });
+      }
+
+      console.log(`Finding matches for entry ${id}, type: ${targetEntryLine.type}, amount: ${targetEntryLine.amount}`);
+      
+      // Find potential matches (entries that would balance this one)
+      // Look for opposite entry types with similar absolute amounts
+      oppositeType = targetEntryLine.type === 'debit' ? 'credit' : 'debit';
+      targetAmount = targetEntryLine.amount;
+      
+      // We'll exclude entries from this transaction
+      excludeTransactionId = targetTransaction._id;
+    } else {
       return res.status(400).json({
         success: false,
-        error: 'Transaction is already balanced or does not exist'
+        error: 'Either entry ID or amount and type must be provided'
       });
     }
     
-    // Check if transaction is balanced
-    if (transaction.isBalanced) {
-      console.log(`Transaction ${transaction._id} is already balanced`);
-      return res.status(400).json({
-        success: false,
-        error: 'Transaction is already balanced or does not exist'
-      });
-    }
-
-    console.log(`Finding matches for entry ${id}, type: ${targetEntryLine.type}, amount: ${targetEntryLine.amount}`);
-    
-    // Find potential matches (entries that would balance this one)
-    // Look for opposite entry types with similar absolute amounts
-    const oppositeType = targetEntryLine.type === 'debit' ? 'credit' : 'debit';
-    const targetAmount = targetEntryLine.amount;
-    
-    // Get the transaction date for date range filtering
-    const targetDate = new Date(transaction.date);
-    
-    // We'll use a simpler approach for matching
     // Get all entry lines with opposite type and matching amount
-    // that don't belong to the same transaction
-    const matchingEntries = await EntryLine.find({
-      _id: { $ne: targetEntryLine._id },
+    // that don't belong to the excluded transaction
+    const matchQueryConditions = {
       type: oppositeType,
       amount: targetAmount
-    }).populate({
+    };
+    
+    // Add the exclusion condition if an ID was provided
+    if (excludeTransactionId) {
+      matchQueryConditions['transaction'] = { $ne: excludeTransactionId };
+    }
+    
+    // If we're matching by entry ID, also exclude the entry itself
+    if (targetEntryLine) {
+      matchQueryConditions['_id'] = { $ne: targetEntryLine._id };
+    }
+    
+    const matchingEntries = await EntryLine.find(matchQueryConditions).populate({
       path: 'transaction',
       select: 'date description isBalanced _id'
     }).populate('account');
     
     // Filter out entries:
-    // 1. From the same transaction
-    // 2. From already balanced transactions
-    // 3. Outside the date range (if date is provided)
+    // 1. From already balanced transactions
+    // 2. Outside the date range (if date is provided)
     const validMatches = matchingEntries.filter(entry => {
       // Check if the entry belongs to a valid transaction
-      if (!entry.transaction || 
-          entry.transaction._id.toString() === transaction._id.toString() ||
-          entry.transaction.isBalanced) {
+      if (!entry.transaction || entry.transaction.isBalanced) {
         return false;
       }
       
       // Check if the transaction date is within range
-      if (entry.transaction.date) {
+      if (entry.transaction.date && targetTransaction?.date) {
         const entryDate = new Date(entry.transaction.date);
+        const targetDate = new Date(targetTransaction.date);
         const diffInDays = Math.abs(entryDate - targetDate) / (1000 * 60 * 60 * 24);
         
         // Skip entries outside the date range
@@ -552,6 +605,92 @@ exports.balanceTransactions = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in balanceTransactions:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+// @desc    Move an entry from one transaction to another
+// @route   POST /api/transactions/extract-entry
+// @access  Public
+exports.extractEntry = async (req, res) => {
+  try {
+    const { entryId, destinationTransactionId } = req.body;
+    
+    if (!entryId || !destinationTransactionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both entryId and destinationTransactionId are required'
+      });
+    }
+    
+    console.log(`Extracting entry ${entryId} to transaction ${destinationTransactionId}`);
+    
+    // Find the entry to move
+    const entryToMove = await EntryLine.findById(entryId);
+    if (!entryToMove) {
+      return res.status(404).json({
+        success: false,
+        error: 'Entry not found'
+      });
+    }
+    
+    // Get the source transaction ID before we modify the entry
+    const sourceTransactionId = entryToMove.transaction;
+    
+    // Find source and destination transactions
+    const sourceTransaction = await Transaction.findById(sourceTransactionId);
+    const destinationTransaction = await Transaction.findById(destinationTransactionId);
+    
+    if (!sourceTransaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Source transaction not found'
+      });
+    }
+    
+    if (!destinationTransaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Destination transaction not found'
+      });
+    }
+    
+    console.log(`Moving entry from transaction ${sourceTransactionId} to ${destinationTransactionId}`);
+    
+    // Update the entry to point to the destination transaction
+    entryToMove.transaction = destinationTransactionId;
+    await entryToMove.save();
+    
+    // Check if source transaction is now empty
+    const remainingEntries = await EntryLine.countDocuments({ transaction: sourceTransactionId });
+    
+    if (remainingEntries === 0) {
+      // Delete the now-empty source transaction
+      console.log(`Deleting empty source transaction ${sourceTransactionId}`);
+      await Transaction.findByIdAndDelete(sourceTransactionId);
+    } else {
+      // Update source transaction balance status
+      sourceTransaction.isBalanced = await sourceTransaction.isTransactionBalanced();
+      await sourceTransaction.save();
+    }
+    
+    // Update destination transaction balance status
+    destinationTransaction.isBalanced = await destinationTransaction.isTransactionBalanced();
+    await destinationTransaction.save();
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        transaction: destinationTransaction,
+        sourceTransactionDeleted: remainingEntries === 0
+      },
+      message: 'Entry moved successfully'
+    });
+  } catch (error) {
+    console.error('Error in extractEntry:', error);
     return res.status(500).json({
       success: false,
       error: 'Server Error'

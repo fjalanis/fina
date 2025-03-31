@@ -4,7 +4,6 @@ import { formatCurrency } from './TransactionBalancerUtils';
 const EntryLineTable = ({ 
   entries, 
   selectedEntryId, 
-  onEntrySelect, 
   onEditEntry, 
   onDeleteEntry 
 }) => {
@@ -54,12 +53,6 @@ const EntryLineTable = ({
                   className="text-red-600 hover:text-red-900 mr-3"
                 >
                   Delete
-                </button>
-                <button
-                  onClick={() => onEntrySelect(entry)}
-                  className="text-green-600 hover:text-green-900"
-                >
-                  Match
                 </button>
               </td>
             </tr>
