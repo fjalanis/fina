@@ -26,8 +26,7 @@ describe('TransactionBalanceModal', () => {
     _id: 'transaction1',
     description: 'Test Transaction',
     date: new Date().toISOString(),
-    isBalanced: false,
-    entryLines: [
+    entries: [
       {
         _id: 'entry1',
         account: { _id: 'account1', name: 'Bank Account', type: 'asset' },
@@ -78,7 +77,7 @@ describe('TransactionBalanceModal', () => {
     transactionApi.getSuggestedMatches.mockImplementation((params) => {
       return Promise.resolve({
         data: {
-          targetEntry: mockTransaction.entryLines[0],
+          targetEntry: mockTransaction.entries[0],
           matches: mockAutoMatches
         }
       });
@@ -161,9 +160,8 @@ describe('TransactionBalanceModal', () => {
     // Set up a balanced transaction
     const balancedTransaction = {
       ...mockTransaction,
-      isBalanced: true,
-      entryLines: [
-        ...mockTransaction.entryLines,
+      entries: [
+        ...mockTransaction.entries,
         {
           _id: 'entry2',
           account: { _id: 'account2', name: 'Credit Card', type: 'liability' },
@@ -202,7 +200,7 @@ describe('TransactionBalanceModal', () => {
     transactionApi.getSuggestedMatches.mockImplementation((params) => {
       return Promise.resolve({
         data: {
-          targetEntry: mockTransaction.entryLines[0],
+          targetEntry: mockTransaction.entries[0],
           matches: []
         }
       });

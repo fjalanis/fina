@@ -15,7 +15,7 @@ export const useComplementaryTransactions = (onSuccess) => {
   });
 
   // Fetch complementary transactions based on balance amount and type
-  const fetchComplementaryTransactions = async (amount, type, transactionId, page = 1) => {
+  const fetchComplementaryTransactions = async (amount, type, transactionId, page = 1, referenceDate) => {
     try {
       setMatchLoading(true);
       
@@ -44,7 +44,8 @@ export const useComplementaryTransactions = (onSuccess) => {
         page,
         limit: transactionPagination.limit,
         maxMatches: 10,
-        dateRange: 15
+        dateRange: 15,
+        referenceDate
       });
       
       if (response.success && response.data) {
@@ -76,8 +77,8 @@ export const useComplementaryTransactions = (onSuccess) => {
   };
 
   // Handle transaction page change for pagination
-  const handleTransactionPageChange = async (amount, type, transactionId, page) => {
-    await fetchComplementaryTransactions(amount, type, transactionId, page);
+  const handleTransactionPageChange = async (amount, type, transactionId, page, referenceDate) => {
+    await fetchComplementaryTransactions(amount, type, transactionId, page, referenceDate);
   };
 
   // Handle moving a complementary transaction

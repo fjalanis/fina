@@ -45,7 +45,7 @@ describe('BalancerComponents', () => {
     _id: 'transaction1',
     description: 'Test Transaction',
     date: new Date(),
-    entryLines: [
+    entries: [
       {
         _id: 'entry1',
         account: { name: 'Bank Account' },
@@ -153,7 +153,7 @@ describe('BalancerComponents', () => {
       fireEvent.click(screen.getByText('Bank Account'));
       
       // Verify the handler was called with the correct entry
-      expect(handleEntrySelect).toHaveBeenCalledWith(mockTransaction.entryLines[0]);
+      expect(handleEntrySelect).toHaveBeenCalledWith(mockTransaction.entries[0]);
     });
   });
 

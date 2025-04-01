@@ -1,7 +1,5 @@
 const Rule = require('../models/Rule');
 const Transaction = require('../models/Transaction');
-const { getSuggestedMatches } = require('../controllers/transactionController/suggestions');
-const { mergeTransaction } = require('../controllers/transactionController/restructure');
 
 // Helper function to check if a rule has been applied to a transaction
 const hasRuleBeenApplied = (transaction, ruleId) => {

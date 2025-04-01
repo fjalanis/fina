@@ -23,7 +23,7 @@ const createTransaction = async (date, description, entries) => {
 exports.createInitialBalances = async (accounts) => {
   logger.info('Creating initial account balances...');
   
-  const openingDate = new Date(2023, 0, 1); // Jan 1, 2023
+  const openingDate = new Date(2025, 0, 1); // Jan 1, 2025
   
   // Checking account starting balance
   await createTransaction(

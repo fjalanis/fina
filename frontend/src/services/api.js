@@ -11,7 +11,8 @@ const fetchData = async (endpoint, options = {}) => {
     url,
     method: options.method || 'GET',
     endpoint,
-    baseUrl
+    baseUrl,
+    params: options,
   });
   
   // Set default headers
@@ -89,7 +90,27 @@ export const accountApi = {
 // Transaction API functions
 export const transactionApi = {
   // Get all transactions
-  getTransactions: () => fetchData('/transactions'),
+  getTransactions: (params = {}) => {
+    // Default to a very wide date range if none specified
+    const queryParams = new URLSearchParams();
+    
+    if (params.startDate) {
+      queryParams.append('startDate', params.startDate);
+    }
+    
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate);
+    }
+    
+    if (params.accountId) {
+      queryParams.append('accountId', params.accountId);
+    }
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/transactions?${queryString}` : '/transactions';
+    
+    return fetchData(endpoint);
+  },
 
   // Get transaction by ID
   getTransaction: (id) => fetchData(`/transactions/${id}`),
@@ -130,17 +151,13 @@ export const transactionApi = {
   
   // Get suggested matches for a transaction
   getSuggestedMatches: (params) => {
-    const { transactionId, amount, type, excludeTransactionId, maxMatches = 10, dateRange = 15, page = 1, limit = 10 } = params || {};
+    const { transactionId, amount, type, excludeTransactionId, maxMatches = 10, dateRange = 15, page = 1, limit = 10, referenceDate } = params || {};
     
     let endpoint = '';
     
-    // Check if we're matching by transaction ID or directly by amount/type
-    if (transactionId) {
-      // Match by transaction ID
-      endpoint = `/transactions/matches/${transactionId}?maxMatches=${maxMatches}&dateRange=${dateRange}&page=${page}&limit=${limit}`;
-    } else if (amount !== undefined && type) {
+    if (amount !== undefined && type) {
       // Match directly by amount and type - use the existing suggestions endpoint
-      return fetchData('/transactions/suggestions', {
+      return fetchData('/transactions/matches', {
         method: 'POST',
         body: JSON.stringify({
           amount,
@@ -149,7 +166,8 @@ export const transactionApi = {
           maxMatches,
           dateRange,
           page,
-          limit
+          limit,
+          referenceDate
         })
       });
     } else {

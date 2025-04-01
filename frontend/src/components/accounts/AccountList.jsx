@@ -18,7 +18,7 @@ const AccountList = () => {
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      const response = await accountApi.getAccounts();
+      const response = await accountApi.getAccountHierarchy();
       setAccounts(response.data);
       setError(null);
     } catch (err) {
@@ -33,7 +33,16 @@ const AccountList = () => {
     if (window.confirm('Are you sure you want to delete this account?')) {
       try {
         await accountApi.deleteAccount(id);
-        setAccounts(accounts.filter(account => account._id !== id));
+        const removeAccount = (accounts) => {
+          return accounts.filter(account => {
+            if (account._id === id) return false;
+            if (account.children) {
+              account.children = removeAccount(account.children);
+            }
+            return true;
+          });
+        };
+        setAccounts(removeAccount(accounts));
       } catch (err) {
         setError(err.message || 'Failed to delete account');
       }
@@ -49,16 +58,38 @@ const AccountList = () => {
   };
 
   const handleSaveAccount = (savedAccount) => {
-    // If we're editing an existing account
     if (editAccount) {
-      setAccounts(accounts.map(account => 
-        account._id === savedAccount._id ? savedAccount : account
-      ));
+      const updateAccount = (accounts) => {
+        return accounts.map(account => {
+          if (account._id === savedAccount._id) return savedAccount;
+          if (account.children) {
+            account.children = updateAccount(account.children);
+          }
+          return account;
+        });
+      };
+      setAccounts(updateAccount(accounts));
       setEditAccount(null);
-    } 
-    // If we're creating a new account
-    else {
-      setAccounts([...accounts, savedAccount]);
+    } else {
+      if (savedAccount.parent) {
+        const addToParent = (accounts) => {
+          return accounts.map(account => {
+            if (account._id === savedAccount.parent) {
+              return {
+                ...account,
+                children: [...(account.children || []), savedAccount]
+              };
+            }
+            if (account.children) {
+              account.children = addToParent(account.children);
+            }
+            return account;
+          });
+        };
+        setAccounts(addToParent(accounts));
+      } else {
+        setAccounts([...accounts, savedAccount]);
+      }
       setIsCreateModalOpen(false);
     }
   };
@@ -69,6 +100,59 @@ const AccountList = () => {
     income: 'bg-green-100 text-green-800',
     expense: 'bg-yellow-100 text-yellow-800',
     equity: 'bg-purple-100 text-purple-800'
+  };
+
+  const renderAccountRow = (account, level = 0) => {
+    const hasChildren = account.children && account.children.length > 0;
+    
+    return (
+      <React.Fragment key={account._id}>
+        <tr className="hover:bg-gray-50">
+          <td className="py-4 px-4 whitespace-nowrap">
+            <div style={{ paddingLeft: `${level * 20}px` }}>
+              <Link to={`/accounts/${account._id}`} className="text-blue-600 hover:text-blue-900 font-medium">
+                {account.name}
+              </Link>
+            </div>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap">
+            <span className={`px-2 py-1 text-xs rounded-full ${accountTypeColors[account.type]}`}>
+              {account.type}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap">
+            {account.parent ? account.parent.name : '-'}
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap">
+            <span className={`px-2 py-1 text-xs rounded-full ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+              {account.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap text-center">
+            <span className="text-sm text-gray-600">
+              {account.transactionCount || 0}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
+            <button
+              onClick={() => handleEditAccount(account)}
+              className="text-indigo-600 hover:text-indigo-900 mr-4"
+            >
+              Edit
+            </button>
+            {!hasChildren && (
+              <button
+                onClick={() => handleDeleteAccount(account._id)}
+                className="text-red-600 hover:text-red-900"
+              >
+                Delete
+              </button>
+            )}
+          </td>
+        </tr>
+        {hasChildren && account.children.map(child => renderAccountRow(child, level + 1))}
+      </React.Fragment>
+    );
   };
 
   if (loading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
@@ -100,46 +184,12 @@ const AccountList = () => {
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {accounts.map(account => (
-                <tr key={account._id} className="hover:bg-gray-50">
-                  <td className="py-4 px-4 whitespace-nowrap">
-                    <Link to={`/accounts/${account._id}`} className="text-blue-600 hover:text-blue-900 font-medium">
-                      {account.name}
-                    </Link>
-                  </td>
-                  <td className="py-4 px-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${accountTypeColors[account.type]}`}>
-                      {account.type}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 whitespace-nowrap">
-                    {account.parent ? account.parent.name : '-'}
-                  </td>
-                  <td className="py-4 px-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {account.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEditAccount(account)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAccount(account._id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {accounts.map(account => renderAccountRow(account))}
             </tbody>
           </table>
         </div>

@@ -69,7 +69,7 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
         description: formData.description,
         reference: formData.reference,
         notes: formData.notes,
-        entryLines: [{
+        entries: [{
           account: formData.account,
           description: formData.description,
           amount: amount,

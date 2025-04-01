@@ -93,20 +93,24 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
       balanceData.suggestedFix.amount,
       balanceData.suggestedFix.type,
       balanceData.transaction._id,
-      page
+      page,
+      balanceData.transaction.date
     );
   };
 
   // When a new balance analysis is loaded, fetch complementary transactions
   useEffect(() => {
     if (balanceData && !balanceData.isBalanced) {
+      console.log('balanceData', balanceData);
       const fix = balanceData.suggestedFix;
       
       // Automatically fetch complementary transactions
       fetchComplementaryTransactions(
         fix.amount, 
         fix.type, 
-        balanceData.transaction._id
+        balanceData.transaction._id,
+        1, // First page
+        balanceData.transaction.date // Pass transaction date as reference
       );
     }
   }, [balanceData]); // eslint-disable-line react-hooks/exhaustive-deps

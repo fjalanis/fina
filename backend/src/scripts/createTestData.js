@@ -65,7 +65,6 @@ const createTestTransactions = async (accounts) => {
     {
       description: 'Grocery shopping at Whole Foods',
       date: new Date(),
-      status: 'Unbalanced',
       entries: [
         {
           account: creditCard,
@@ -78,7 +77,6 @@ const createTestTransactions = async (accounts) => {
     {
       description: 'Dinner at Italian Restaurant',
       date: new Date(),
-      status: 'Unbalanced',
       entries: [
         {
           account: creditCard,
@@ -91,7 +89,6 @@ const createTestTransactions = async (accounts) => {
     {
       description: 'Electric bill payment',
       date: new Date(),
-      status: 'Unbalanced',
       entries: [
         {
           account: checkingAccount,
@@ -104,7 +101,6 @@ const createTestTransactions = async (accounts) => {
     {
       description: 'Paycheck deposit',
       date: new Date(),
-      status: 'Unbalanced',
       entries: [
         {
           account: checkingAccount,

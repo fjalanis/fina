@@ -2,7 +2,7 @@
 
 ## Transaction Structure
 
-- Transactions now use `entries` directly embedded in the transaction object instead of separate `entryLines`
+- Transactions use `entries` directly embedded in the transaction 
 - Each entry contains:
   - `account` - Reference to account ID
   - `amount` - Numeric value
@@ -77,7 +77,7 @@
 
 - All APIs follow RESTful patterns
 - Consistent parameter naming:
-  - `entries` used throughout (not `entryLines`)
+  - `entries` used throughout
   - Operations on entries use array indices for consistency
 - Clear separation between:
   - Core transaction operations

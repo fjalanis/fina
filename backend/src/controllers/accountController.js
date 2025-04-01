@@ -6,7 +6,8 @@ const logger = require('../config/logger');
 // @access  Public
 exports.getAccounts = async (req, res) => {
   try {
-    const accounts = await Account.find();
+    const accounts = await Account.find()
+      .populate('transactionCount');
     
     res.status(200).json({
       success: true,
@@ -232,16 +233,19 @@ exports.deleteAccount = async (req, res) => {
 exports.getAccountHierarchy = async (req, res) => {
   try {
     // Get top-level accounts (no parent)
-    const rootAccounts = await Account.find({ parent: null })
-      .populate({
-        path: 'children',
-        select: 'name type'
-      });
+    const accounts = await Account.find({ parent: null }).lean();
+    
+    // For each root account, populate its children and calculate transaction counts
+    const processedAccounts = [];
+    for (const rootAccount of accounts) {
+      const accountWithDetails = await getAccountWithChildren(rootAccount._id);
+      processedAccounts.push(accountWithDetails);
+    }
     
     res.status(200).json({
       success: true,
-      count: rootAccounts.length,
-      data: rootAccounts
+      count: processedAccounts.length,
+      data: processedAccounts
     });
   } catch (error) {
     logger.error(`Error getting account hierarchy: ${error.message}`);
@@ -250,4 +254,35 @@ exports.getAccountHierarchy = async (req, res) => {
       error: 'Server Error'
     });
   }
-}; 
+};
+
+// Recursively get an account with its children and transaction counts
+async function getAccountWithChildren(accountId) {
+  // Get the account with transaction count
+  const account = await Account.findById(accountId).lean();
+  
+  // Get direct transaction count
+  const directTransactionCount = await Account.model('Transaction').countDocuments({
+    'entries.account': accountId
+  });
+  
+  // Get children
+  const children = await Account.find({ parent: accountId }).sort({ name: 1 }).lean();
+  
+  // Process children recursively
+  const processedChildren = [];
+  let childrenTransactionCount = 0;
+  
+  for (const child of children) {
+    const processedChild = await getAccountWithChildren(child._id);
+    processedChildren.push(processedChild);
+    childrenTransactionCount += processedChild.totalTransactionCount;
+  }
+  
+  // Set values on the account
+  account.children = processedChildren;
+  account.transactionCount = directTransactionCount;
+  account.totalTransactionCount = directTransactionCount + childrenTransactionCount;
+  
+  return account;
+} 

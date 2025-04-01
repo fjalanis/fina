@@ -49,6 +49,8 @@ exports.createTransaction = async (req, res) => {
 // @access  Private
 exports.getTransactions = async (req, res) => {
   try {
+    console.log('getTransactions called with query:', req.query);
+    
     const { startDate, endDate, accountId } = req.query;
     const query = {};
     
@@ -63,12 +65,34 @@ exports.getTransactions = async (req, res) => {
       query['entries.account'] = accountId;
     }
     
+    console.log('MongoDB query:', JSON.stringify(query));
+    
     const transactions = await Transaction.find(query)
       .populate({
         path: 'entries.account',
         select: 'name type'
       })
       .sort({ date: -1 });
+    
+    console.log(`Found ${transactions.length} transactions`);
+    
+    if (transactions.length === 0) {
+      // If no transactions found, log the total count in the database
+      const totalCount = await Transaction.countDocuments({});
+      console.log(`Total transactions in database: ${totalCount}`);
+      
+      if (totalCount > 0) {
+        // Get a sample of transactions to understand what's in there
+        const sampleTransactions = await Transaction.find().limit(3);
+        console.log('Sample transactions:', 
+          sampleTransactions.map(t => ({
+            id: t._id.toString(),
+            date: t.date,
+            description: t.description
+          }))
+        );
+      }
+    }
       
     res.json({
       success: true,

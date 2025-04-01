@@ -28,7 +28,7 @@ const generateTestData = async () => {
     
     // Generate transactions for multiple months
     const startMonth = 1; // January
-    const startYear = 2023;
+    const startYear = 2025;
     
     // Generate transactions for 3 months
     for (let month = startMonth; month < startMonth + 3; month++) {
@@ -37,7 +37,7 @@ const generateTestData = async () => {
     
     // Make one transaction imbalanced for testing
     await utils.createImbalancedTransaction(
-      new Date(2023, 1, 15),
+      new Date(2025, 1, 15),
       "Intentionally imbalanced transaction",
       accounts.checkingAccount._id,
       500,

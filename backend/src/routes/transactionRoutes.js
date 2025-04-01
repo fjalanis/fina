@@ -11,7 +11,6 @@ const {
   searchTransactions,
   moveEntry,
   mergeTransaction,
-  splitTransaction,
 } = require('../controllers/transactionController');
 
 const { 
@@ -46,8 +45,9 @@ router
   .post(balanceTransactions);
 
 router
-  .route('/matches/:id')
-  .get(getSuggestedMatches);
+  .route('/matches')
+  .get(getSuggestedMatches)
+  .post(getSuggestedMatches);
 
 // Add route for merging transactions
 router
@@ -83,9 +83,5 @@ router.route('/search/entries')
 
 router.route('/search/transactions')
   .post(searchTransactions);
-
-// Suggestions route
-router.route('/suggestions')
-  .post(getSuggestedMatches);
 
 module.exports = router; 

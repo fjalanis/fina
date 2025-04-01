@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const Rule = require('../../src/models/Rule');
 const Transaction = require('../../src/models/Transaction');
 const { applyRulesToTransaction } = require('../../src/services/ruleApplicationService');
@@ -7,15 +6,25 @@ const Account = require('../../src/models/Account');
 
 // Mock the controller functions
 jest.mock('../../src/controllers/transactionController/suggestions', () => ({
-  getSuggestedMatches: jest.fn()
+  getSuggestedMatches: jest.fn().mockImplementation(async (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        transactions: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 10,
+          pages: 0
+        }
+      }
+    });
+  })
 }));
 
 jest.mock('../../src/controllers/transactionController/restructure', () => ({
   mergeTransaction: jest.fn()
 }));
-
-const { getSuggestedMatches } = require('../../src/controllers/transactionController/suggestions');
-const { mergeTransaction } = require('../../src/controllers/transactionController/restructure');
 
 // Setup test database
 setupDB();

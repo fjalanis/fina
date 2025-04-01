@@ -9,7 +9,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
     notes: ''
   });
   
-  const [entryLines, setEntryLines] = useState([
+  const [entries, setEntries] = useState([
     { account: '', description: '', amount: '', type: 'debit' },
     { account: '', description: '', amount: '', type: 'credit' }
   ]);
@@ -43,9 +43,9 @@ const TransactionForm = ({ onSave, onCancel }) => {
     let totalDebit = 0;
     let totalCredit = 0;
     
-    entryLines.forEach(line => {
-      const amount = parseFloat(line.amount) || 0;
-      if (line.type === 'debit') {
+    entries.forEach(entry => {
+      const amount = parseFloat(entry.amount) || 0;
+      if (entry.type === 'debit') {
         totalDebit += amount;
       } else {
         totalCredit += amount;
@@ -53,7 +53,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
     });
     
     setBalance(totalDebit - totalCredit);
-  }, [entryLines]);
+  }, [entries]);
   
   // Handle transaction form input changes
   const handleTransactionChange = (e) => {
@@ -67,31 +67,31 @@ const TransactionForm = ({ onSave, onCancel }) => {
   // Handle entry line input changes
   const handleEntryLineChange = (index, e) => {
     const { name, value } = e.target;
-    const updatedEntryLines = [...entryLines];
-    updatedEntryLines[index] = {
-      ...updatedEntryLines[index],
+    const updatedEntries = [...entries];
+    updatedEntries[index] = {
+      ...updatedEntries[index],
       [name]: value
     };
-    setEntryLines(updatedEntryLines);
+    setEntries(updatedEntries);
   };
   
   // Add new entry line
   const handleAddEntryLine = () => {
-    setEntryLines([
-      ...entryLines,
+    setEntries([
+      ...entries,
       { account: '', description: '', amount: '', type: 'debit' }
     ]);
   };
   
   // Remove entry line
   const handleRemoveEntryLine = (index) => {
-    if (entryLines.length <= 2) {
+    if (entries.length <= 2) {
       setError('A transaction must have at least two entry lines.');
       return;
     }
     
-    const updatedEntryLines = entryLines.filter((_, i) => i !== index);
-    setEntryLines(updatedEntryLines);
+    const updatedEntries = entries.filter((_, i) => i !== index);
+    setEntries(updatedEntries);
   };
   
   // Handle form submission
@@ -105,11 +105,11 @@ const TransactionForm = ({ onSave, onCancel }) => {
     }
     
     // Validate entry lines
-    const validEntryLines = entryLines.filter(line => 
-      line.account && line.amount && parseFloat(line.amount) > 0
+    const validEntries = entries.filter(entry => 
+      entry.account && entry.amount && parseFloat(entry.amount) > 0
     );
     
-    if (validEntryLines.length < 2) {
+    if (validEntries.length < 2) {
       setError('Please provide at least two valid entry lines.');
       return;
     }
@@ -126,11 +126,11 @@ const TransactionForm = ({ onSave, onCancel }) => {
       // Format data for API
       const transactionData = {
         ...formData,
-        entries: entryLines.map(line => ({
-          account: line.account,
-          description: line.description || formData.description,
-          amount: parseFloat(line.amount),
-          type: line.type
+        entries: entries.map(entry => ({
+          account: entry.account,
+          description: entry.description || formData.description,
+          amount: parseFloat(entry.amount),
+          type: entry.type
         }))
       };
       
@@ -240,11 +240,11 @@ const TransactionForm = ({ onSave, onCancel }) => {
             </div>
             
             <div className="bg-gray-50 p-4 rounded">
-              {entryLines.map((line, index) => (
+              {entries.map((entry, index) => (
                 <div key={index} className="mb-4 pb-4 border-b border-gray-200 last:border-b-0 last:mb-0 last:pb-0">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-medium text-gray-700">Line {index + 1}</h4>
-                    {entryLines.length > 2 && (
+                    {entries.length > 2 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveEntryLine(index)}
@@ -264,7 +264,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
                       </label>
                       <select
                         name="account"
-                        value={line.account}
+                        value={entry.account}
                         onChange={(e) => handleEntryLineChange(index, e)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         required
@@ -285,7 +285,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
                       <input
                         type="text"
                         name="description"
-                        value={line.description}
+                        value={entry.description}
                         onChange={(e) => handleEntryLineChange(index, e)}
                         placeholder={formData.description}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -299,7 +299,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
                       <input
                         type="number"
                         name="amount"
-                        value={line.amount}
+                        value={entry.amount}
                         onChange={(e) => handleEntryLineChange(index, e)}
                         step="0.01"
                         min="0.01"
@@ -314,7 +314,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
                       </label>
                       <select
                         name="type"
-                        value={line.type}
+                        value={entry.type}
                         onChange={(e) => handleEntryLineChange(index, e)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         required

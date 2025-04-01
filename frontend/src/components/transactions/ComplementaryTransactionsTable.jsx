@@ -49,7 +49,7 @@ const ComplementaryTransactionsTable = ({
               </td>
               <td className="px-4 py-3 text-sm text-center">
                 <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                  {transaction.entryLines?.length || 0} entries
+                  {transaction.entries?.length || 0} entries
                 </span>
               </td>
               <td className="px-4 py-3 text-sm text-right font-medium">
