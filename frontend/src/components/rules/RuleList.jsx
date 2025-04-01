@@ -97,6 +97,38 @@ const RuleList = () => {
     }
   };
 
+  // Render rule-specific details based on the rule type
+  const renderRuleTypeSpecificDetails = (rule) => {
+    switch (rule.type) {
+      case 'edit':
+        return <span>New Description: <span className="font-mono">{rule.newDescription}</span></span>;
+      case 'merge':
+        return <span>Max Date Difference: {rule.maxDateDifference} days</span>;
+      case 'complementary':
+        return (
+          <div>
+            {rule.destinationAccounts?.map((dest, index) => (
+              <div key={index} className="text-xs">
+                {dest.accountId?.name || 'Unknown'}: {dest.ratio ? `${(dest.ratio * 100).toFixed(0)}%` : ''} 
+                {dest.absoluteAmount ? ` $${dest.absoluteAmount.toFixed(2)}` : ''}
+              </div>
+            ))}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Format source accounts display
+  const formatSourceAccounts = (sourceAccounts) => {
+    if (!sourceAccounts || sourceAccounts.length === 0) {
+      return 'All accounts';
+    }
+    
+    return sourceAccounts.map(acc => acc.name || 'Unknown').join(', ');
+  };
+
   if (loading) {
     return <div className="flex justify-center mt-8">Loading rules...</div>;
   }
@@ -143,10 +175,11 @@ const RuleList = () => {
             <thead>
               <tr className="bg-gray-200 text-gray-700">
                 <th className="py-3 px-4 text-left">Name</th>
-                <th className="py-3 px-4 text-left">Priority</th>
+                <th className="py-3 px-4 text-left">Type</th>
                 <th className="py-3 px-4 text-left">Pattern</th>
-                <th className="py-3 px-4 text-left">Source Account</th>
-                <th className="py-3 px-4 text-left">Destination Accounts</th>
+                <th className="py-3 px-4 text-left">Entry Type</th>
+                <th className="py-3 px-4 text-left">Source Accounts</th>
+                <th className="py-3 px-4 text-left">Details</th>
                 <th className="py-3 px-4 text-left">Status</th>
                 <th className="py-3 px-4 text-center">Actions</th>
               </tr>
@@ -155,15 +188,24 @@ const RuleList = () => {
               {rules.map((rule) => (
                 <tr key={rule._id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">{rule.name}</td>
-                  <td className="py-3 px-4">{rule.priority}</td>
-                  <td className="py-3 px-4 font-mono">{rule.pattern}</td>
-                  <td className="py-3 px-4">{rule.sourceAccount?.name || 'Unknown'}</td>
                   <td className="py-3 px-4">
-                    {rule.destinationAccounts.map(dest => dest.accountId?.name).join(', ')}
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      rule.type === 'edit' ? 'bg-blue-100 text-blue-800' : 
+                      rule.type === 'merge' ? 'bg-purple-100 text-purple-800' : 
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {rule.type.charAt(0).toUpperCase() + rule.type.slice(1)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 font-mono">{rule.pattern}</td>
+                  <td className="py-3 px-4">{rule.entryType.charAt(0).toUpperCase() + rule.entryType.slice(1)}</td>
+                  <td className="py-3 px-4">{formatSourceAccounts(rule.sourceAccounts)}</td>
+                  <td className="py-3 px-4">
+                    {renderRuleTypeSpecificDetails(rule)}
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded text-xs ${rule.isEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {rule.isEnabled ? 'Enabled' : 'Disabled'}
+                    <span className={`px-2 py-1 rounded text-xs ${rule.autoApply ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {rule.autoApply ? 'Auto-Apply' : 'Manual'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-center">

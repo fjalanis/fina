@@ -49,7 +49,14 @@ const MonthlyIncomeExpenseSummary = () => {
         selectedMonth
       );
       
-      setReportData(response.data);
+      console.log('Report API Response:', response);
+      
+      // The API returns data in the format { success: true, data: { ... } }
+      if (response.success && response.data) {
+        setReportData(response.data);
+      } else {
+        throw new Error('Invalid response format from API');
+      }
     } catch (err) {
       setError('Failed to generate report. Please try again.');
       console.error('Error generating report:', err);

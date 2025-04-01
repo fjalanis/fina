@@ -30,7 +30,14 @@ export const getSuggestedFix = (totalDebits, totalCredits) => {
 
 // Calculate and analyze transaction balance
 export const analyzeTransactionBalance = (transaction) => {
-  if (!transaction || !transaction.entryLines) {
+  if (!transaction) {
+    return null;
+  }
+  
+  // Get entries array from either entries (new schema) 
+  const entries = transaction.entries || [];
+  
+  if (entries.length === 0) {
     return null;
   }
 
@@ -38,9 +45,11 @@ export const analyzeTransactionBalance = (transaction) => {
   let totalCredits = 0;
   
   // Calculate totals
-  transaction.entryLines.forEach(entry => {
+  entries.forEach(entry => {
     const amount = parseFloat(entry.amount);
-    if (entry.type === 'debit') {
+    // Support both entry.type and entry.entryType fields
+    const entryType = entry.entryType || entry.type;
+    if (entryType === 'debit') {
       totalDebits += amount;
     } else {
       totalCredits += amount;

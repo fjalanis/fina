@@ -1,8 +1,8 @@
 import api from './api';
 
-export const fetchRules = async () => {
+export const fetchRules = async (type) => {
   try {
-    return await api.ruleApi.getRules();
+    return await api.ruleApi.getRules(type);
   } catch (error) {
     console.error('Error fetching rules:', error);
     throw error;
@@ -54,9 +54,9 @@ export const testRule = async (ruleId, testData) => {
   }
 };
 
-export const applyRuleToTransaction = async (transactionId) => {
+export const applyRuleToTransaction = async (ruleId, transactionId) => {
   try {
-    return await api.ruleApi.applyRuleToTransaction(transactionId);
+    return await api.ruleApi.applyRuleToTransaction(ruleId, transactionId);
   } catch (error) {
     console.error('Error applying rule to transaction:', error);
     throw error;
@@ -65,12 +65,27 @@ export const applyRuleToTransaction = async (transactionId) => {
 
 export const applyRulesToAllTransactions = async () => {
   try {
-    console.log('Starting applyRulesToAllTransactions...');
-    const response = await api.ruleApi.applyRulesToAllTransactions();
-    console.log('applyRulesToAllTransactions response:', response);
-    return response;
+    return await api.ruleApi.applyRulesToAllTransactions();
   } catch (error) {
     console.error('Error applying rules to all transactions:', error);
+    throw error;
+  }
+};
+
+export const previewRule = async (ruleData) => {
+  try {
+    // Make sure we have at least the pattern to preview
+    if (!ruleData.pattern) {
+      throw new Error('Pattern is required for preview');
+    }
+    
+    return await api.ruleApi.previewRule({
+      pattern: ruleData.pattern,
+      sourceAccounts: ruleData.sourceAccounts || [],
+      entryType: ruleData.entryType || 'both'
+    });
+  } catch (error) {
+    console.error('Error previewing rule:', error);
     throw error;
   }
 }; 

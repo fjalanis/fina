@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { entryLineApi, transactionApi } from '../../../services/api';
+import { transactionApi } from '../../../services/api';
 
 /**
  * Custom hook for managing entry lines
@@ -53,19 +53,19 @@ export const useEntryLineManagement = (onSuccess, onError) => {
     setSelectedEntry(null);
     setEditForm({
       amount: entry.amount,
-      type: entry.type,
+      type: entry.type || entry.entryType, // Support both field names
       description: entry.description || ''
     });
   };
 
   // Update edited entry
-  const handleUpdateEntry = async (entryId) => {
-    if (!entryId) return;
+  const handleUpdateEntry = async (transactionId, entryId) => {
+    if (!entryId || !transactionId) return;
     
     try {
       setLoading(true);
       
-      await entryLineApi.updateEntryLine(entryId, {
+      await transactionApi.updateEntry(transactionId, entryId, {
         amount: parseFloat(editForm.amount),
         type: editForm.type,
         description: editForm.description
@@ -121,7 +121,7 @@ export const useEntryLineManagement = (onSuccess, onError) => {
     try {
       setLoading(true);
       
-      await transactionApi.addEntryLine(transactionId, {
+      await transactionApi.addEntry(transactionId, {
         account: newEntryForm.account,
         amount: parseFloat(newEntryForm.amount),
         type: newEntryForm.type,
@@ -152,13 +152,23 @@ export const useEntryLineManagement = (onSuccess, onError) => {
 
   // Handle deleting an entry
   const handleDeleteEntry = async (entry, entryCount) => {
-    if (!entry) return;
+    if (!entry || !entry._id) return;
+    
+    // We need the transaction ID to delete an entry
+    const transactionId = entry.transactionId || (entry.transaction && entry.transaction._id);
+    
+    if (!transactionId) {
+      if (onError) {
+        onError('Cannot delete entry: Missing transaction ID');
+      }
+      return false;
+    }
     
     // We no longer need to prevent deleting the last entry - the backend will handle it
     const isLastEntry = entryCount === 1;
     const message = isLastEntry 
       ? `This is the only entry in this transaction. Deleting it will also delete the entire transaction. Proceed?`
-      : `Are you sure you want to delete this ${entry.type} entry of ${entry.amount}?`;
+      : `Are you sure you want to delete this ${entry.type || entry.entryType} entry of ${entry.amount}?`;
     
     if (!window.confirm(message)) {
       return false;
@@ -168,7 +178,7 @@ export const useEntryLineManagement = (onSuccess, onError) => {
       setLoading(true);
       
       // Delete entry
-      await entryLineApi.deleteEntryLine(entry._id);
+      await transactionApi.deleteEntry(transactionId, entry._id);
       
       // Reset selection state to avoid stale data
       setSelectedEntry(null);

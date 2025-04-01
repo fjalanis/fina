@@ -126,7 +126,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
       // Format data for API
       const transactionData = {
         ...formData,
-        entryLines: entryLines.map(line => ({
+        entries: entryLines.map(line => ({
           account: line.account,
           description: line.description || formData.description,
           amount: parseFloat(line.amount),

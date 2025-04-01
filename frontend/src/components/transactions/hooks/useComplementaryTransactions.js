@@ -36,22 +36,34 @@ export const useComplementaryTransactions = (onSuccess) => {
       
       console.log(`Looking for transactions with ${complementaryType} imbalance of ${numericAmount}`);
       
-      // Use the updated matching API with complementary type
-      const response = await transactionApi.getSuggestedMatches(
-        null, // No entry ID
-        10, // maxMatches
-        15, // dateRange
-        numericAmount, 
-        complementaryType, // Use the complementary type
-        transactionId, // Exclude current transaction
-        page, // Page number for pagination
-        transactionPagination.limit // Items per page
-      );
+      // Use the updated matching API with parameters object
+      const response = await transactionApi.getSuggestedMatches({
+        amount: numericAmount,
+        type: complementaryType,
+        excludeTransactionId: transactionId,
+        page,
+        limit: transactionPagination.limit,
+        maxMatches: 10,
+        dateRange: 15
+      });
       
       if (response.success && response.data) {
-        console.log(`Found ${response.data.transactions.length} complementary transactions`);
-        setComplementaryTransactions(response.data.transactions);
-        setTransactionPagination(response.data.pagination);
+        const transactions = response.data.transactions || [];
+        console.log(`Found ${transactions.length} complementary transactions`);
+        setComplementaryTransactions(transactions);
+        
+        // Check if pagination data exists in response
+        if (response.data.pagination) {
+          setTransactionPagination(response.data.pagination);
+        } else {
+          // Set default pagination if not available
+          setTransactionPagination({
+            page: page,
+            limit: transactionPagination.limit,
+            total: transactions.length,
+            pages: Math.ceil(transactions.length / transactionPagination.limit)
+          });
+        }
       } else {
         setComplementaryTransactions([]);
       }
@@ -111,8 +123,7 @@ export const useComplementaryTransactions = (onSuccess) => {
       
       // Call the moveEntry API to move this single entry
       await transactionApi.moveEntry(
-        entry.transaction._id,
-        entry.transaction.entries.findIndex(e => e._id === entry._id),
+        entry._id,
         targetTransactionId
       );
       

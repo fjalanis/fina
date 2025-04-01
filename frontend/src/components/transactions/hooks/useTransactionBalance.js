@@ -42,7 +42,7 @@ export const useTransactionBalance = (transactionId, isOpen) => {
       const response = await transactionApi.getTransaction(transactionId);
       const freshTransaction = response.data;
       
-      if (!freshTransaction || !freshTransaction.entryLines) {
+      if (!freshTransaction || !freshTransaction.entries) {
         throw new Error('Could not retrieve transaction details');
       }
 
@@ -67,7 +67,7 @@ export const useTransactionBalance = (transactionId, isOpen) => {
       return;
     }
     
-    if (!window.confirm(`Are you sure you want to delete this transaction? This will delete all ${balanceData.transaction.entryLines.length} entry lines.`)) {
+    if (!window.confirm(`Are you sure you want to delete this transaction? This will delete all ${balanceData.transaction.entries.length} entry lines.`)) {
       return;
     }
     

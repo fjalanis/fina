@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { transactionApi } from '../../services/api';
-import { applyRuleToTransaction } from '../../services/ruleService';
+import { applyRulesToAllTransactions } from '../../services/ruleService';
 import Modal from '../common/Modal';
 import SingleEntryForm from './SingleEntryForm';
 import { toast } from 'react-toastify';
@@ -44,13 +44,10 @@ const TransactionDetail = () => {
   const handleApplyRules = async () => {
     try {
       setApplyingRules(true);
-      const response = await applyRuleToTransaction(id);
+      const response = await applyRulesToAllTransactions();
       
       if (response.success) {
         toast.success('Rules applied successfully');
-        if (response.data.isNowBalanced) {
-          toast.success('Transaction is now balanced');
-        }
         await fetchTransaction();
       } else {
         toast.error(response.message || 'Failed to apply rules');
@@ -86,8 +83,8 @@ const TransactionDetail = () => {
   const calculateBalance = () => {
     let total = 0;
     
-    if (transaction.entryLines) {
-      transaction.entryLines.forEach(entry => {
+    if (transaction.entries) {
+      transaction.entries.forEach(entry => {
         if (entry.type === 'debit') {
           total += entry.amount;
         } else {
@@ -174,7 +171,7 @@ const TransactionDetail = () => {
         {/* Entry Lines Section */}
         <div>
           <h3 className="text-lg font-medium mb-4">Entry Lines</h3>
-          {transaction.entryLines && transaction.entryLines.length > 0 ? (
+          {(transaction.entries) && transaction.entries.length > 0 ? (
             <div className="bg-gray-50 p-4 rounded overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
@@ -185,44 +182,38 @@ const TransactionDetail = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {transaction.entryLines.map((entry, index) => (
-                    <tr key={entry._id || index} className="hover:bg-gray-100">
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {entry.account && typeof entry.account === 'object' 
-                          ? entry.account.name 
-                          : 'Unknown Account'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          entry.type === 'debit' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {entry.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                        {formatCurrency(entry.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                  {/* Balance row */}
-                  <tr className="bg-gray-100">
-                    <td className="px-4 py-3 text-sm font-bold text-gray-900" colSpan="2">
-                      Balance
-                    </td>
-                    <td className={`px-4 py-3 text-sm font-bold text-right ${
-                      Math.abs(balance) < 0.001 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {formatCurrency(balance)}
-                    </td>
-                  </tr>
+                  {(transaction.entries).map((entry, index) => {
+                    // Support both entry.type and entry.entryType fields
+                    const entryType = entry.entryType || entry.type;
+                    
+                    return (
+                      <tr key={entry._id || index} className="hover:bg-gray-100">
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {entry.account && typeof entry.account === 'object' 
+                            ? entry.account.name 
+                            : 'Unknown Account'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            entryType === 'debit' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {entryType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                          {formatCurrency(entry.amount)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="bg-gray-50 p-4 rounded text-center text-gray-500">
-              No entry lines found
+            <div className="bg-yellow-50 p-4 text-yellow-800 rounded">
+              No entry lines found for this transaction.
             </div>
           )}
         </div>

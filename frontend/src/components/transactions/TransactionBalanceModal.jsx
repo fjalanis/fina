@@ -127,7 +127,10 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
   const handleDeleteEntry = async (entry) => {
     if (!balanceData || !balanceData.transaction) return;
     
-    const result = await deleteEntry(entry, balanceData.transaction.entryLines.length);
+    // Get entries array from either entries (new schema)
+    const entries = balanceData.transaction.entries || [];
+    
+    const result = await deleteEntry(entry, entries.length);
     
     if (result === 'transaction_deleted') {
       // Close the modal and notify parent
@@ -232,7 +235,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                   />
                 ) : (
                   <EntryLineTable 
-                    entries={balanceData.transaction.entryLines}
+                    entries={balanceData.transaction.entries}
                     selectedEntryId={selectedEntry?._id}
                     onEditEntry={handleEditEntry}
                     onDeleteEntry={handleDeleteEntry}

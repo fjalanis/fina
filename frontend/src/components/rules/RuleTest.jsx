@@ -66,6 +66,123 @@ const RuleTest = () => {
     }
   };
 
+  // Render rule type specific details
+  const renderRuleTypeDetails = () => {
+    if (!rule) return null;
+    
+    switch (rule.type) {
+      case 'edit':
+        return (
+          <div>
+            <p className="text-sm font-medium text-gray-500">New Description</p>
+            <p className="font-mono">{rule.newDescription || 'None'}</p>
+          </div>
+        );
+      case 'merge':
+        return (
+          <div>
+            <p className="text-sm font-medium text-gray-500">Maximum Date Difference</p>
+            <p>{rule.maxDateDifference || 3} days</p>
+          </div>
+        );
+      case 'complementary':
+        return (
+          <div>
+            <p className="text-sm font-medium text-gray-500">Destination Accounts</p>
+            <ul className="list-disc pl-5">
+              {rule.destinationAccounts.map((dest, index) => (
+                <li key={index}>
+                  {dest.accountId?.name || 'Unknown'}
+                  {dest.ratio > 0 && ` (Ratio: ${dest.ratio.toFixed(2)})`}
+                  {dest.absoluteAmount > 0 && ` (Fixed Amount: $${dest.absoluteAmount.toFixed(2)})`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Format source accounts display
+  const formatSourceAccounts = (sourceAccounts) => {
+    if (!sourceAccounts || sourceAccounts.length === 0) {
+      return 'All accounts';
+    }
+    
+    return (
+      <ul className="list-disc pl-5">
+        {sourceAccounts.map((acc, index) => (
+          <li key={index}>{acc.name || 'Unknown'}</li>
+        ))}
+      </ul>
+    );
+  };
+
+  // Render test result based on rule type
+  const renderTestResult = () => {
+    if (!testResult) return null;
+    
+    const { isMatch, rule: testedRule } = testResult;
+    
+    return (
+      <div className={`mt-6 p-4 rounded ${isMatch ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+        <h3 className="font-semibold mb-2">Test Result</h3>
+        
+        <p className="mb-2">
+          <span className="font-medium">Description Match: </span>
+          {isMatch ? (
+            <span className="text-green-600">Yes, the pattern matches!</span>
+          ) : (
+            <span className="text-red-600">No, the pattern does not match.</span>
+          )}
+        </p>
+        
+        {isMatch && testedRule && (
+          <div className="mt-4">
+            <h4 className="font-medium mb-2">Rule Application Preview:</h4>
+            
+            {rule.type === 'edit' && (
+              <div className="p-3 bg-white rounded border border-gray-300">
+                <p><span className="font-medium">Original Description:</span> {testData.description}</p>
+                <p><span className="font-medium">New Description:</span> {rule.newDescription}</p>
+              </div>
+            )}
+            
+            {rule.type === 'merge' && (
+              <div className="p-3 bg-white rounded border border-gray-300">
+                <p>Transactions with similar descriptions within {rule.maxDateDifference} days would be merged.</p>
+              </div>
+            )}
+            
+            {rule.type === 'complementary' && testResult.destinationEntries && (
+              <div className="p-3 bg-white rounded border border-gray-300">
+                <p className="font-medium mb-2">Complementary Entries:</p>
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="py-2 px-3 text-left">Account</th>
+                      <th className="py-2 px-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {testResult.destinationEntries.map((entry, index) => (
+                      <tr key={index} className="border-t">
+                        <td className="py-2 px-3">{entry.accountId?.name || 'Unknown'}</td>
+                        <td className="py-2 px-3 text-right">${entry.amount.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return <div className="flex justify-center mt-8">Loading rule...</div>;
   }
@@ -104,6 +221,11 @@ const RuleTest = () => {
               </div>
               
               <div>
+                <p className="text-sm font-medium text-gray-500">Type</p>
+                <p className="capitalize">{rule.type}</p>
+              </div>
+              
+              <div>
                 <p className="text-sm font-medium text-gray-500">Pattern</p>
                 <p className="font-mono">{rule.pattern}</p>
               </div>
@@ -114,32 +236,21 @@ const RuleTest = () => {
               </div>
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Source Account</p>
-                <p>{rule.sourceAccount?.name || 'Unknown'}</p>
+                <p className="text-sm font-medium text-gray-500">Entry Type</p>
+                <p className="capitalize">{rule.entryType}</p>
               </div>
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Destination Accounts</p>
-                <ul className="list-disc pl-5">
-                  {rule.destinationAccounts.map((dest, index) => (
-                    <li key={index}>
-                      {dest.accountId?.name || 'Unknown'}
-                      {dest.ratio > 0 && ` (Ratio: ${dest.ratio})`}
-                      {dest.absoluteAmount > 0 && ` (Fixed Amount: $${dest.absoluteAmount.toFixed(2)})`}
-                    </li>
-                  ))}
-                </ul>
+                <p className="text-sm font-medium text-gray-500">Source Accounts</p>
+                {formatSourceAccounts(rule.sourceAccounts)}
               </div>
               
-              <div>
-                <p className="text-sm font-medium text-gray-500">Priority</p>
-                <p>{rule.priority}</p>
-              </div>
+              {renderRuleTypeDetails()}
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <span className={`px-2 py-1 rounded text-xs ${rule.isEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                  {rule.isEnabled ? 'Enabled' : 'Disabled'}
+                <p className="text-sm font-medium text-gray-500">Auto Apply</p>
+                <span className={`px-2 py-1 rounded text-xs ${rule.autoApply ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  {rule.autoApply ? 'Yes' : 'No'}
                 </span>
               </div>
             </div>
@@ -191,75 +302,16 @@ const RuleTest = () => {
                   <button
                     type="submit"
                     disabled={testing}
-                    className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
                     {testing ? 'Testing...' : 'Test Rule'}
                   </button>
                 </div>
               </div>
             </form>
+            
+            {renderTestResult()}
           </div>
-          
-          {testResult && (
-            <div className={`bg-white shadow-md rounded p-4 border-l-4 ${testResult.isMatch ? 'border-green-500' : 'border-yellow-500'}`}>
-              <h2 className="text-lg font-semibold mb-4">Test Results</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Pattern Match</p>
-                  <p className={testResult.isMatch ? 'text-green-600 font-semibold' : 'text-yellow-600 font-semibold'}>
-                    {testResult.isMatch ? 'Matches' : 'Does not match'}
-                  </p>
-                </div>
-                
-                {testResult.isMatch && testResult.destinationEntries.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Generated Entry Lines</p>
-                    <div className="mt-2 overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Account
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Amount
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {testResult.destinationEntries.map((entry, index) => {
-                            const account = rule.destinationAccounts.find(
-                              dest => dest.accountId._id === entry.accountId
-                            )?.accountId;
-                            
-                            return (
-                              <tr key={index}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  {account?.name || 'Unknown Account'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  ${Math.abs(entry.amount).toFixed(2)}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-                
-                {testResult.isMatch && testResult.destinationEntries.length === 0 && (
-                  <div className="bg-yellow-100 p-4 rounded">
-                    <p className="text-yellow-700">
-                      The rule matches but did not generate any entries. Check the rule configuration.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -75,11 +75,13 @@ describe('TransactionBalanceModal', () => {
     });
     
     // Mock the suggested matches API to return complementary entries
-    transactionApi.getSuggestedMatches.mockResolvedValue({
-      data: {
-        targetEntry: mockTransaction.entryLines[0],
-        matches: mockAutoMatches
-      }
+    transactionApi.getSuggestedMatches.mockImplementation((params) => {
+      return Promise.resolve({
+        data: {
+          targetEntry: mockTransaction.entryLines[0],
+          matches: mockAutoMatches
+        }
+      });
     });
     
   });
@@ -197,11 +199,13 @@ describe('TransactionBalanceModal', () => {
 
   test('displays no complementary entries found message when there are no matches', async () => {
     // Mock the suggested matches API to return empty matches
-    transactionApi.getSuggestedMatches.mockResolvedValue({
-      data: {
-        targetEntry: mockTransaction.entryLines[0],
-        matches: []
-      }
+    transactionApi.getSuggestedMatches.mockImplementation((params) => {
+      return Promise.resolve({
+        data: {
+          targetEntry: mockTransaction.entryLines[0],
+          matches: []
+        }
+      });
     });
     
     const onClose = jest.fn();

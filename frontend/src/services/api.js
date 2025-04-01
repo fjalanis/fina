@@ -33,6 +33,7 @@ const fetchData = async (endpoint, options = {}) => {
     });
     
     const data = await response.json();
+    console.log('API response data:', data);
     
     if (!response.ok) {
       // Improved error handling - extract server error message if available
@@ -93,7 +94,7 @@ export const transactionApi = {
   // Get transaction by ID
   getTransaction: (id) => fetchData(`/transactions/${id}`),
 
-  // Create a new transaction with entry lines
+  // Create a new transaction with entries
   createTransaction: (transactionData) => fetchData('/transactions', {
     method: 'POST',
     body: JSON.stringify(transactionData),
@@ -110,37 +111,51 @@ export const transactionApi = {
     method: 'DELETE',
   }),
 
-  // Get entry lines for a transaction
-  getTransactionEntries: (transactionId) => fetchData(`/transactions/${transactionId}/entries`),
-
-  // Add entry line to a transaction
-  addEntryLine: (transactionId, entryData) => fetchData(`/transactions/${transactionId}/entries`, {
+  // Add entry to a transaction
+  addEntry: (transactionId, entryData) => fetchData(`/transactions/${transactionId}/entries`, {
     method: 'POST',
     body: JSON.stringify(entryData),
   }),
   
-  // Get suggested matches for an entry line
-  getSuggestedMatches: (entryLineId, maxMatches = 10, dateRange = 15, amount, type, excludeTransactionId, page = 1, limit = 10) => {
+  // Update an entry in a transaction
+  updateEntry: (transactionId, entryId, entryData) => fetchData(`/transactions/${transactionId}/entries/${entryId}`, {
+    method: 'PUT',
+    body: JSON.stringify(entryData),
+  }),
+  
+  // Delete an entry from a transaction
+  deleteEntry: (transactionId, entryId) => fetchData(`/transactions/${transactionId}/entries/${entryId}`, {
+    method: 'DELETE',
+  }),
+  
+  // Get suggested matches for a transaction
+  getSuggestedMatches: (params) => {
+    const { transactionId, amount, type, excludeTransactionId, maxMatches = 10, dateRange = 15, page = 1, limit = 10 } = params || {};
+    
     let endpoint = '';
     
-    // Check if we're matching by entry ID or directly by amount/type
-    if (entryLineId) {
-      // Original case - match by entry ID
-      endpoint = `/transactions/matches/${entryLineId}?maxMatches=${maxMatches}&dateRange=${dateRange}&page=${page}&limit=${limit}`;
+    // Check if we're matching by transaction ID or directly by amount/type
+    if (transactionId) {
+      // Match by transaction ID
+      endpoint = `/transactions/matches/${transactionId}?maxMatches=${maxMatches}&dateRange=${dateRange}&page=${page}&limit=${limit}`;
     } else if (amount !== undefined && type) {
-      // New case - match directly by amount and type
-      // Ensure values are properly encoded
-      endpoint = `/transactions/matches/direct?amount=${encodeURIComponent(amount)}&type=${encodeURIComponent(type)}&maxMatches=${maxMatches}&dateRange=${dateRange}&page=${page}&limit=${limit}`;
-      
-      // If we need to exclude a transaction, add it to the query
-      if (excludeTransactionId) {
-        endpoint += `&excludeTransactionId=${encodeURIComponent(excludeTransactionId)}`;
-      }
+      // Match directly by amount and type - use the existing suggestions endpoint
+      return fetchData('/transactions/suggestions', {
+        method: 'POST',
+        body: JSON.stringify({
+          amount,
+          type,
+          excludeTransactionId,
+          maxMatches,
+          dateRange,
+          page,
+          limit
+        })
+      });
     } else {
-      throw new Error('Either entryLineId or both amount and type must be provided');
+      throw new Error('Either transactionId or both amount and type must be provided');
     }
     
-    console.log(`API request to endpoint: ${endpoint}`);
     return fetchData(endpoint);
   },
   
@@ -202,23 +217,6 @@ export const transactionApi = {
     }),
 };
 
-// Entry Line API functions
-export const entryLineApi = {
-  // Get entry line by ID
-  getEntryLine: (id) => fetchData(`/entries/${id}`),
-
-  // Update an entry line
-  updateEntryLine: (id, entryData) => fetchData(`/entries/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(entryData),
-  }),
-
-  // Delete an entry line
-  deleteEntryLine: (id) => fetchData(`/entries/${id}`, {
-    method: 'DELETE',
-  }),
-};
-
 // Report API functions
 export const reportApi = {
   // Get account balance report
@@ -249,8 +247,11 @@ export const reportApi = {
 
 // Rule API functions
 export const ruleApi = {
-  // Get all rules
-  getRules: () => fetchData('/rules'),
+  // Get all rules - can filter by type
+  getRules: (type) => {
+    const queryParams = type ? `?type=${type}` : '';
+    return fetchData(`/rules${queryParams}`);
+  },
 
   // Get rule by ID
   getRule: (id) => fetchData(`/rules/${id}`),
@@ -279,21 +280,49 @@ export const ruleApi = {
   }),
 
   // Apply rule to transaction
-  applyRuleToTransaction: (transactionId) => fetchData(`/rules/apply/${transactionId}`, {
-    method: 'POST'
+  applyRuleToTransaction: (ruleId, transactionId) => fetchData(`/rules/${ruleId}/apply`, {
+    method: 'POST',
+    body: JSON.stringify({ transactionId }),
   }),
 
   // Apply all rules to all transactions
   applyRulesToAllTransactions: () => fetchData('/rules/apply-all', {
     method: 'POST'
   }),
+  
+  // Preview which transactions would match a rule pattern
+  previewRule: ({ pattern, sourceAccounts, entryType }) => {
+    // Build query params for GET request
+    const params = new URLSearchParams();
+    
+    // Required parameter
+    if (!pattern) {
+      throw new Error('Pattern is required for preview');
+    }
+    params.append('pattern', pattern);
+    
+    // Optional parameters
+    if (sourceAccounts && sourceAccounts.length > 0) {
+      // If array, add each account ID separately
+      if (Array.isArray(sourceAccounts)) {
+        sourceAccounts.forEach(accountId => params.append('sourceAccounts', accountId));
+      } else {
+        params.append('sourceAccounts', sourceAccounts);
+      }
+    }
+    
+    if (entryType) {
+      params.append('entryType', entryType);
+    }
+    
+    return fetchData(`/rules/preview?${params.toString()}`);
+  },
 };
 
 // Create API object with all services and export API_BASE_URL
 const api = { 
   accountApi,
   transactionApi,
-  entryLineApi,
   reportApi,
   ruleApi,
   API_BASE_URL // Export the base URL for direct usage
