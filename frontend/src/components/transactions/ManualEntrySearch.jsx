@@ -282,8 +282,8 @@ const ManualEntrySearch = ({
               <tbody className="bg-white divide-y divide-gray-200">
                 {searchResults.map(entry => (
                   <tr key={entry._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                      {entry.transaction.description}
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-[250px]">
+                      <div className="truncate">{entry.transaction.description}</div>
                       <span className="text-xs text-gray-500 block">
                         {formatDate(entry.transaction.date)}
                       </span>

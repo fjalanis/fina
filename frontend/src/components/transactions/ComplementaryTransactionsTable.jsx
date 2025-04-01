@@ -41,7 +41,7 @@ const ComplementaryTransactionsTable = ({
         <tbody className="bg-white divide-y divide-gray-200">
           {transactions.map(transaction => (
             <tr key={transaction._id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm text-gray-900">
+              <td className="px-4 py-3 text-sm text-gray-900 max-w-[250px] truncate">
                 {transaction.description}
               </td>
               <td className="px-4 py-3 text-sm text-center text-gray-500">
