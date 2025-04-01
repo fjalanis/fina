@@ -26,7 +26,6 @@ exports.createTransaction = async (req, res) => {
       .filter(e => e.type === 'credit')
       .reduce((sum, e) => sum + e.amount, 0);
       
-    updatedTransaction.isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
     await updatedTransaction.save();
     
     // Convert to plain object to ensure proper serialization
@@ -141,8 +140,6 @@ exports.updateTransaction = async (req, res) => {
       .filter(e => e.type === 'credit')
       .reduce((sum, e) => sum + parseFloat(e.amount), 0);
       
-    // Set isBalanced property based on calculation
-    transaction.isBalanced = Math.abs(totalDebit - totalCredit) <= 0.01;
     await transaction.save();
     
     // Apply rules to the updated transaction
@@ -216,9 +213,6 @@ exports.addEntry = async (req, res) => {
       .filter(e => e.type === 'credit')
       .reduce((sum, e) => sum + e.amount, 0);
       
-    // Set isBalanced property based on calculation
-    transaction.isBalanced = Math.abs(totalDebit - totalCredit) <= 0.01;
-    
     await transaction.save();
     
     // Apply rules to the updated transaction

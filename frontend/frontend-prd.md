@@ -1,21 +1,8 @@
-# Household Finance App PRD
+# Household Finance App Frontend PRD
 
 ## Overview
 
-The Household Finance App is a personal finance management system that brings the power of double-entry accounting to household finances with an intuitive interface. The app's distinguishing features include a flexible transaction entry system that accommodates unbalanced entries, automatic transaction completion, and powerful visualization tools including Sankey diagrams for cash flow analysis.
-
-## Goals and Objectives
-
-- Provide a simple yet powerful system for tracking household finances
-- Support double-entry accounting with flexible transaction creation
-- Offer intuitive tools for balancing transactions
-- Visualize financial flows with interactive Sankey diagrams
-- Support location-based expense tracking
-- Handle multiple currencies and asset types
-
-## User Personas
-
-**Primary User**: Individual who manages household finances and does their own taxes, but is not an accounting professional. Wants detailed financial tracking without the complexity of traditional accounting software.
+The Household Finance App frontend provides an intuitive interface for personal finance management using double-entry accounting principles. The application offers flexible transaction entry, interactive visualizations, and powerful tools for financial analysis through a modern, responsive web interface.
 
 ## Technical Architecture
 
@@ -25,124 +12,38 @@ The Household Finance App is a personal finance management system that brings th
 - **Visualization**: D3.js
 - **Maps**: Leaflet
 - **Data Fetching**: React Query
+- **Routing**: React Router
+- **Date Handling**: date-fns
 
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express
-- **Database**: MongoDB (standalone mode)
-- **ODM**: Mongoose
+## Frontend Feature Requirements
 
-### Microservices
-1. **Account Service**
-2. **Transaction Service**
-3. **Analytics Service**
-4. **Rules Service**
+### 1. Account Management Interface
 
-## Database Requirements
-
-- Must work with MongoDB in standalone mode (not requiring replica sets)
-- No MongoDB transactions should be used for data consistency
-- Sequential operations with proper validation and error handling
-- Cascade deletions for linked entities (transaction-entries relationship)
-- Proper data integrity checks at the application level
-
-## Data Model
-
-### Accounts
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  type: String, // Asset, Liability, Income, Expense
-  parentAccount: ObjectId,
-  description: String,
-  currency: String,
-  unit: String,
-  icon: String,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### Transactions
-```javascript
-{
-  _id: ObjectId,
-  date: Date,
-  description: String,
-  status: String, // Balanced, Unbalanced
-  tags: [String],
-  isRecurring: Boolean,
-  recurringMetadata: {
-    frequency: String,
-    nextDate: Date,
-    endDate: Date
-  },
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### Entry Lines
-```javascript
-{
-  _id: ObjectId,
-  transactionId: ObjectId,
-  accountId: ObjectId,
-  amount: Number, // Positive for debit, negative for credit
-  description: String,
-  location: {
-    latitude: Number,
-    longitude: Number,
-    address: String
-  },
-  receiptReference: String,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### Transaction Balancing Rules
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  description: String,
-  pattern: String, // Regex for matching descriptions
-  sourceAccount: ObjectId,
-  destinationAccounts: [{
-    accountId: ObjectId,
-    ratio: Number, // For splits
-    absoluteAmount: Number // For fixed amounts
-  }],
-  priority: Number,
-  isEnabled: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-## Feature Requirements
-
-### 1. Account Management
-
-#### 1.1 Account Hierarchy
-- Support for hierarchical account structure
-- Customizable account types (Asset, Liability, Income, Expense)
-- Account balance calculation with rollup to parent accounts
-
-#### 1.2 Account Interface
+#### 1.1 Account Hierarchy Visualization
 - Tree view of accounts with expandable/collapsible nodes
-- Quick account creation with parent-child relationship
-- Balance display with currency/unit options
+- Visual distinction between account types (Asset, Liability, Income, Expense)
+- Color-coding for different account categories
+- Balance display with ability to toggle between summary and detailed views
 
-### 2. Transaction Management
+#### 1.2 Account Management UI
+- Quick account creation modal with parent-child relationship selector
+- Drag-and-drop interface for reorganizing account hierarchy
+- Toggle for hiding inactive accounts
+- Multi-currency support with currency selector per account
+- Institution grouping and filtering options
+
+### 2. Transaction Management Interface
 
 #### 2.1 Single Entry Creation
 - Quick entry form for single-sided transactions
 - Support for location data with map integration
 - Receipt/document attachment capability
 - Option to create fully balanced transactions directly
+- Entry fields must support the backend model:
+  - Amount (positive numbers only)
+  - EntryType (dropdown with 'debit' or 'credit' options)
+  - Account selection
+  - Memo (optional)
 
 #### 2.2 Transaction Completion
 - Interface to find and complete unbalanced transactions
@@ -163,6 +64,7 @@ The Household Finance App is a personal finance management system that brings th
   - Minimum amount: $0.01 (one cent)
   - Maximum amount: Equal to the transaction's imbalance amount
   - Type: The type needed to balance the transaction (credit or debit)
+- **Important**: The UI must calculate transaction balance status from the virtual `isBalanced` property returned by the API, not rely on a stored field
 
 #### 2.3 Transaction and Entry Line Behavior
 - When all entries from a transaction are removed, the transaction itself should be automatically deleted
@@ -176,6 +78,7 @@ The Household Finance App is a personal finance management system that brings th
   - Both source and destination transactions will have their balance status recalculated
   - Full transaction merging is supported through "Merge" action, which moves all entries from one transaction to another and updates the destination transaction description to include both descriptions
   - When transactions are merged, source transaction notes are appended to destination transaction notes
+- Balance status indicators should reflect the `isBalanced` virtual property, not a stored field
 
 #### 2.4 Recurring Transactions
 - System-suggested recurring transaction identification
@@ -183,29 +86,53 @@ The Household Finance App is a personal finance management system that brings th
 - Template creation for common transactions
 - Forecast of upcoming recurring transactions
 
-### 3. Transaction Balancing Rules
+### 3. Rules Interface
 
 #### 3.1 Rule Creation
-- Gmail-like filter creation interface
-- Pattern matching for transaction descriptions
+- Gmail-like filter creation interface with three distinct rule type sections:
+  1. **Edit Rules**: For modifying transaction descriptions
+     - Pattern field (regex) for matching descriptions
+     - New description field
+     - Source accounts selector (multiple allowed)
+     - Entry type filter (debit, credit, or both)
+  2. **Merge Rules**: For combining similar transactions
+     - Pattern field (regex) for matching descriptions
+     - Max date difference selector (1-15 days, default 3)
+     - Source accounts selector (multiple allowed)
+     - Entry type filter (debit, credit, or both)
+  3. **Complementary Rules**: For creating balancing entries
+     - Pattern field (regex) for matching descriptions
+     - Source accounts selector (multiple allowed)
+     - Entry type filter (debit, credit, or both)
+     - Destination accounts section with:
+       - Account selector
+       - Ratio input (must sum to 1 across all accounts)
+       - Optional absolute amount field
+- Pattern matching for transaction descriptions with visual RegEx helper
 - Support for split transactions across multiple accounts
 - Testing interface to verify rule behavior
 - Support for filtering by transaction type (debit vs. credit)
 - Optional source account selection with support for multiple accounts
 - Rule test interface should show sample of currently unbalanced transactions that would match
 - Rules can be enabled/disabled to control automatic application on new transactions
-- Rules architecture should support different types of rule behaviors:
-  - Complementary entry creation (current implementation)
-  - Transaction merging
-  - Automatic transaction edits
-  - Future extensibility for other rule types
+- Rule preview functionality that calls the `/api/rules/preview` endpoint with entered criteria
+- Preview interface showing:
+  - Matching transaction count
+  - Total unbalanced transaction count
+  - List of matching transactions with descriptions
 
 #### 3.2 Rule Management
 - Priority ordering for rules (determined by UI drag-and-drop order)
-- Enable/disable toggle for automatic rule application
+- Enable/disable toggle for automatic rule application (toggles the `autoApply` field)
 - Rule effectiveness metrics
 - Bulk rule operations
 - Rule test interface showing sample of currently unbalanced transactions
+- "Apply All Rules" button that calls the `/api/rules/apply-all` endpoint
+- Summary display after bulk application showing:
+  - Total transactions processed
+  - Number of successful updates
+  - Number of failed updates
+  - Detailed logs (expandable)
 
 ### 4. Visualization
 
@@ -215,28 +142,38 @@ The Household Finance App is a personal finance management system that brings th
 - Time range selector with presets and custom options
 - Special indicators for unbalanced entries
 - Click-through navigation to transactions and accounts
+- Resizable nodes and links
+- Tooltips showing value and percentage
+- Ability to drill down into account hierarchies
 
 #### 4.2 Timeline View
 - Calendar-based transaction visualization
 - Spending patterns by day/week/month
 - Filtering by account, category, or tag
+- Ability to create transactions directly from timeline
+- Heatmap overlay option showing transaction density
 
 #### 4.3 Location Analysis
 - Map visualization of spending locations
 - Heat maps for expense concentration
 - Location grouping and filtering
+- Transaction proximity analysis
+- Location-based spending reports
 
 ### 5. Multi-Currency and Asset Tracking
 
 #### 5.1 Currency Support
-- Multiple currency handling
-- Exchange rate tracking
+- Multiple currency handling in UI
+- Exchange rate display
 - Conversion between currencies for reporting
+- Historical exchange rate charts
+- Base currency selection
 
 #### 5.2 Asset Valuation
 - Track assets in native units (shares, etc.)
-- Historical valuation data
-- Gain/loss calculation
+- Historical valuation data visualization
+- Gain/loss calculation with visual indicators
+- Performance metrics dashboard
 
 ### 6. Reporting
 
@@ -245,23 +182,22 @@ The Household Finance App is a personal finance management system that brings th
 - Income vs. Expenses
 - Net worth over time
 - Account balances
+- Export to PDF/CSV
+- Scheduled report delivery
 
 #### 6.2 Custom Reports
 - User-defined report builder
 - Flexible time period selection
 - Export capabilities
+- Report sharing functionality
+- Saved report templates
 
 #### 6.3 Tax Reporting
 - Year-end summaries
 - Category grouping for tax purposes
 - Transaction tagging for tax relevance
-
-### 7. API
-
-#### 7.1 External Integration
-- Well-documented API for third-party integration
-- Authentication and authorization
-- Bulk transaction import capabilities
+- Tax liability estimation
+- Tax document export
 
 ## User Interface
 
@@ -271,6 +207,8 @@ The Household Finance App is a personal finance management system that brings th
 - Unbalanced transaction alerts
 - Recent activity feed
 - Key metrics display
+- Customizable widgets
+- Saved view configurations
 
 ### Edit/Create Operations
 - All add/edit operations (accounts, transactions, entries, rules) should use modal windows
@@ -299,6 +237,8 @@ The Household Finance App is a personal finance management system that brings th
 - Balance display and history
 - Transaction list filtered by account
 - Quick entry form
+- Performance metrics
+- Account-specific reports
 
 ### Transaction Interface
 - List view with filtering and sorting
@@ -309,7 +249,8 @@ The Household Finance App is a personal finance management system that brings th
   - Left pane: scrollable list of unbalanced transactions
   - Right pane: selected entry with drop zone and scrollable matching suggestions
   - Fixed position for the selected entry to maintain context while scrolling
-- Transaction filtering: Only transactions explicitly marked with `isBalanced === false` should appear in the unbalanced transactions list
+- Transaction filtering: Only transactions with `isBalanced=false` (which is a virtual computed property, not stored) should appear in the unbalanced transactions list
+- Transaction list should use the API's filtering mechanism, understanding that `isBalanced` is calculated server-side on demand
 - Transaction Balance Modal:
   - Balance Analysis section showing total debits, credits, and net balance
   - Suggested fix displayed as a message (e.g., "Add a credit entry of $300.00 to balance this transaction")
@@ -327,108 +268,35 @@ The Household Finance App is a personal finance management system that brings th
 - Toggle between different visualization types
 - Time range controls
 - Export/share options
+- Interactive filtering
+- Drill-down capabilities
 
-## Error Handling
+## Responsive Design Requirements
 
-- Global error handling should provide detailed information in server logs
-- User-facing errors should be clear and actionable
-- Different error types should be properly identified and handled:
-  - Validation errors (400)
-  - Resource not found errors (404)
-  - Server errors (500)
-- Error responses should have consistent structure:
-  - Success flag
-  - Error message
-  - Additional details (in non-production environments)
-- Specific error scenarios:
-  - When attempting database operations that would violate data integrity rules
-  - When attempting to delete resources with dependent entities
-  - When MongoDB operations fail
+- Mobile-first approach with responsive layouts
+- Touch-optimized controls for mobile devices
+- Simplified views for smaller screens
+- Optimized data loading for mobile networks
+- Offline capability for basic functions
 
-## Performance Considerations
+## Accessibility Requirements
 
-- Background processing for analytics
-- Scheduled report generation
-- Data aggregation for historical transactions
-- Caching strategy for visualizations
+- WCAG 2.1 AA compliance
+- Keyboard navigation support
+- Screen reader compatibility
+- Sufficient color contrast
+- Focus management for modals and interactive elements
 
-## Technical Requirements
+## Performance Targets
 
-### API Endpoints
+- Initial load time < 2 seconds
+- Time to interactive < 3 seconds
+- Smooth animations (60fps)
+- Optimized bundle size with code splitting
+- Efficient data fetching with caching
 
-#### Account Service
-- `GET /api/accounts` - List all accounts
-- `GET /api/accounts/:id` - Get account details
-- `POST /api/accounts` - Create new account
-- `PUT /api/accounts/:id` - Update account
-- `DELETE /api/accounts/:id` - Delete account
-- `GET /api/accounts/:id/balance` - Get account balance
-
-#### Transaction Service
-- `GET /api/transactions` - List transactions
-- `GET /api/transactions/:id` - Get transaction details
-- `POST /api/transactions` - Create transaction
-- `PUT /api/transactions/:id` - Update transaction
-- `DELETE /api/transactions/:id` - Delete transaction (should cascade delete all associated entries)
-- `GET /api/transactions/matches/:id` - Get suggested matching entries for an entry line
-- `GET /api/transactions/matches/direct` - Get complementary transactions by amount and opposite entry type
-- `POST /api/transactions/split-transaction` - Split a transaction into two transactions by moving selected entries to a new transaction
-- `POST /api/transactions/merge-transaction` - Merge all entries from source transaction to destination transaction
-- `GET /api/entries` - List entry lines
-
-#### Analytics Service
-- `GET /api/analytics/cashflow` - Get Sankey diagram data
-- `GET /api/analytics/timeline` - Get timeline data
-- `GET /api/analytics/location` - Get location-based data
-- `GET /api/analytics/reports/:type` - Get report data
-
-#### Rules Service
-- `GET /api/rules` - List balancing rules
-- `POST /api/rules` - Create rule
-- `PUT /api/rules/:id` - Update rule
-- `DELETE /api/rules/:id` - Delete rule
-- `POST /api/rules/:id/test` - Test rule against transactions
-
-### Backend Implementation Considerations
-- Simplified transaction flow: API endpoints should use simple, direct operations rather than complex MongoDB transactions
-- Must work with MongoDB in standalone mode (not requiring replica sets)
-- Database operations should be designed for reliability and maintainability
-- Error handling should provide clear, actionable error messages for client-side recovery
-- Balance calculations and state updates should be explicit operations with proper validation
-- Data integrity should be maintained through application-level checks and sequential operations
-
-## Implementation Phases
-
-### Phase 1: Core Functionality
-- Basic account structure and management
-- Transaction and entry line creation
-- Simple transaction balancing interface
-- Basic reporting
-
-### Phase 2: Enhanced Features
-- Transaction balancing rules
-- Sankey diagram implementation
-- Timeline and location features
-- Recurring transaction handling
-
-### Phase 3: Advanced Features
-- Advanced analytics
-- Tax reporting
-- Multi-currency enhancements
-- Performance optimizations
-
-## Success Metrics
-
-- Number of transactions successfully balanced
-- Reduction in manual entry time
-- Completeness of financial picture
-- User satisfaction with visualizations
-
-## Appendix
-
-### Technology Stack
+## Frontend Dependencies
 ```javascript
-// Frontend Dependencies
 {
   "react": "^18.2.0",
   "react-dom": "^18.2.0",
@@ -439,14 +307,65 @@ The Household Finance App is a personal finance management system that brings th
   "react-router-dom": "^6.10.0",
   "date-fns": "^2.29.0"
 }
-
-// Backend Dependencies
-{
-  "express": "^4.18.0",
-  "mongoose": "^7.0.0",
-  "cors": "^2.8.5",
-  "joi": "^17.9.0",
-  "swagger-ui-express": "^4.6.0",
-  "winston": "^3.8.0"
-}
 ```
+
+## Implementation Phases
+
+### Phase 1: Core Interface
+- Account management interface
+- Basic transaction creation and listing
+- Simple balance display
+- Essential navigation
+
+### Phase 2: Advanced Functionality
+- Transaction balancing interface
+- Rule creation and management
+- Basic visualizations
+- Responsive design implementation
+
+### Phase 3: Visualization and Analysis
+- Advanced Sankey diagrams
+- Timeline and location features
+- Custom reporting
+- Performance optimizations
+
+## Success Metrics
+
+- User engagement (time spent in app)
+- Transaction creation speed
+- Time to balance transactions
+- User satisfaction with visualizations
+- Feature adoption rates 
+
+## Backend API Integration
+
+The frontend must integrate with these key backend endpoints:
+
+### Transaction Endpoints
+- `GET /api/transactions` - List transactions with appropriate filters
+- `GET /api/transactions/:id` - Get transaction details with populated entries
+- `POST /api/transactions` - Create transaction with entries
+- `PUT /api/transactions/:id` - Update transaction
+- `DELETE /api/transactions/:id` - Delete transaction (cascades to entries)
+
+### Rule Endpoints
+- `GET /api/rules` - List all rules (optional type filter)
+- `GET /api/rules/:id` - Get rule details
+- `POST /api/rules` - Create a new rule (with appropriate type-specific fields)
+- `PUT /api/rules/:id` - Update a rule
+- `DELETE /api/rules/:id` - Delete a rule
+- `POST /api/rules/:id/apply` - Apply a rule to a specific transaction
+- `POST /api/rules/apply-all` - Apply all auto-apply rules to unbalanced transactions
+- `GET /api/rules/preview` - Preview which transactions would match a rule pattern
+
+### Data Handling Considerations
+- The `isBalanced` property is a virtual property calculated in real-time
+- Finding unbalanced transactions requires working with the backend, which:
+  1. Fetches all transactions
+  2. Populates necessary account references
+  3. Filters transactions where isBalanced is false
+- Rule application follows this sequence:
+  1. Pattern matching against transaction descriptions
+  2. Account filtering based on specified source accounts
+  3. Entry type filtering (debit/credit/both)
+  4. Application of the appropriate rule type logic 

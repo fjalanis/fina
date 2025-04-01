@@ -242,7 +242,6 @@ const applyRuleToTransactionInternal = async (transaction) => {
   
   if (Math.abs(currentBalance) < 0.01) {
     // Transaction is already balanced (within rounding error)
-    transaction.isBalanced = true;
     await transaction.save();
     
     return {
@@ -304,10 +303,6 @@ const applyRuleToTransactionInternal = async (transaction) => {
   
   // Check if transaction is now balanced
   const newBalance = transaction.entries.reduce((sum, entry) => sum + entry.amount, 0);
-  
-  if (Math.abs(newBalance) < 0.01) {
-    transaction.isBalanced = true;
-  }
   
   await transaction.save();
   
@@ -467,7 +462,7 @@ exports.previewMatchingTransactions = async (req, res) => {
     if (!pattern) {
       return res.status(400).json({
         success: false,
-        message: 'A pattern is required for previewing rules'
+        error: 'Pattern is required for preview'
       });
     }
     

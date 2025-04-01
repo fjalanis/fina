@@ -200,7 +200,7 @@ describe('Rule Preview Integration Tests', () => {
           memo: 'Groceries'
         },
         {
-          account: mongoose.Types.ObjectId(), // Some other account
+          account: new mongoose.Types.ObjectId(), // Some other account
           amount: 50,
           entryType: 'credit',
           memo: 'Groceries payment'

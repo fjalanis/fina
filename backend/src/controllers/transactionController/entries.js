@@ -283,10 +283,6 @@ exports.updateEntry = async (req, res) => {
 
     await transaction.save();
 
-    // Update transaction balance
-    transaction.isBalanced = await transaction.isTransactionBalanced();
-    await transaction.save();
-
     return res.status(200).json({
       success: true,
       data: entry
@@ -343,10 +339,6 @@ exports.deleteEntry = async (req, res) => {
 
     // Remove entry
     entry.remove();
-    await transaction.save();
-
-    // Update transaction balance
-    transaction.isBalanced = await transaction.isTransactionBalanced();
     await transaction.save();
 
     return res.status(200).json({
