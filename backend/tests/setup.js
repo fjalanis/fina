@@ -6,10 +6,14 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Base MongoDB connection string from .env
-const BASE_MONGO_URI = process.env.MONGO_URI;
+const BASE_MONGO_URI = process.env.MONGODB_URI;
 
 // Function to setup database for testing
 const setupDB = () => {
+  if (!BASE_MONGO_URI) {
+    throw new Error('MONGODB_URI environment variable is not set');
+  }
+
   // Create a unique database name for this test file
   const uniqueDbName = `test_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
   console.log(`Creating test database: ${uniqueDbName}`);
@@ -20,6 +24,10 @@ const setupDB = () => {
   // Connect to MongoDB before all tests
   beforeAll(async () => {
     try {
+      // Close any existing connections
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
       await mongoose.connect(MONGODB_URI);
       console.log(`Connected to MongoDB using database: ${uniqueDbName}`);
     } catch (error) {
@@ -48,16 +56,15 @@ const setupDB = () => {
         await mongoose.connection.dropDatabase();
         console.log(`Dropped test database: ${uniqueDbName}`);
         
-        // Then disconnect
+        // Close the connection
         await mongoose.disconnect();
-        console.log(`Disconnected from MongoDB database: ${uniqueDbName}`);
+        console.log('Closed MongoDB connection');
       } catch (error) {
-        console.error(`Error cleaning up test database: ${error.message}`);
-        // Still try to disconnect even if drop fails
-        await mongoose.disconnect();
+        console.error('Error cleaning up test database:', error);
+        throw error;
       }
     }
   });
 };
 
-module.exports = { mongoose, setupDB }; 
+module.exports = { setupDB }; 

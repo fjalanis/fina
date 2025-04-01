@@ -109,9 +109,10 @@ export const useComplementaryTransactions = (onSuccess) => {
       
       console.log(`Moving entry ${entry._id} to transaction ${targetTransactionId}`);
       
-      // Call the extractEntry API to move this single entry
-      await transactionApi.extractEntry(
-        entry._id,
+      // Call the moveEntry API to move this single entry
+      await transactionApi.moveEntry(
+        entry.transaction._id,
+        entry.transaction.entries.findIndex(e => e._id === entry._id),
         targetTransactionId
       );
       

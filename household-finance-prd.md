@@ -190,12 +190,22 @@ The Household Finance App is a personal finance management system that brings th
 - Pattern matching for transaction descriptions
 - Support for split transactions across multiple accounts
 - Testing interface to verify rule behavior
+- Support for filtering by transaction type (debit vs. credit)
+- Optional source account selection with support for multiple accounts
+- Rule test interface should show sample of currently unbalanced transactions that would match
+- Rules can be enabled/disabled to control automatic application on new transactions
+- Rules architecture should support different types of rule behaviors:
+  - Complementary entry creation (current implementation)
+  - Transaction merging
+  - Automatic transaction edits
+  - Future extensibility for other rule types
 
 #### 3.2 Rule Management
-- Priority ordering for rules
-- Enable/disable toggle
+- Priority ordering for rules (determined by UI drag-and-drop order)
+- Enable/disable toggle for automatic rule application
 - Rule effectiveness metrics
 - Bulk rule operations
+- Rule test interface showing sample of currently unbalanced transactions
 
 ### 4. Visualization
 
@@ -362,7 +372,7 @@ The Household Finance App is a personal finance management system that brings th
 - `DELETE /api/transactions/:id` - Delete transaction (should cascade delete all associated entries)
 - `GET /api/transactions/matches/:id` - Get suggested matching entries for an entry line
 - `GET /api/transactions/matches/direct` - Get complementary transactions by amount and opposite entry type
-- `POST /api/transactions/extract-entry` - Move an entry from one transaction to another
+- `POST /api/transactions/split-transaction` - Split a transaction into two transactions by moving selected entries to a new transaction
 - `POST /api/transactions/merge-transaction` - Merge all entries from source transaction to destination transaction
 - `GET /api/entries` - List entry lines
 

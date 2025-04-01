@@ -1,5 +1,4 @@
 const Transaction = require('../../models/Transaction');
-const EntryLine = require('../../models/EntryLine');
 
 // @desc    Search for entries with filters
 // @route   GET /api/transactions/search-entries
@@ -23,35 +22,6 @@ exports.searchEntries = async (req, res) => {
     // Build the search query
     const searchQuery = {};
     
-    // Amount range filter - always convert to numbers
-    if (minAmount !== undefined || maxAmount !== undefined) {
-      searchQuery.amount = {};
-      
-      if (minAmount !== undefined) {
-        const minAmountNum = parseFloat(minAmount);
-        if (!isNaN(minAmountNum)) {
-          searchQuery.amount.$gte = minAmountNum;
-        }
-      }
-      
-      if (maxAmount !== undefined) {
-        const maxAmountNum = parseFloat(maxAmount);
-        if (!isNaN(maxAmountNum)) {
-          searchQuery.amount.$lte = maxAmountNum;
-        }
-      }
-    }
-    
-    // Account filter
-    if (accountId && accountId.trim() !== '') {
-      searchQuery.account = accountId;
-    }
-    
-    // Type filter (debit/credit)
-    if (type && ['debit', 'credit'].includes(type)) {
-      searchQuery.type = type;
-    }
-    
     // Date range filter - only include entries from last N days
     const earliestDate = new Date();
     earliestDate.setDate(earliestDate.getDate() - parseInt(dateRange || 15));
@@ -61,8 +31,7 @@ exports.searchEntries = async (req, res) => {
     
     console.log('Filtering transactions from date:', earliestDate);
     
-    // Get entry lines that match the criteria
-    // First find transactions that match the date range
+    // Get transactions that match the date range
     const recentTransactions = await Transaction.find({
       date: { $gte: earliestDate },
       isBalanced: false // Only consider unbalanced transactions
@@ -91,13 +60,13 @@ exports.searchEntries = async (req, res) => {
     const transactionIds = recentTransactions.map(t => t._id);
     
     // Add transaction filter to search query
-    searchQuery.transaction = { 
+    searchQuery._id = { 
       $in: transactionIds,
     };
     
     // Add excludeTransactionId filter if provided
     if (excludeTransactionId && excludeTransactionId.trim() !== '') {
-      searchQuery.transaction.$ne = excludeTransactionId;
+      searchQuery._id.$ne = excludeTransactionId;
     }
     
     // Text search on description if provided
@@ -130,13 +99,13 @@ exports.searchEntries = async (req, res) => {
         }
         
         // Update transaction filter to include only text-matching transactions
-        searchQuery.transaction = { 
+        searchQuery._id = { 
           $in: textSearchTransactions,
         };
         
         // Re-add excludeTransactionId filter if it was provided
         if (excludeTransactionId && excludeTransactionId.trim() !== '') {
-          searchQuery.transaction.$ne = excludeTransactionId;
+          searchQuery._id.$ne = excludeTransactionId;
         }
       } catch (err) {
         console.error('Error in text search:', err);
@@ -146,25 +115,48 @@ exports.searchEntries = async (req, res) => {
     
     console.log('Final search query:', JSON.stringify(searchQuery));
     
-    // Count total matching entries for pagination
-    const totalCount = await EntryLine.countDocuments(searchQuery);
-    console.log(`Found ${totalCount} matching entries`);
-    
-    // Get paginated results
-    const entries = await EntryLine.find(searchQuery)
-      .sort({ createdAt: -1 })
+    // Get transactions with matching entries
+    const transactions = await Transaction.find(searchQuery)
+      .populate('entries.account')
+      .sort({ date: -1 })
       .skip(skipAmount)
-      .limit(parseInt(limit))
-      .populate({
-        path: 'transaction',
-        select: 'date description isBalanced'
-      })
-      .populate('account');
+      .limit(parseInt(limit));
+    
+    // Filter entries based on criteria
+    const filteredEntries = transactions.reduce((acc, transaction) => {
+      const matchingEntries = transaction.entries.filter(entry => {
+        // Amount range filter
+        if (minAmount !== undefined && entry.amount < parseFloat(minAmount)) return false;
+        if (maxAmount !== undefined && entry.amount > parseFloat(maxAmount)) return false;
+        
+        // Account filter
+        if (accountId && accountId.trim() !== '' && entry.account._id.toString() !== accountId) return false;
+        
+        // Type filter
+        if (type && ['debit', 'credit'].includes(type) && entry.type !== type) return false;
+        
+        return true;
+      });
+      
+      return acc.concat(matchingEntries.map(entry => ({
+        ...entry.toObject(),
+        transaction: {
+          _id: transaction._id,
+          date: transaction.date,
+          description: transaction.description,
+          isBalanced: transaction.isBalanced
+        }
+      })));
+    }, []);
+    
+    // Count total matching entries for pagination
+    const totalCount = filteredEntries.length;
+    console.log(`Found ${totalCount} matching entries`);
     
     return res.status(200).json({
       success: true,
       data: {
-        entries,
+        entries: filteredEntries,
         pagination: {
           total: totalCount,
           page: parseInt(page),
@@ -180,5 +172,82 @@ exports.searchEntries = async (req, res) => {
       error: 'Server Error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+// @route   GET /api/transactions/search
+// @desc    Search transactions and their entries
+// @access  Private
+exports.searchTransactions = async (req, res) => {
+  try {
+    const {
+      startDate,
+      endDate,
+      description,
+      accountId,
+      minAmount,
+      maxAmount,
+      type,
+      page = 1,
+      limit = 10
+    } = req.query;
+    
+    // Build the search query
+    const searchQuery = {};
+    
+    // Date range
+    if (startDate || endDate) {
+      searchQuery.date = {};
+      if (startDate) searchQuery.date.$gte = new Date(startDate);
+      if (endDate) searchQuery.date.$lte = new Date(endDate);
+    }
+    
+    // Description
+    if (description) {
+      searchQuery.description = { $regex: description, $options: 'i' };
+    }
+    
+    // Entry filters
+    if (accountId || minAmount || maxAmount || type) {
+      searchQuery.entries = {
+        $elemMatch: {}
+      };
+      
+      if (accountId) {
+        searchQuery.entries.$elemMatch.account = accountId;
+      }
+      
+      if (minAmount || maxAmount) {
+        searchQuery.entries.$elemMatch.amount = {};
+        if (minAmount) searchQuery.entries.$elemMatch.amount.$gte = parseFloat(minAmount);
+        if (maxAmount) searchQuery.entries.$elemMatch.amount.$lte = parseFloat(maxAmount);
+      }
+      
+      if (type) {
+        searchQuery.entries.$elemMatch.type = type;
+      }
+    }
+    
+    // Execute the search
+    const transactions = await Transaction.find(searchQuery)
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    
+    // Get total count for pagination
+    const totalCount = await Transaction.countDocuments(searchQuery);
+    
+    res.json({
+      success: true,
+      data: transactions,
+      pagination: {
+        total: totalCount,
+        page: parseInt(page),
+        pages: Math.ceil(totalCount / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error searching transactions:', error);
+    res.status(500).json({ error: 'Error searching transactions' });
   }
 }; 

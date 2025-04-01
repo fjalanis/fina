@@ -1,336 +1,318 @@
-const chai = require('chai');
-const chaiHttp = require('chai-http');
 const mongoose = require('mongoose');
-const { expect } = chai;
+const request = require('supertest');
 const app = require('../../src/server');
 const Rule = require('../../src/models/Rule');
 const Transaction = require('../../src/models/Transaction');
-const EntryLine = require('../../src/models/EntryLine');
 const Account = require('../../src/models/Account');
+const { setupDB } = require('../setup');
 
-chai.use(chaiHttp);
+// Setup test database
+setupDB();
 
-let testAccountIds = {
-  checking: null,
-  groceries: null,
-  utilities: null
-};
-
-let testRuleId = null;
-let testTransactionId = null;
-
-describe('Rule API Integration Tests', function() {
-  this.timeout(10000); // Increase timeout for CI environment
-
-  // Setup test data before running all tests
-  before(async () => {
-    // Connect to test database
-    const url = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/household-finance-test';
-    await mongoose.connect(url);
-
-    // Clean database
-    await Rule.deleteMany({});
-    await Transaction.deleteMany({});
-    await EntryLine.deleteMany({});
-    await Account.deleteMany({});
-
+describe('Rule API', () => {
+  let assetAccount;
+  let expenseAccount;
+  let incomeAccount;
+  let authToken;
+  
+  beforeAll(async () => {
     // Create test accounts
-    const checking = await Account.create({
-      name: 'Checking Account',
-      type: 'Asset',
-      description: 'Main checking account'
-    });
-
-    const groceries = await Account.create({
-      name: 'Groceries',
-      type: 'Expense',
-      description: 'Grocery expenses'
-    });
-
-    const utilities = await Account.create({
-      name: 'Utilities',
-      type: 'Expense',
-      description: 'Utility expenses'
-    });
-
-    testAccountIds.checking = checking._id;
-    testAccountIds.groceries = groceries._id;
-    testAccountIds.utilities = utilities._id;
-  });
-
-  // Close connection after all tests
-  after(async () => {
-    await mongoose.connection.dropDatabase();
-    await mongoose.connection.close();
-  });
-
-  // Clean up after each test if needed
-  afterEach(async () => {
-    // Clean up any specific test data if needed
-  });
-
-  describe('POST /api/rules', () => {
-    it('should create a new rule with valid data', async () => {
-      const ruleData = {
-        name: 'Grocery Rule',
-        description: 'Automatically categorize grocery expenses',
-        pattern: 'Grocery|Supermarket',
-        sourceAccount: testAccountIds.checking,
-        destinationAccounts: [
-          {
-            accountId: testAccountIds.groceries,
-            ratio: 1,
-            absoluteAmount: 0
-          }
-        ],
-        priority: 10,
-        isEnabled: true
-      };
-
-      const res = await chai.request(app)
-        .post('/api/rules')
-        .send(ruleData);
-
-      expect(res).to.have.status(201);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-      expect(res.body.data).to.have.property('_id');
-      expect(res.body.data.name).to.equal(ruleData.name);
-      expect(res.body.data.pattern).to.equal(ruleData.pattern);
-      expect(res.body.data.sourceAccount).to.have.property('_id');
-      expect(res.body.data.sourceAccount.name).to.equal('Checking Account');
-      expect(res.body.data.destinationAccounts).to.be.an('array');
-      expect(res.body.data.destinationAccounts).to.have.length(1);
-      expect(res.body.data.destinationAccounts[0].accountId.name).to.equal('Groceries');
-
-      // Save the rule ID for later tests
-      testRuleId = res.body.data._id;
-    });
-
-    it('should return validation error with invalid data', async () => {
-      const invalidData = {
-        description: 'Missing required fields',
-        sourceAccount: testAccountIds.checking
-      };
-
-      const res = await chai.request(app)
-        .post('/api/rules')
-        .send(invalidData);
-
-      expect(res).to.have.status(400);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.false;
-      expect(res.body.error).to.include('validation');
-    });
-  });
-
-  describe('GET /api/rules', () => {
-    it('should return all rules', async () => {
-      const res = await chai.request(app)
-        .get('/api/rules');
-
-      expect(res).to.have.status(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-      expect(res.body.data).to.be.an('array');
-      expect(res.body.data).to.have.length.of.at.least(1);
-    });
-  });
-
-  describe('GET /api/rules/:id', () => {
-    it('should return a specific rule', async () => {
-      const res = await chai.request(app)
-        .get(`/api/rules/${testRuleId}`);
-
-      expect(res).to.have.status(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-      expect(res.body.data).to.have.property('_id');
-      expect(res.body.data._id).to.equal(testRuleId);
-    });
-
-    it('should return 404 for non-existent rule', async () => {
-      const nonExistentId = new mongoose.Types.ObjectId();
-      const res = await chai.request(app)
-        .get(`/api/rules/${nonExistentId}`);
-
-      expect(res).to.have.status(404);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.false;
-    });
-  });
-
-  describe('PUT /api/rules/:id', () => {
-    it('should update an existing rule', async () => {
-      const updateData = {
-        name: 'Updated Grocery Rule',
-        pattern: 'Grocery|Supermarket|FoodMart',
-        priority: 20
-      };
-
-      const res = await chai.request(app)
-        .put(`/api/rules/${testRuleId}`)
-        .send(updateData);
-
-      expect(res).to.have.status(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-      expect(res.body.data.name).to.equal(updateData.name);
-      expect(res.body.data.pattern).to.equal(updateData.pattern);
-      expect(res.body.data.priority).to.equal(updateData.priority);
-    });
-
-    it('should return 404 for updating non-existent rule', async () => {
-      const nonExistentId = new mongoose.Types.ObjectId();
-      const res = await chai.request(app)
-        .put(`/api/rules/${nonExistentId}`)
-        .send({ name: 'Test Update' });
-
-      expect(res).to.have.status(404);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.false;
-    });
-  });
-
-  describe('POST /api/rules/:id/test', () => {
-    it('should correctly test a rule against a description that matches', async () => {
-      const testData = {
-        description: 'Grocery Store Purchase',
-        amount: 100
-      };
-
-      const res = await chai.request(app)
-        .post(`/api/rules/${testRuleId}/test`)
-        .send(testData);
-
-      expect(res).to.have.status(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-      expect(res.body.data.isMatch).to.be.true;
-      expect(res.body.data.destinationEntries).to.be.an('array');
-      expect(res.body.data.destinationEntries).to.have.length(1);
-      expect(res.body.data.destinationEntries[0].accountId.toString()).to.equal(testAccountIds.groceries.toString());
-      expect(res.body.data.destinationEntries[0].amount).to.equal(-100); // Negative for credit entry
-    });
-
-    it('should correctly test a rule against a description that does not match', async () => {
-      const testData = {
-        description: 'Gas Station',
-        amount: 50
-      };
-
-      const res = await chai.request(app)
-        .post(`/api/rules/${testRuleId}/test`)
-        .send(testData);
-
-      expect(res).to.have.status(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-      expect(res.body.data.isMatch).to.be.false;
-      expect(res.body.data.destinationEntries).to.be.an('array');
-      expect(res.body.data.destinationEntries).to.have.length(0);
-    });
-  });
-
-  describe('Rule application to transactions', () => {
-    beforeEach(async () => {
-      // Create a test transaction with unbalanced entry
-      const transaction = await Transaction.create({
-        date: new Date(),
-        description: 'Grocery Shopping',
-        status: 'Unbalanced',
-        isBalanced: false
-      });
-      
-      // Create a debit entry for the transaction
-      await EntryLine.create({
-        transactionId: transaction._id,
-        accountId: testAccountIds.checking,
-        amount: 150,
-        type: 'debit',
-        description: 'Grocery payment'
-      });
-      
-      testTransactionId = transaction._id;
+    assetAccount = await Account.create({
+      name: 'Bank Account',
+      type: 'asset'
     });
     
-    afterEach(async () => {
-      // Clean up test transaction and entries
-      await Transaction.deleteMany({});
-      await EntryLine.deleteMany({});
+    expenseAccount = await Account.create({
+      name: 'Groceries',
+      type: 'expense'
     });
-
-    describe('POST /api/rules/apply/:transactionId', () => {
-      it('should apply rules to an unbalanced transaction', async () => {
-        const res = await chai.request(app)
-          .post(`/api/rules/apply/${testTransactionId}`);
-
-        expect(res).to.have.status(200);
-        expect(res.body).to.be.an('object');
-        expect(res.body.success).to.be.true;
-        expect(res.body.data).to.have.property('appliedRule');
-        expect(res.body.data.appliedRule).to.equal(testRuleId);
-        expect(res.body.data).to.have.property('createdEntries');
-        expect(res.body.data.createdEntries).to.be.an('array');
-        expect(res.body.data.createdEntries).to.have.length(1);
-        expect(res.body.data.isNowBalanced).to.be.true;
-        
-        // Verify the transaction has been updated to balanced
-        const updatedTransaction = await Transaction.findById(testTransactionId);
-        expect(updatedTransaction.status).to.equal('Balanced');
-        expect(updatedTransaction.isBalanced).to.be.true;
-        
-        // Verify the new entry was created
-        const entries = await EntryLine.find({ transactionId: testTransactionId });
-        expect(entries).to.have.length(2); // Original entry + new rule-generated entry
-        
-        // Verify the new entry has the correct values
-        const newEntry = entries.find(e => e.accountId.toString() === testAccountIds.groceries.toString());
-        expect(newEntry).to.exist;
-        expect(newEntry.amount).to.equal(-150); // Negative for credit entry
-      });
+    
+    incomeAccount = await Account.create({
+      name: 'Salary',
+      type: 'income'
     });
-
-    describe('POST /api/rules/apply-all', () => {
-      it('should apply rules to all unbalanced transactions', async () => {
-        const res = await chai.request(app)
-          .post('/api/rules/apply-all');
-
-        expect(res).to.have.status(200);
-        expect(res.body).to.be.an('object');
-        expect(res.body.success).to.be.true;
-        expect(res.body.data).to.have.property('total');
-        expect(res.body.data.total).to.be.at.least(1);
-        expect(res.body.data).to.have.property('successful');
-        expect(res.body.data.successful).to.be.at.least(1);
-        expect(res.body.data).to.have.property('details');
-        expect(res.body.data.details).to.be.an('array');
-      });
+    
+    // Get auth token (you'll need to implement this based on your auth system)
+    authToken = 'test-auth-token';
+  });
+  
+  beforeEach(async () => {
+    await Rule.deleteMany({});
+    await Transaction.deleteMany({});
+  });
+  
+  describe('POST /api/rules', () => {
+    it('should create an edit rule', async () => {
+      const response = await request(app)
+        .post('/api/rules')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Test Edit Rule',
+          type: 'edit',
+          pattern: 'GROCERY',
+          newDescription: 'GROCERIES',
+          sourceAccounts: [assetAccount._id]
+        });
+      
+      expect(response.status).toBe(201);
+      expect(response.body.data.type).toBe('edit');
+      expect(response.body.data.pattern).toBe('GROCERY');
+      expect(response.body.data.newDescription).toBe('GROCERIES');
+    });
+    
+    it('should create a merge rule', async () => {
+      const response = await request(app)
+        .post('/api/rules')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Test Merge Rule',
+          type: 'merge',
+          pattern: 'GROCERY',
+          maxDateDifference: 3,
+          sourceAccounts: [assetAccount._id]
+        });
+      
+      expect(response.status).toBe(201);
+      expect(response.body.data.type).toBe('merge');
+      expect(response.body.data.pattern).toBe('GROCERY');
+    });
+    
+    it('should create a complementary rule', async () => {
+      const response = await request(app)
+        .post('/api/rules')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Test Complementary Rule',
+          type: 'complementary',
+          pattern: 'GROCERY',
+          sourceAccounts: [assetAccount._id],
+          destinationAccounts: [
+            {
+              accountId: expenseAccount._id,
+              ratio: 0.6
+            },
+            {
+              accountId: incomeAccount._id,
+              ratio: 0.4
+            }
+          ]
+        });
+      
+      expect(response.status).toBe(201);
+      expect(response.body.data.type).toBe('complementary');
+      expect(response.body.data.sourceAccounts).toBeInstanceOf(Array);
+      expect(response.body.data.destinationAccounts).toHaveLength(2);
+    });
+    
+    it('should validate required fields', async () => {
+      const response = await request(app)
+        .post('/api/rules')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          // Missing required fields
+          type: 'edit'
+        });
+      
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('New description is required for edit rules');
     });
   });
-
-  describe('DELETE /api/rules/:id', () => {
-    it('should delete an existing rule', async () => {
-      const res = await chai.request(app)
-        .delete(`/api/rules/${testRuleId}`);
-
-      expect(res).to.have.status(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.true;
-
-      // Verify rule has been deleted
-      const checkRule = await Rule.findById(testRuleId);
-      expect(checkRule).to.be.null;
+  
+  describe('GET /api/rules', () => {
+    beforeEach(async () => {
+      // Create test rules
+      await Rule.create({
+        name: 'Edit Rule',
+        type: 'edit',
+        pattern: 'TEST',
+        newDescription: 'TESTED',
+        sourceAccounts: [assetAccount._id],
+        autoApply: true
+      });
+      
+      await Rule.create({
+        name: 'Merge Rule',
+        type: 'merge',
+        pattern: 'TEST',
+        maxDateDifference: 3,
+        sourceAccounts: [assetAccount._id],
+        autoApply: true
+      });
+      
+      await Rule.create({
+        name: 'Complementary Rule',
+        type: 'complementary',
+        pattern: 'TEST',
+        sourceAccounts: [assetAccount._id],
+        destinationAccounts: [
+          {
+            accountId: expenseAccount._id,
+            ratio: 0.7
+          },
+          {
+            accountId: incomeAccount._id,
+            ratio: 0.3
+          }
+        ],
+        autoApply: true
+      });
     });
-
-    it('should return 404 for deleting non-existent rule', async () => {
-      const nonExistentId = new mongoose.Types.ObjectId();
-      const res = await chai.request(app)
-        .delete(`/api/rules/${nonExistentId}`);
-
-      expect(res).to.have.status(404);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.be.false;
+    
+    it('should get all rules', async () => {
+      const response = await request(app)
+        .get('/api/rules')
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(3);
+    });
+    
+    it('should filter rules by type', async () => {
+      const response = await request(app)
+        .get('/api/rules')
+        .query({ type: 'edit' })
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0].type).toBe('edit');
+    });
+  });
+  
+  describe('GET /api/rules/:id', () => {
+    let rule;
+    
+    beforeEach(async () => {
+      rule = await Rule.create({
+        name: 'Test Rule',
+        type: 'edit',
+        pattern: 'TEST',
+        newDescription: 'TESTED',
+        sourceAccounts: [assetAccount._id],
+        autoApply: true
+      });
+    });
+    
+    it('should get a single rule', async () => {
+      const response = await request(app)
+        .get(`/api/rules/${rule._id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data._id).toBe(rule._id.toString());
+    });
+    
+    it('should return 404 for non-existent rule', async () => {
+      const response = await request(app)
+        .get(`/api/rules/${new mongoose.Types.ObjectId()}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe('Rule not found');
+    });
+  });
+  
+  describe('PUT /api/rules/:id', () => {
+    let rule;
+    
+    beforeEach(async () => {
+      rule = await Rule.create({
+        name: 'Test Rule',
+        type: 'edit',
+        pattern: 'TEST',
+        newDescription: 'TESTED',
+        sourceAccounts: [assetAccount._id],
+        autoApply: true
+      });
+    });
+    
+    it('should update a rule', async () => {
+      const response = await request(app)
+        .put(`/api/rules/${rule._id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Updated Rule',
+          pattern: 'UPDATED',
+          newDescription: 'UPDATED-TEST',
+          type: 'edit',
+          sourceAccounts: []
+        });
+      
+      expect(response.status).toBe(200);
+      expect(response.body.data.name).toBe('Updated Rule');
+      expect(response.body.data.pattern).toBe('UPDATED');
+      expect(response.body.data.newDescription).toBe('UPDATED-TEST');
+    });
+  });
+  
+  describe('DELETE /api/rules/:id', () => {
+    let rule;
+    
+    beforeEach(async () => {
+      rule = await Rule.create({
+        name: 'Test Rule',
+        type: 'edit',
+        pattern: 'TEST',
+        newDescription: 'TESTED',
+        sourceAccounts: [assetAccount._id],
+        autoApply: true
+      });
+    });
+    
+    it('should delete a rule', async () => {
+      const response = await request(app)
+        .delete(`/api/rules/${rule._id}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Rule deleted successfully');
+      
+      const deletedRule = await Rule.findById(rule._id);
+      expect(deletedRule).toBeNull();
+    });
+  });
+  
+  describe('POST /api/rules/:id/apply', () => {
+    let rule;
+    let transaction;
+    
+    beforeEach(async () => {
+      rule = await Rule.create({
+        name: 'Test Edit Rule',
+        type: 'edit',
+        pattern: 'TEST',
+        newDescription: 'TESTED',
+        sourceAccounts: [assetAccount._id],
+        autoApply: true
+      });
+      
+      transaction = await Transaction.create({
+        date: new Date(),
+        description: 'Test Transaction',
+        entries: [{
+          account: assetAccount._id,
+          amount: 100,
+          type: 'debit'
+        }]
+      });
+    });
+    
+    it('should apply a rule to a transaction', async () => {
+      const response = await request(app)
+        .post(`/api/rules/${rule._id}/apply`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          transactionId: transaction._id
+        });
+      
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      
+      const updatedTransaction = await Transaction.findById(transaction._id);
+      expect(updatedTransaction.description).toBe('TESTED TRANSACTION');
     });
   });
 }); 

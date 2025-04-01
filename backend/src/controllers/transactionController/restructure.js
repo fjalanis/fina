@@ -1,33 +1,19 @@
 const Transaction = require('../../models/Transaction');
-const EntryLine = require('../../models/EntryLine');
+const { validateTransaction } = require('../../utils/validation');
 
 // @desc    Move an entry from one transaction to another
-// @route   POST /api/transactions/extract-entry
+// @route   POST /api/transactions/move-entry
 // @access  Public
-exports.extractEntry = async (req, res) => {
+exports.moveEntry = async (req, res) => {
   try {
-    const { entryId, destinationTransactionId } = req.body;
+    const { sourceTransactionId, entryIndex, destinationTransactionId } = req.body;
     
-    if (!entryId || !destinationTransactionId) {
+    if (!sourceTransactionId || entryIndex === undefined || !destinationTransactionId) {
       return res.status(400).json({
         success: false,
-        error: 'Both entryId and destinationTransactionId are required'
+        error: 'sourceTransactionId, entryIndex, and destinationTransactionId are required'
       });
     }
-    
-    console.log(`Extracting entry ${entryId} to transaction ${destinationTransactionId}`);
-    
-    // Find the entry to move
-    const entryToMove = await EntryLine.findById(entryId);
-    if (!entryToMove) {
-      return res.status(404).json({
-        success: false,
-        error: 'Entry not found'
-      });
-    }
-    
-    // Get the source transaction ID before we modify the entry
-    const sourceTransactionId = entryToMove.transaction;
     
     // Find source and destination transactions
     const sourceTransaction = await Transaction.findById(sourceTransactionId);
@@ -46,40 +32,136 @@ exports.extractEntry = async (req, res) => {
         error: 'Destination transaction not found'
       });
     }
-    
-    console.log(`Moving entry from transaction ${sourceTransactionId} to ${destinationTransactionId}`);
-    
-    // Update the entry to point to the destination transaction
-    entryToMove.transaction = destinationTransactionId;
-    await entryToMove.save();
-    
-    // Check if source transaction is now empty
-    const remainingEntries = await EntryLine.countDocuments({ transaction: sourceTransactionId });
-    
-    if (remainingEntries === 0) {
-      // Delete the now-empty source transaction
-      console.log(`Deleting empty source transaction ${sourceTransactionId}`);
-      await Transaction.findByIdAndDelete(sourceTransactionId);
-    } else {
-      // Update source transaction balance status
-      sourceTransaction.isBalanced = await sourceTransaction.isTransactionBalanced();
-      await sourceTransaction.save();
+
+    if (entryIndex >= sourceTransaction.entries.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid entry index'
+      });
     }
     
-    // Update destination transaction balance status
-    destinationTransaction.isBalanced = await destinationTransaction.isTransactionBalanced();
+    // Get the entry to move
+    const entryToMove = sourceTransaction.entries[entryIndex];
+    
+    // Remove entry from source transaction
+    sourceTransaction.entries.splice(entryIndex, 1);
+    
+    // Add entry to destination transaction
+    destinationTransaction.entries.push(entryToMove);
+    
+    // Validate both transactions
+    const sourceValidation = validateTransaction(sourceTransaction);
+    const destValidation = validateTransaction(destinationTransaction);
+    
+    if (!sourceValidation.isValid || !destValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Moving entry would create invalid transactions',
+        sourceErrors: sourceValidation.errors,
+        destErrors: destValidation.errors
+      });
+    }
+    
+    // Save both transactions
+    if (sourceTransaction.entries.length === 0) {
+      await Transaction.findByIdAndDelete(sourceTransactionId);
+    } else {
+      await sourceTransaction.save();
+    }
     await destinationTransaction.save();
     
     return res.status(200).json({
       success: true,
       data: {
         transaction: destinationTransaction,
-        sourceTransactionDeleted: remainingEntries === 0
+        sourceTransactionDeleted: sourceTransaction.entries.length === 0
       },
       message: 'Entry moved successfully'
     });
   } catch (error) {
-    console.error('Error in extractEntry:', error);
+    console.error('Error in moveEntry:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+// @desc    Split a transaction into two transactions
+// @route   POST /api/transactions/split-transaction
+// @access  Public
+exports.splitTransaction = async (req, res) => {
+  try {
+    const { transactionId, entryIndices } = req.body;
+    
+    if (!transactionId || !Array.isArray(entryIndices)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Transaction ID and array of entry indices are required'
+      });
+    }
+    
+    // Find the source transaction
+    const sourceTransaction = await Transaction.findById(transactionId);
+    
+    if (!sourceTransaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transaction not found'
+      });
+    }
+    
+    // Sort indices in descending order to avoid shifting issues when removing entries
+    const sortedIndices = [...entryIndices].sort((a, b) => b - a);
+    
+    // Validate indices
+    if (sortedIndices.some(index => index >= sourceTransaction.entries.length)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid entry index'
+      });
+    }
+    
+    // Create new transaction with selected entries
+    const newTransaction = new Transaction({
+      date: sourceTransaction.date,
+      description: `Split from: ${sourceTransaction.description}`,
+      entries: []
+    });
+    
+    // Move selected entries to new transaction
+    for (const index of sortedIndices) {
+      newTransaction.entries.push(sourceTransaction.entries[index]);
+      sourceTransaction.entries.splice(index, 1);
+    }
+    
+    // Validate both transactions
+    const sourceValidation = validateTransaction(sourceTransaction);
+    const newValidation = validateTransaction(newTransaction);
+    
+    if (!sourceValidation.isValid || !newValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Split would create invalid transactions',
+        sourceErrors: sourceValidation.errors,
+        newErrors: newValidation.errors
+      });
+    }
+    
+    // Save both transactions
+    await sourceTransaction.save();
+    await newTransaction.save();
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        sourceTransaction,
+        newTransaction
+      },
+      message: 'Transaction split successfully'
+    });
+  } catch (error) {
+    console.error('Error in splitTransaction:', error);
     return res.status(500).json({
       success: false,
       error: 'Server Error'
@@ -92,7 +174,6 @@ exports.extractEntry = async (req, res) => {
 // @access  Public
 exports.mergeTransaction = async (req, res) => {
   try {
-    console.log('Received merge request with params:', req.body);
     const { sourceTransactionId, destinationTransactionId } = req.body;
     
     // Validate input
@@ -129,79 +210,56 @@ exports.mergeTransaction = async (req, res) => {
       });
     }
     
-    console.log(`Merging from transaction ${sourceTransactionId} to ${destinationTransactionId}`);
-    
-    // Find all entry lines from source transaction
-    const sourceEntries = await EntryLine.find({ transaction: sourceTransactionId });
-    
-    if (sourceEntries.length === 0) {
+    if (!sourceTransaction.entries || sourceTransaction.entries.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Source transaction has no entries to merge'
       });
     }
     
-    console.log(`Found ${sourceEntries.length} entries to merge`);
+    // Add all entries from source to destination
+    destinationTransaction.entries.push(...sourceTransaction.entries);
     
-    try {
-      // Update each entry to point to the destination transaction
-      for (const entry of sourceEntries) {
-        entry.transaction = destinationTransactionId;
-        await entry.save();
-      }
-      
-      // Update destination transaction description to include source (if different)
-      if (sourceTransaction.description !== destinationTransaction.description) {
-        destinationTransaction.description = 
-          `${destinationTransaction.description} + ${sourceTransaction.description}`;
-      }
-      
-      // Add any notes from the source transaction
-      if (sourceTransaction.notes) {
-        destinationTransaction.notes = 
-          destinationTransaction.notes 
-            ? `${destinationTransaction.notes}\n---\n${sourceTransaction.notes}`
-            : sourceTransaction.notes;
-      }
-      
-      // Check if destination transaction is now balanced
-      destinationTransaction.isBalanced = await destinationTransaction.isTransactionBalanced();
-      await destinationTransaction.save();
-      
-      // Delete the now-empty source transaction
-      await Transaction.findByIdAndDelete(sourceTransactionId);
-      
-      // Get the updated destination transaction with populated entry lines
-      const updatedTransaction = await Transaction.findById(destinationTransactionId)
-        .populate({
-          path: 'entryLines',
-          populate: {
-            path: 'account',
-            select: 'name type'
-          }
-        });
-      
-      return res.status(200).json({
-        success: true,
-        data: {
-          transaction: updatedTransaction
-        },
-        message: 'Transaction successfully merged'
-      });
-    } catch (err) {
-      console.error('Error during merge operation:', err);
-      return res.status(500).json({
+    // Update destination transaction description to include source (if different)
+    if (sourceTransaction.description !== destinationTransaction.description) {
+      destinationTransaction.description = 
+        `${destinationTransaction.description} + ${sourceTransaction.description}`;
+    }
+    
+    // Add any notes from the source transaction
+    if (sourceTransaction.notes) {
+      destinationTransaction.notes = 
+        destinationTransaction.notes 
+          ? `${destinationTransaction.notes}\n---\n${sourceTransaction.notes}`
+          : sourceTransaction.notes;
+    }
+    
+    // Validate merged transaction
+    const validation = validateTransaction(destinationTransaction);
+    if (!validation.isValid) {
+      return res.status(400).json({
         success: false,
-        error: 'Error during merge operation',
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        error: 'Merge would create an invalid transaction',
+        errors: validation.errors
       });
     }
+    
+    // Save destination and delete source
+    await destinationTransaction.save();
+    await Transaction.findByIdAndDelete(sourceTransactionId);
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        transaction: destinationTransaction
+      },
+      message: 'Transaction successfully merged'
+    });
   } catch (error) {
     console.error('Error in mergeTransaction:', error);
     return res.status(500).json({
       success: false,
-      error: 'Server Error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Server Error'
     });
   }
 }; 

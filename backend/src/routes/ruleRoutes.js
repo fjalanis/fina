@@ -5,6 +5,9 @@ const ruleController = require('../controllers/ruleController');
 // GET all rules
 router.get('/', ruleController.getAllRules);
 
+// GET preview matching transactions
+router.get('/preview', ruleController.previewMatchingTransactions);
+
 // GET a specific rule by ID
 router.get('/:id', ruleController.getRuleById);
 
@@ -21,7 +24,7 @@ router.delete('/:id', ruleController.deleteRule);
 router.post('/:id/test', ruleController.testRule);
 
 // POST apply a rule to a transaction
-router.post('/apply/:transactionId', ruleController.applyRuleToTransaction);
+router.post('/:id/apply', ruleController.applyRule);
 
 // POST apply rules to all unbalanced transactions
 router.post('/apply-all', ruleController.applyRulesToAllTransactions);

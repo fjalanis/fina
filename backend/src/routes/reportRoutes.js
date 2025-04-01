@@ -1,7 +1,8 @@
 const express = require('express');
 const { 
   getAccountBalanceReport,
-  getMonthlyIncomeExpenseSummary
+  getMonthlyIncomeExpenseSummary,
+  getTransactionSummary
 } = require('../controllers/reportController');
 
 const router = express.Router();
@@ -11,5 +12,8 @@ router.get('/account-balance', getAccountBalanceReport);
 
 // Monthly income/expense summary route
 router.get('/monthly-summary', getMonthlyIncomeExpenseSummary);
+
+// Transaction summary route
+router.get('/transaction-summary', getTransactionSummary);
 
 module.exports = router; 

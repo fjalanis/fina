@@ -1,6 +1,5 @@
 const Account = require('../src/models/Account');
 const Transaction = require('../src/models/Transaction');
-const EntryLine = require('../src/models/EntryLine');
 const mongoose = require('mongoose');
 
 // Helper function to create a test account
@@ -111,7 +110,6 @@ const createAccountHierarchy = async () => {
 
 // Helper function to clear all test data from the database
 const clearTestData = async () => {
-  await EntryLine.deleteMany({});
   await Transaction.deleteMany({});
   await Account.deleteMany({});
 };
@@ -126,24 +124,21 @@ const setupTestData = async () => {
     date: new Date(),
     description: 'Test Income Transaction',
     reference: 'TEST-INC-001',
-    isBalanced: true
-  });
-  
-  // Create entry lines for income transaction
-  const salaryCredit = await EntryLine.create({
-    transaction: incomeTransaction._id,
-    account: accounts.salary._id,
-    amount: 2000,
-    type: 'credit',
-    description: 'Monthly salary'
-  });
-  
-  const checkingDebit = await EntryLine.create({
-    transaction: incomeTransaction._id,
-    account: accounts.checkingAccount._id,
-    amount: 2000,
-    type: 'debit',
-    description: 'Salary deposit'
+    isBalanced: true,
+    entries: [
+      {
+        account: accounts.salary._id,
+        amount: 2000,
+        type: 'credit',
+        description: 'Monthly salary'
+      },
+      {
+        account: accounts.checkingAccount._id,
+        amount: 2000,
+        type: 'debit',
+        description: 'Salary deposit'
+      }
+    ]
   });
   
   // Create a test transaction (expense: groceries debit, credit card credit)
@@ -151,30 +146,26 @@ const setupTestData = async () => {
     date: new Date(),
     description: 'Test Expense Transaction',
     reference: 'TEST-EXP-001',
-    isBalanced: true
-  });
-  
-  // Create entry lines for expense transaction
-  const groceriesDebit = await EntryLine.create({
-    transaction: expenseTransaction._id,
-    account: accounts.groceries._id,
-    amount: 150,
-    type: 'debit',
-    description: 'Weekly groceries'
-  });
-  
-  const visaCredit = await EntryLine.create({
-    transaction: expenseTransaction._id,
-    account: accounts.visa._id,
-    amount: 150,
-    type: 'credit',
-    description: 'Grocery purchase on credit card'
+    isBalanced: true,
+    entries: [
+      {
+        account: accounts.groceries._id,
+        amount: 150,
+        type: 'debit',
+        description: 'Weekly groceries'
+      },
+      {
+        account: accounts.visa._id,
+        amount: 150,
+        type: 'credit',
+        description: 'Grocery purchase on credit card'
+      }
+    ]
   });
   
   return {
     accounts: Object.values(accounts),
-    transactions: [incomeTransaction, expenseTransaction],
-    entryLines: [salaryCredit, checkingDebit, groceriesDebit, visaCredit]
+    transactions: [incomeTransaction, expenseTransaction]
   };
 };
 

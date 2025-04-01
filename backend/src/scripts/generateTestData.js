@@ -1,14 +1,12 @@
 const mongoose = require('mongoose');
 const Account = require('../models/Account');
 const Transaction = require('../models/Transaction');
-const EntryLine = require('../models/EntryLine');
 const connectDB = require('../config/database');
 const logger = require('../config/logger');
 
 // Clear all existing data
 const clearAllData = async () => {
   logger.info('Clearing existing data...');
-  await EntryLine.deleteMany({});
   await Transaction.deleteMany({});
   await Account.deleteMany({});
   logger.info('All data cleared');
@@ -467,23 +465,19 @@ const createAccountHierarchy = async () => {
   };
 };
 
-// Create a transaction with multiple entry lines
+// Create a transaction with multiple entries
 const createTransaction = async (date, description, entries) => {
   const transaction = await Transaction.create({
     date,
     description,
-    isBalanced: true
-  });
-  
-  for (const entry of entries) {
-    await EntryLine.create({
-      transaction: transaction._id,
+    isBalanced: true,
+    entries: entries.map(entry => ({
       account: entry.account._id,
       amount: entry.amount,
       type: entry.type,
       description: entry.description || description
-    });
-  }
+    }))
+  });
   
   return transaction;
 };
@@ -1039,15 +1033,13 @@ const generateTestData = async () => {
       const transaction = await Transaction.create({
         date,
         description,
-        isBalanced: false
-      });
-      
-      await EntryLine.create({
-        transaction: transaction._id,
-        account: account._id,
-        amount,
-        type,
-        description
+        isBalanced: false,
+        entries: [{
+          account: account._id,
+          amount,
+          type,
+          description
+        }]
       });
       
       return transaction;

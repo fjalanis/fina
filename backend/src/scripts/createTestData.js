@@ -4,7 +4,6 @@ const dotenv = require('dotenv');
 const connectDB = require('../config/database');
 const Account = require('../models/Account');
 const Transaction = require('../models/Transaction');
-const EntryLine = require('../models/EntryLine');
 const Rule = require('../models/Rule');
 const axios = require('axios');
 
@@ -67,7 +66,7 @@ const createTestTransactions = async (accounts) => {
       description: 'Grocery shopping at Whole Foods',
       date: new Date(),
       status: 'Unbalanced',
-      entryLines: [
+      entries: [
         {
           account: creditCard,
           amount: 150.75,
@@ -80,7 +79,7 @@ const createTestTransactions = async (accounts) => {
       description: 'Dinner at Italian Restaurant',
       date: new Date(),
       status: 'Unbalanced',
-      entryLines: [
+      entries: [
         {
           account: creditCard,
           amount: 78.50,
@@ -93,7 +92,7 @@ const createTestTransactions = async (accounts) => {
       description: 'Electric bill payment',
       date: new Date(),
       status: 'Unbalanced',
-      entryLines: [
+      entries: [
         {
           account: checkingAccount,
           amount: 120.30,
@@ -106,7 +105,7 @@ const createTestTransactions = async (accounts) => {
       description: 'Paycheck deposit',
       date: new Date(),
       status: 'Unbalanced',
-      entryLines: [
+      entries: [
         {
           account: checkingAccount,
           amount: 3000.00,
@@ -117,23 +116,10 @@ const createTestTransactions = async (accounts) => {
     }
   ];
 
-  // Save all transactions and their entry lines
+  // Save all transactions
   for (const txnData of transactions) {
-    const entryLines = txnData.entryLines;
-    delete txnData.entryLines;
-    
     const transaction = new Transaction(txnData);
     await transaction.save();
-    
-    // Create and save entry lines
-    for (const lineData of entryLines) {
-      const entryLine = new EntryLine({
-        ...lineData,
-        transaction: transaction._id
-      });
-      await entryLine.save();
-    }
-    
     console.log(`Created transaction: ${transaction.description}`);
   }
 };
@@ -222,12 +208,11 @@ const cleanDatabase = async () => {
   
   // Use deleteMany to remove all documents from each collection
   const deleteRules = Rule.deleteMany({});
-  const deleteEntryLines = EntryLine.deleteMany({});
   const deleteTransactions = Transaction.deleteMany({});
   const deleteAccounts = Account.deleteMany({});
   
   // Run all delete operations in parallel
-  await Promise.all([deleteRules, deleteEntryLines, deleteTransactions, deleteAccounts]);
+  await Promise.all([deleteRules, deleteTransactions, deleteAccounts]);
   
   console.log('All existing data removed from database');
 };

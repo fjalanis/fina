@@ -1,194 +1,270 @@
 const Transaction = require('../../models/Transaction');
-const EntryLine = require('../../models/EntryLine');
+const { validateTransaction } = require('../../utils/validation');
+const { applyRulesToTransaction } = require('../../services/ruleApplicationService');
 const mongoose = require('mongoose');
 
-// @desc    Create a new transaction with entry lines
 // @route   POST /api/transactions
-// @access  Public
+// @desc    Create a new transaction
+// @access  Private
 exports.createTransaction = async (req, res) => {
   try {
-    const { date, description, reference, notes, entryLines } = req.body;
-
-    // Create transaction without entry lines
-    const transaction = new Transaction({
-      date,
-      description,
-      reference,
-      notes
-    });
-
-    // Save the transaction to get an ID
-    await transaction.save();
-
-    // If entry lines are provided, add them
-    if (entryLines && entryLines.length > 0) {
-      // Create entry lines with transaction reference
-      const entryLinesWithTransaction = entryLines.map(entry => ({
-        ...entry,
-        transaction: transaction._id
-      }));
-
-      // Insert all entry lines
-      await EntryLine.insertMany(entryLinesWithTransaction);
-
-      // Reload transaction with entry lines
-      await transaction.populate('entryLines');
-    }
-
-    // Check if transaction is balanced
-    transaction.isBalanced = await transaction.isTransactionBalanced();
-    await transaction.save();
-
-    return res.status(201).json({
+    const transaction = await Transaction.create(req.body);
+    
+    // Apply rules to the transaction
+    await applyRulesToTransaction(transaction._id);
+    
+    // Refresh transaction data after rule application
+    const updatedTransaction = await Transaction.findById(transaction._id)
+      .populate('entries.account');
+    
+    // Calculate if the transaction is balanced
+    const totalDebit = updatedTransaction.entries
+      .filter(e => e.type === 'debit')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    const totalCredit = updatedTransaction.entries
+      .filter(e => e.type === 'credit')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    updatedTransaction.isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+    await updatedTransaction.save();
+    
+    // Convert to plain object to ensure proper serialization
+    const transactionObject = updatedTransaction.toObject({ virtuals: true });
+    
+    res.status(201).json({
       success: true,
-      data: transaction
+      data: transactionObject
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        error: messages
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Server Error'
-      });
-    }
+    console.error('Error creating transaction:', error);
+    res.status(400).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
 
-// @desc    Get all transactions
 // @route   GET /api/transactions
-// @access  Public
+// @desc    Get all transactions
+// @access  Private
 exports.getTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.find()
-      .sort({ date: -1 })
+    const { startDate, endDate, accountId } = req.query;
+    const query = {};
+    
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+    
+    if (accountId) {
+      query['entries.account'] = accountId;
+    }
+    
+    const transactions = await Transaction.find(query)
       .populate({
-        path: 'entryLines',
-        populate: {
-          path: 'account',
-          select: 'name type'
-        }
-      });
-
-    return res.status(200).json({
+        path: 'entries.account',
+        select: 'name type'
+      })
+      .sort({ date: -1 });
+      
+    res.json({
       success: true,
-      count: transactions.length,
       data: transactions
     });
   } catch (error) {
-    return res.status(500).json({
+    console.error('Error getting transactions:', error);
+    res.status(500).json({ 
       success: false,
-      error: 'Server Error'
+      error: error.message 
     });
   }
 };
 
-// @desc    Get single transaction
 // @route   GET /api/transactions/:id
-// @access  Public
+// @desc    Get a single transaction
+// @access  Private
 exports.getTransaction = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
       .populate({
-        path: 'entryLines',
-        populate: {
-          path: 'account',
-          select: 'name type'
-        }
+        path: 'entries.account',
+        select: 'name type'
       });
-
+      
     if (!transaction) {
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        error: 'Transaction not found'
+        error: 'Transaction not found' 
       });
     }
-
-    return res.status(200).json({
+    
+    res.json({
       success: true,
       data: transaction
     });
   } catch (error) {
-    return res.status(500).json({
+    console.error('Error getting transaction:', error);
+    res.status(500).json({ 
       success: false,
-      error: 'Server Error'
+      error: error.message 
     });
   }
 };
 
-// @desc    Update transaction
 // @route   PUT /api/transactions/:id
-// @access  Public
+// @desc    Update a transaction
+// @access  Private
 exports.updateTransaction = async (req, res) => {
   try {
-    const { date, description, reference, notes } = req.body;
-
-    // Find transaction
     const transaction = await Transaction.findById(req.params.id);
-
+    
     if (!transaction) {
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        error: 'Transaction not found'
+        error: 'Transaction not found' 
       });
     }
-
-    // Update transaction fields
-    transaction.date = date || transaction.date;
-    transaction.description = description || transaction.description;
-    transaction.reference = reference || transaction.reference;
-    transaction.notes = notes || transaction.notes;
-
+    
+    // Update fields
+    Object.assign(transaction, req.body);
+    
+    // Calculate if the transaction is balanced, but don't enforce it
+    const totalDebit = transaction.entries
+      .filter(e => e.type === 'debit')
+      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+      
+    const totalCredit = transaction.entries
+      .filter(e => e.type === 'credit')
+      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+      
+    // Set isBalanced property based on calculation
+    transaction.isBalanced = Math.abs(totalDebit - totalCredit) <= 0.01;
     await transaction.save();
-
-    return res.status(200).json({
+    
+    // Apply rules to the updated transaction
+    await applyRulesToTransaction(transaction._id);
+    
+    // Get the updated transaction with applied rules
+    const updatedTransaction = await Transaction.findById(transaction._id)
+      .populate('entries.account');
+    
+    res.json({
       success: true,
-      data: transaction
+      data: updatedTransaction
     });
   } catch (error) {
-    return res.status(500).json({
+    console.error('Error updating transaction:', error);
+    res.status(400).json({ 
       success: false,
-      error: 'Server Error'
+      error: error.message 
     });
   }
 };
 
-// @desc    Delete transaction
 // @route   DELETE /api/transactions/:id
-// @access  Public
+// @desc    Delete a transaction
+// @access  Private
 exports.deleteTransaction = async (req, res) => {
   try {
-    // Find the transaction
     const transaction = await Transaction.findById(req.params.id);
     
     if (!transaction) {
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        error: 'Transaction not found'
+        error: 'Transaction not found' 
       });
     }
     
-    // Delete all associated entry lines first
-    const result = await EntryLine.deleteMany({ transaction: req.params.id });
-    console.log(`Deleted ${result.deletedCount} entry lines for transaction ${req.params.id}`);
+    await transaction.deleteOne();
     
-    // Then delete the transaction
-    await Transaction.findByIdAndDelete(req.params.id);
-    
-    return res.status(200).json({
+    res.json({ 
       success: true,
-      data: {}
+      message: 'Transaction deleted successfully'
     });
   } catch (error) {
-    console.error(`Error deleting transaction ${req.params.id}:`, error);
-    return res.status(500).json({
+    console.error('Error deleting transaction:', error);
+    res.status(500).json({ 
       success: false,
-      error: 'Server Error',
-      message: error.message || 'Unknown error occurred'
+      error: error.message 
     });
   }
-}; 
+};
+
+exports.addEntry = async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.transactionId);
+    
+    if (!transaction) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Transaction not found' 
+      });
+    }
+    
+    transaction.entries.push(req.body);
+    
+    // Calculate if the transaction is balanced, but don't enforce it
+    const totalDebit = transaction.entries
+      .filter(e => e.type === 'debit')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    const totalCredit = transaction.entries
+      .filter(e => e.type === 'credit')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    // Set isBalanced property based on calculation
+    transaction.isBalanced = Math.abs(totalDebit - totalCredit) <= 0.01;
+    
+    await transaction.save();
+    
+    // Apply rules to the updated transaction
+    await applyRulesToTransaction(transaction._id);
+    
+    // Get the updated transaction with applied rules
+    const updatedTransaction = await Transaction.findById(transaction._id)
+      .populate('entries.account');
+    
+    res.json({
+      success: true,
+      data: updatedTransaction
+    });
+  } catch (error) {
+    console.error('Error adding entry:', error);
+    res.status(400).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+};
+
+exports.getEntries = async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.transactionId)
+      .populate({
+        path: 'entries.account',
+        select: 'name type'
+      });
+      
+    if (!transaction) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Transaction not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: transaction.entries
+    });
+  } catch (error) {
+    console.error('Error getting entries:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+};

@@ -1,134 +1,109 @@
 const Transaction = require('../../models/Transaction');
-const EntryLine = require('../../models/EntryLine');
+
+// Helper function to find matching transactions
+const findMatchingTransactions = async (transaction) => {
+  // Calculate the imbalance of the transaction
+  let totalDebits = 0;
+  let totalCredits = 0;
+  
+  transaction.entries.forEach(entry => {
+    if (entry.type === 'debit') {
+      totalDebits += parseFloat(entry.amount);
+    } else {
+      totalCredits += parseFloat(entry.amount);
+    }
+  });
+  
+  const imbalance = totalDebits - totalCredits;
+  
+  // Determine the type of transaction we need to find
+  const requiredType = imbalance > 0 ? 'credit' : 'debit';
+  const targetAmount = Math.abs(imbalance);
+  
+  // Find transactions with complementary imbalance
+  const dateRange = 15; // 15 days
+  const unbalancedTransactions = await Transaction.find({
+    isBalanced: false,
+    _id: { $ne: transaction._id },
+    date: {
+      $gte: new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000),
+    }
+  }).populate('entries.account');
+  
+  // Filter for transactions with complementary imbalance
+  const complementaryTransactions = [];
+  const TOLERANCE = 1.00;
+  
+  for (const tx of unbalancedTransactions) {
+    let txTotalDebits = 0;
+    let txTotalCredits = 0;
+    
+    tx.entries.forEach(entry => {
+      if (entry.type === 'debit') {
+        txTotalDebits += parseFloat(entry.amount);
+      } else {
+        txTotalCredits += parseFloat(entry.amount);
+      }
+    });
+    
+    const txImbalance = txTotalDebits - txTotalCredits;
+    
+    // Check if this transaction has a complementary imbalance
+    const hasComplementaryImbalance = 
+      (requiredType === 'credit' && txImbalance < 0 && Math.abs(txImbalance + imbalance) < TOLERANCE) ||
+      (requiredType === 'debit' && txImbalance > 0 && Math.abs(txImbalance + imbalance) < TOLERANCE);
+    
+    if (hasComplementaryImbalance) {
+      complementaryTransactions.push(tx);
+    }
+  }
+  
+  return {
+    transactions: complementaryTransactions,
+    message: complementaryTransactions.length > 0 
+      ? `Found ${complementaryTransactions.length} matching transactions` 
+      : 'No matching transactions found'
+  };
+};
 
 // @desc    Get suggested matches for unbalanced transactions
 // @route   GET /api/transactions/matches/:id
 // @access  Public
 exports.getSuggestedMatches = async (req, res) => {
   try {
-    const { maxMatches = 10, dateRange = 15, amount, type, excludeTransactionId, page = 1, limit = 10 } = req.query;
+    const transaction = await Transaction.findById(req.params.id)
+      .populate('entries.account');
     
-    let targetEntryLine = null;
-    let targetTransaction = null;
-    let requiredType = null;
-    let targetAmount = null;
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transaction not found'
+      });
+    }
     
-    // Check if we're matching directly by amount/type
-    if (amount && type) {
-      // Direct matching by amount and type
-      console.log(`Getting matches for amount ${amount} and type ${type}`);
-      
-      // Make sure amount is a proper number
-      try {
-        // Use the exact type provided (no longer calculating opposite)
-        requiredType = type; // Direct match with the requested type
-        targetAmount = parseFloat(amount);
-        
-        if (isNaN(targetAmount) || !isFinite(targetAmount)) {
-          console.error(`Invalid amount value: ${amount}`);
-          return res.status(400).json({
-            success: false,
-            error: 'Amount must be a valid number'
-          });
-        }
-        
-        console.log(`Parsed amount: ${targetAmount}, requested type: ${requiredType}`);
-      } catch (err) {
-        console.error(`Error parsing amount parameter: ${err.message}`);
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid amount format'
-        });
-      }
-      
-      // If excludeTransactionId is provided, we'll exclude that transaction's entries
-      if (excludeTransactionId) {
-        console.log(`Excluding entries from transaction ${excludeTransactionId}`);
-      }
-    } else {
+    // Check if transaction is already balanced
+    if (transaction.isBalanced) {
       return res.status(400).json({
         success: false,
-        error: 'Amount and type must be provided'
+        error: 'Transaction is already balanced'
       });
     }
     
-    // Instead of searching for individual entries, let's find unbalanced transactions
-    // that have a complementary imbalance
-    console.log(`Finding transactions with ${requiredType} imbalance of approximately ${targetAmount}`);
+    // Find matching transactions
+    const { transactions, message } = await findMatchingTransactions(transaction);
     
-    // Calculate pagination
-    const skipAmount = (parseInt(page) - 1) * parseInt(limit);
-    
-    // Find all unbalanced transactions
-    const unbalancedTransactions = await Transaction.find({
-      isBalanced: false,
-      _id: { $ne: excludeTransactionId } ,
-      date: {
-        $gte: new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000),
-      }
-    }).populate('entryLines');
-    
-    // Calculate the imbalance of each transaction and filter for complementary imbalances
-    const complementaryTransactions = [];
-    
-    for (const transaction of unbalancedTransactions) {
-      let totalDebits = 0;
-      let totalCredits = 0;
-      
-      // Skip transactions with no entry lines
-      if (!transaction.entryLines || transaction.entryLines.length === 0) {
-        continue;
-      }
-      
-      // Calculate transaction balance
-      transaction.entryLines.forEach(entry => {
-        if (entry.type === 'debit') {
-          totalDebits += parseFloat(entry.amount);
-        } else {
-          totalCredits += parseFloat(entry.amount);
-        }
-      });
-      
-      const imbalance = totalDebits - totalCredits;
-      
-      // For our required type 'credit', we need transactions with debit imbalance
-      // For our required type 'debit', we need transactions with credit imbalance
-      const TOLERANCE = 1.00;
-      const difference = Math.abs(imbalance - targetAmount);
-      const hasComplementaryImbalance = 
-        (requiredType === 'credit' && imbalance > 0 && difference < TOLERANCE) ||
-        (requiredType === 'debit' && imbalance < 0 && difference < TOLERANCE);
-      
-      if (hasComplementaryImbalance) {
-        // Add calculated imbalance to transaction object for display
-        complementaryTransactions.push({ ...transaction.toObject(), imbalance: imbalance.toFixed(2) });
-      }
-    }
-    
-    // Get total count for pagination
-    const totalCount = complementaryTransactions.length;
-    
-    // Apply pagination
-    const paginatedResults = complementaryTransactions.slice(skipAmount, skipAmount + parseInt(limit));
-    
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       data: {
-        targetEntry: targetEntryLine,
-        transactions: paginatedResults,
-        pagination: {
-          total: totalCount,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          pages: Math.ceil(totalCount / parseInt(limit))
-        }
+        transactions,
+        message
       }
     });
   } catch (error) {
-    console.error('Error in getSuggestedMatches:', error);
-    return res.status(500).json({
+    console.error('Error getting suggested matches:', error);
+    res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: error.message
     });
   }
 }; 

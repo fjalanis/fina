@@ -174,9 +174,9 @@ export const transactionApi = {
     return fetchData(`/transactions/search-entries?${params.toString()}`);
   },
   
-  // Extract an entry
-  extractEntry: (entryId, destinationTransactionId) => 
-    fetchData('/transactions/extract-entry', {
+  // Move an entry from one transaction to another
+  moveEntry: (entryId, destinationTransactionId) => 
+    fetchData('/transactions/move-entry', {
       method: 'POST',
       body: JSON.stringify({
         entryId,
@@ -192,6 +192,13 @@ export const transactionApi = {
         sourceTransactionId,
         destinationTransactionId
       }),
+    }),
+
+  // Split a transaction into two by moving selected entries to a new transaction
+  splitTransaction: (transactionId, entryIndices) =>
+    fetchData('/transactions/split-transaction', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId, entryIndices })
     }),
 };
 

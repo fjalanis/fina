@@ -1,32 +1,29 @@
 // Transaction controller index
-// Re-exports all transaction controller functionality
 
 // Import all controller modules
-const coreController = require('./core');
-const entryLinesController = require('./entryLines');
-const searchController = require('./search');
-const suggestionsController = require('./suggestions');
-const restructureController = require('./restructure');
+const { moveEntry, mergeTransaction, splitTransaction } = require('./restructure');
+const { getTransactions, getTransaction, createTransaction, updateTransaction, deleteTransaction } = require('./core');
+const { searchEntries, searchTransactions } = require('./search');
+const { getSuggestedMatches } = require('./suggestions')
 
 // Re-export all functionality
 module.exports = {
   // Core transaction operations
-  createTransaction: coreController.createTransaction,
-  getTransactions: coreController.getTransactions,
-  getTransaction: coreController.getTransaction,
-  updateTransaction: coreController.updateTransaction,
-  deleteTransaction: coreController.deleteTransaction,
-  
-  // EntryLine operations
-  addEntryLine: entryLinesController.addEntryLine,
-  updateEntryLine: entryLinesController.updateEntryLine,
-  deleteEntryLine: entryLinesController.deleteEntryLine,
+  createTransaction,
+  getTransactions,
+  getTransaction,
+  updateTransaction,
+  deleteTransaction,
   
   // Analysis operations
-  searchEntries: searchController.searchEntries,
-  getSuggestedMatches: suggestionsController.getSuggestedMatches,
+  searchEntries,
+  searchTransactions,
   
   // Restructure operations
-  extractEntry: restructureController.extractEntry,
-  mergeTransaction: restructureController.mergeTransaction
+  moveEntry,
+  mergeTransaction,
+  splitTransaction,
+
+  getSuggestedMatches,
+
 }; 

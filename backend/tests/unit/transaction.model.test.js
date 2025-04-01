@@ -1,136 +1,201 @@
+const mongoose = require('mongoose');
 const Transaction = require('../../src/models/Transaction');
-const EntryLine = require('../../src/models/EntryLine');
 const Account = require('../../src/models/Account');
 const { setupDB } = require('../setup');
 
-// Setup a fresh database before each test
+// Setup fresh database for each test
 setupDB();
 
 describe('Transaction Model', () => {
-  let assetAccount;
-  let expenseAccount;
-
+  let account;
+  
   beforeEach(async () => {
-    // Create test accounts
-    assetAccount = new Account({
-      name: 'Bank Account',
-      type: 'asset',
-      description: 'Test asset account'
+    // Create test account for use in entries
+    account = await Account.create({
+      name: 'Test Account',
+      type: 'asset'
     });
-
-    expenseAccount = new Account({
-      name: 'Groceries',
-      type: 'expense',
-      description: 'Test expense account'
-    });
-
-    await assetAccount.save();
-    await expenseAccount.save();
-  });
-
-  it('should create and save a transaction successfully', async () => {
-    const transactionData = {
-      date: new Date('2023-01-01'),
-      description: 'Grocery shopping',
-      reference: 'SHOP123',
-      notes: 'Weekly groceries'
-    };
-
-    const transaction = new Transaction(transactionData);
-    const savedTransaction = await transaction.save();
-
-    // Verify saved transaction
-    expect(savedTransaction._id).toBeDefined();
-    expect(savedTransaction.date).toEqual(transactionData.date);
-    expect(savedTransaction.description).toBe(transactionData.description);
-    expect(savedTransaction.reference).toBe(transactionData.reference);
-    expect(savedTransaction.notes).toBe(transactionData.notes);
-    expect(savedTransaction.isBalanced).toBe(false);
-  });
-
-  it('should require a description for a transaction', async () => {
-    const transaction = new Transaction({
-      date: new Date()
-    });
-
-    let error;
-    try {
-      await transaction.save();
-    } catch (e) {
-      error = e;
-    }
-
-    expect(error).toBeDefined();
-    expect(error.errors.description).toBeDefined();
-  });
-
-  it('should detect an unbalanced transaction', async () => {
-    // Create a transaction with a single debit entry
-    const transaction = new Transaction({
-      date: new Date(),
-      description: 'Unbalanced Transaction',
-      reference: 'UNBAL001'
-    });
-    
-    await transaction.save();
-    
-    // Add a single entry line
-    const entryLine = new EntryLine({
-      transaction: transaction._id,
-      account: expenseAccount._id,
-      amount: 100,
-      type: 'debit'
-    });
-    
-    await entryLine.save();
-    
-    // Reload transaction to check balance
-    const updatedTransaction = await Transaction.findById(transaction._id);
-    
-    // Transaction should be unbalanced
-    expect(updatedTransaction.isBalanced).toBe(false);
-    
-    // Check isTransactionBalanced method
-    const isBalanced = await updatedTransaction.isTransactionBalanced();
-    expect(isBalanced).toBe(false);
   });
   
-  it('should detect a balanced transaction', async () => {
-    // Create a transaction
-    const transaction = new Transaction({
+  it('should create a transaction with entries', async () => {
+    const transaction = await Transaction.create({
       date: new Date(),
-      description: 'Balanced Transaction',
-      reference: 'BAL001'
+      description: 'Test Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 100,
+          type: 'credit'
+        }
+      ]
     });
     
-    await transaction.save();
+    expect(transaction.entries).toHaveLength(2);
+    expect(transaction.entries[0].amount).toBe(100);
+    expect(transaction.entries[0].type).toBe('debit');
+    expect(transaction.entries[1].amount).toBe(100);
+    expect(transaction.entries[1].type).toBe('credit');
+  });
+  
+  it('should calculate isBalanced correctly', async () => {
+    const transaction = await Transaction.create({
+      date: new Date(),
+      description: 'Test Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 100,
+          type: 'credit'
+        }
+      ]
+    });
     
-    // Add two entry lines that balance each other
-    const debitEntry = new EntryLine({
-      transaction: transaction._id,
-      account: expenseAccount._id,
-      amount: 100,
+    expect(transaction.isBalanced).toBe(true);
+    
+    // Add an unbalanced entry
+    transaction.entries.push({
+      account: account._id,
+      amount: 50,
       type: 'debit'
     });
     
-    const creditEntry = new EntryLine({
-      transaction: transaction._id,
-      account: assetAccount._id,
-      amount: 100,
-      type: 'credit'
+    await transaction.save();
+    expect(transaction.isBalanced).toBe(false);
+  });
+  
+  it('should update timestamps on save', async () => {
+    const transaction = await Transaction.create({
+      date: new Date(),
+      description: 'Test Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'debit'
+        }
+      ]
     });
     
-    await debitEntry.save();
-    await creditEntry.save();
+    const createdAt = transaction.createdAt.getTime();
+    const updatedAt = transaction.updatedAt.getTime();
     
-    // Reload transaction to check balance
-    const updatedTransaction = await Transaction.findById(transaction._id);
+    // Wait a bit longer to ensure timestamp difference
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Transaction should be balanced
-    expect(updatedTransaction.isBalanced).toBe(true);
+    // Update the transaction
+    transaction.description = 'Updated Description';
+    await transaction.save();
     
-    // Check isTransactionBalanced method
-    const isBalanced = await updatedTransaction.isTransactionBalanced();
-    expect(isBalanced).toBe(true);
+    // Verify createdAt hasn't changed
+    expect(transaction.createdAt.getTime()).toBe(createdAt);
+    
+    // Verify updatedAt has increased
+    const newUpdatedAt = transaction.updatedAt.getTime();
+    expect(newUpdatedAt).toBeGreaterThan(updatedAt);
+    expect(newUpdatedAt - updatedAt).toBeGreaterThanOrEqual(2000); // At least 2 seconds difference
+  });
+  
+  it('should validate required fields', async () => {
+    const transaction = new Transaction({
+      // Missing required fields
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'debit'
+        }
+      ]
+    });
+    
+    await expect(transaction.save()).rejects.toThrow();
+  });
+  
+  it('should validate entry types', async () => {
+    const transaction = new Transaction({
+      date: new Date(),
+      description: 'Test Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'invalid' // Invalid type
+        }
+      ]
+    });
+    
+    await expect(transaction.save()).rejects.toThrow();
+  });
+  
+  it('should validate entry amounts', async () => {
+    const transaction = new Transaction({
+      date: new Date(),
+      description: 'Test Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: -100, // Negative amount
+          type: 'debit'
+        }
+      ]
+    });
+    
+    await expect(transaction.save()).rejects.toThrow();
+  });
+
+  it('should handle floating point amounts correctly', async () => {
+    const transaction = await Transaction.create({
+      date: new Date(),
+      description: 'Floating Point Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 10.25,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 10.25,
+          type: 'credit'
+        }
+      ]
+    });
+    
+    expect(transaction.isBalanced).toBe(true);
+  });
+
+  it('should handle JavaScript floating point precision issues', async () => {
+    const transaction = await Transaction.create({
+      date: new Date(),
+      description: 'Floating Point Precision Test',
+      entries: [
+        {
+          account: account._id,
+          amount: 0.1,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 0.2,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 0.3,
+          type: 'credit'
+        }
+      ]
+    });
+    
+    expect(transaction.isBalanced).toBe(true);
   });
 }); 

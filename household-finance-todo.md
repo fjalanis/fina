@@ -53,12 +53,23 @@
 6. **Test**: Verify suggestions algorithm works as expected
 
 ### Step 7: Transaction Balancing Rules
-1. Implement rule schema and API endpoints
-2. Create rule creation and management interface
-3. Build rule testing functionality
-4. Implement background job for applying rules to unbalanced transactions
+1. Implement rule schema and API endpoints with:
+   - Support for transaction type filtering (debit vs. credit)
+   - Optional and multiple source accounts
+   - Extensible rule behavior architecture
+   - Automatic rule application on new transactions
+2. Create rule creation and management interface with:
+   - Drag-and-drop rule ordering
+   - Multiple source account selection with dropdown and text input
+   - Transaction type filter selection
+   - Enable/disable toggle for automatic application
+3. Build rule testing functionality:
+   - Show sample of currently unbalanced transactions that would match
+   - Preview of rule application results
+4. Implement background job for applying rules to new unbalanced transactions
 5. **Test**: Create rules and verify they correctly match transactions
-6. **Test**: Ensure rules apply in the correct priority order
+6. **Test**: Ensure rules apply in the correct order and with correct behavior
+7. **Test**: Verify automatic rule application works as expected
 
 ### Step 8: Multi-Currency Support
 1. Extend account and transaction schemas for currency information
@@ -79,7 +90,7 @@
 6. **Test**: Ensure time filtering works correctly
 
 ### Step 10: Enhanced Sankey Diagram
-1. Implement click-through navigation from diagram to transactions
+1. Implement click-through navigation from diagram to transactions and move diagram to be the main feature of the landing page
 2. Add special visualization for unbalanced entries
 3. Implement account drill-down functionality
 4. Add color coding for different transaction types

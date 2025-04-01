@@ -7,15 +7,26 @@ const {
   updateTransaction, 
   deleteTransaction,
   getSuggestedMatches,
-  extractEntry,
   searchEntries,
-  mergeTransaction
+  searchTransactions,
+  moveEntry,
+  mergeTransaction,
+  splitTransaction,
 } = require('../controllers/transactionController');
 
 const { 
-  getEntryLines, 
-  createEntryLine 
-} = require('../controllers/entryLineController');
+  getEntries, 
+  createEntry,
+  getEntry,
+  updateEntry,
+  deleteEntry,
+  addEntry,
+  splitTransaction: entriesSplitTransaction
+} = require('../controllers/transactionController/entries');
+
+const {
+  balanceTransactions
+} = require('../controllers/transactionController/balance');
 
 // Transaction routes
 router
@@ -31,16 +42,12 @@ router
 
 // Transaction balancing routes
 router
-  .route('/matches/direct')
-  .get(getSuggestedMatches);
+  .route('/balance')
+  .post(balanceTransactions);
 
 router
   .route('/matches/:id')
   .get(getSuggestedMatches);
-
-router
-  .route('/extract-entry')
-  .post(extractEntry);
 
 // Add route for merging transactions
 router
@@ -54,10 +61,31 @@ router
   .put(updateTransaction)
   .delete(deleteTransaction);
 
-// Entry line routes for a specific transaction
+// Entry routes for a specific transaction
 router
   .route('/:transactionId/entries')
-  .get(getEntryLines)
-  .post(createEntryLine);
+  .get(getEntries)
+  .post(createEntry);
+
+// Entry routes
+router.get('/:transactionId/entries/:entryId', getEntry);
+router.post('/:transactionId/entries', addEntry);
+router.put('/:transactionId/entries/:entryId', updateEntry);
+router.delete('/:transactionId/entries/:entryId', deleteEntry);
+
+// Restructure routes
+router.route('/move-entry')
+  .post(moveEntry);
+
+// Search routes
+router.route('/search/entries')
+  .post(searchEntries);
+
+router.route('/search/transactions')
+  .post(searchTransactions);
+
+// Suggestions route
+router.route('/suggestions')
+  .post(getSuggestedMatches);
 
 module.exports = router; 
