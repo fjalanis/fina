@@ -198,4 +198,101 @@ describe('Transaction Model', () => {
     
     expect(transaction.isBalanced).toBe(true);
   });
+  
+  it('should find unbalanced transactions using aggregation', async () => {
+    // Create a balanced transaction
+    await Transaction.create({
+      date: new Date(),
+      description: 'Balanced Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 100,
+          type: 'credit'
+        }
+      ]
+    });
+    
+    // Create an unbalanced transaction
+    await Transaction.create({
+      date: new Date(),
+      description: 'Unbalanced Transaction',
+      entries: [
+        {
+          account: account._id,
+          amount: 100,
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: 50,
+          type: 'credit'
+        }
+      ]
+    });
+    
+    // Use the aggregation method to find unbalanced transactions
+    const unbalancedTransactions = await Transaction.findUnbalanced();
+    
+    // Should find only the unbalanced transaction
+    expect(unbalancedTransactions.length).toBe(1);
+    expect(unbalancedTransactions[0].description).toBe('Unbalanced Transaction');
+    expect(unbalancedTransactions[0].balanceDifference).toBe(50);
+  });
+  
+  it('should handle type conversion correctly', async () => {
+    // Create transaction with string values for amounts
+    const transaction = await Transaction.create({
+      date: new Date(),
+      description: 'Type Conversion Test',
+      entries: [
+        {
+          account: account._id,
+          amount: '100.50', // String amount
+          type: 'debit'
+        },
+        {
+          account: account._id,
+          amount: '100.50', // String amount
+          type: 'credit'
+        }
+      ]
+    });
+    
+    // Verify that the transaction is balanced (string amounts are correctly converted to numbers)
+    expect(transaction.isBalanced).toBe(true);
+    
+    // Add an entry with mixed types
+    transaction.entries.push({
+      account: account._id,
+      amount: 75, // Number
+      type: 'debit'
+    });
+    
+    await transaction.save();
+    
+    // Verify transaction is now unbalanced
+    expect(transaction.isBalanced).toBe(false);
+    
+    // Test with the aggregation method
+    const unbalancedTransactions = await Transaction.findUnbalanced();
+    expect(unbalancedTransactions.some(tx => tx._id.toString() === transaction._id.toString())).toBe(true);
+    
+    // Restore balance with another string amount
+    transaction.entries.push({
+      account: account._id,
+      amount: '75.00', // String amount
+      type: 'credit'
+    });
+    
+    await transaction.save();
+    
+    // Verify transaction is balanced again
+    expect(transaction.isBalanced).toBe(true);
+  });
 }); 

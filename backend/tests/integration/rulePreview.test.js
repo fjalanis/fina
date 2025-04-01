@@ -269,6 +269,6 @@ describe('Rule Preview Integration Tests', () => {
       .expect(400);
 
     expect(response.body.success).toBe(false);
-    expect(response.body.message).toContain('pattern is required');
+    expect(response.body.error).toContain('Pattern is required for preview');
   });
 }); 

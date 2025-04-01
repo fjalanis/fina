@@ -22,19 +22,22 @@ const findMatchingTransactions = async (transaction) => {
   
   // Find transactions with complementary imbalance
   const dateRange = 15; // 15 days
-  const unbalancedTransactions = await Transaction.find({
-    isBalanced: false,
-    _id: { $ne: transaction._id },
-    date: {
-      $gte: new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000),
-    }
-  }).populate('entries.account');
+  const pastDate = new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000);
+  
+  // Use the aggregation method to find unbalanced transactions
+  const unbalancedTransactions = await Transaction.findUnbalanced({ populate: true });
+  
+  // Filter for transactions within date range and not the current transaction
+  const filteredTransactions = unbalancedTransactions.filter(tx => 
+    tx._id.toString() !== transaction._id.toString() && 
+    tx.date >= pastDate
+  );
   
   // Filter for transactions with complementary imbalance
   const complementaryTransactions = [];
   const TOLERANCE = 1.00;
   
-  for (const tx of unbalancedTransactions) {
+  for (const tx of filteredTransactions) {
     let txTotalDebits = 0;
     let txTotalCredits = 0;
     

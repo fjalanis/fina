@@ -389,19 +389,13 @@ exports.applyRulesToAllTransactions = async (req, res) => {
     // Import the service function
     const { applyRulesToTransaction } = require('../services/ruleApplicationService');
     
-    // Find all transactions that might need rules applied
-    // Since isBalanced is a virtual property, we can't query directly by it
-    // Instead, find all transactions with at least one entry
-    const allTransactions = await Transaction.find().populate('entries.account');
-    console.log(`Found ${allTransactions.length} total transactions`);
-    
-    // Filter to unbalanced transactions in memory
-    const unbalancedTransactions = allTransactions.filter(tx => !tx.isBalanced);
+    // Find all unbalanced transactions using the aggregation method
+    const unbalancedTransactions = await Transaction.findUnbalanced();
     console.log(`Found ${unbalancedTransactions.length} unbalanced transactions`);
     
     // Log transaction IDs for debugging
     unbalancedTransactions.forEach(tx => {
-      console.log(`Transaction ID: ${tx._id}, Description: ${tx.description}, isBalanced: ${tx.isBalanced}`);
+      console.log(`Transaction ID: ${tx._id}, Description: ${tx.description}, Balance Difference: ${tx.balanceDifference}`);
     });
     
     const results = {
@@ -474,7 +468,7 @@ exports.previewMatchingTransactions = async (req, res) => {
       ignoreCase: true
     };
     
-    // Query for unbalanced transactions
+    // Query for all transactions
     const transactions = await Transaction.find()
       .populate('entries.account')
       .sort({ date: -1 })
@@ -485,9 +479,8 @@ exports.previewMatchingTransactions = async (req, res) => {
       return Rule.matchesTransaction(tempRule, transaction);
     });
     
-    // Count unbalanced transactions
-    const allTransactions = await Transaction.find().populate('entries.account');
-    const unbalancedTransactions = allTransactions.filter(tx => !tx.isBalanced);
+    // Get unbalanced transactions count using the aggregation method
+    const unbalancedTransactions = await Transaction.findUnbalanced();
     
     res.status(200).json({
       success: true,

@@ -100,4 +100,81 @@ TransactionSchema.pre('save', function(next) {
   next();
 });
 
+// Static method to find unbalanced transactions using aggregation
+TransactionSchema.statics.findUnbalanced = async function(options = {}) {
+  const { populate = true, threshold = 0.01, query = {} } = options;
+  
+  const pipeline = [
+    // Apply the query if provided
+    { $match: query },
+
+    // Unwind entries to work with them individually
+    { $unwind: '$entries' },
+    
+    // Group by transaction ID and calculate sums for each type
+    {
+      $group: {
+        _id: '$_id',
+        date: { $first: '$date' },
+        description: { $first: '$description' },
+        reference: { $first: '$reference' },
+        notes: { $first: '$notes' },
+        entries: { $push: '$entries' },
+        appliedRules: { $first: '$appliedRules' },
+        createdAt: { $first: '$createdAt' },
+        updatedAt: { $first: '$updatedAt' },
+        totalDebit: {
+          $sum: {
+            $cond: [
+              { $eq: ['$entries.type', 'debit'] },
+              '$entries.amount',
+              0
+            ]
+          }
+        },
+        totalCredit: {
+          $sum: {
+            $cond: [
+              { $eq: ['$entries.type', 'credit'] },
+              '$entries.amount',
+              0
+            ]
+          }
+        }
+      }
+    },
+    
+    // Calculate the absolute difference between debits and credits
+    {
+      $addFields: {
+        balanceDifference: { $abs: { $subtract: ['$totalDebit', '$totalCredit'] } }
+      }
+    },
+    
+    // Filter to only include transactions where the difference is greater than or equal to the threshold
+    {
+      $match: {
+        balanceDifference: { $gte: threshold }
+      }
+    },
+    
+    // Sort by date (most recent first)
+    { $sort: { date: -1 } }
+  ];
+  
+  let transactions = await this.aggregate(pipeline);
+  
+  // If populate is requested, we need to manually populate since
+  // aggregate doesn't support automatic population
+  if (populate && transactions.length > 0) {
+    // Convert aggregation results to proper format
+    transactions = await this.populate(transactions, {
+      path: 'entries.account',
+      select: 'name type'
+    });
+  }
+  
+  return transactions;
+};
+
 module.exports = mongoose.model('Transaction', TransactionSchema); 
