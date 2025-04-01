@@ -1,35 +1,23 @@
 const Transaction = require('../../models/Transaction');
+const { validateEntry, handleError } = require('../../utils/validators');
 
 // @route   POST /api/transactions/:transactionId/entries
 // @desc    Add an entry to a transaction
 // @access  Private
 exports.addEntry = async (req, res) => {
   try {
-    const { account, amount, type, description } = req.body;
+    const validationResult = validateEntry(req.body);
     
-    if (!account || !amount || !type) {
+    if (!validationResult.isValid) {
       return res.status(400).json({
         success: false,
-        error: 'Account, amount, and type are required'
+        error: validationResult.error
       });
     }
     
-    // Make sure amount is a number
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Amount must be a positive number'
-      });
-    }
-    
-    // Make sure type is valid
-    if (type !== 'debit' && type !== 'credit') {
-      return res.status(400).json({
-        success: false,
-        error: 'Type must be either debit or credit'
-      });
-    }
+    const { account, description } = req.body;
+    const { parsedAmount: amount } = validationResult;
+    const type = req.body.type;
     
     const transaction = await Transaction.findById(req.params.transactionId);
     
@@ -43,7 +31,7 @@ exports.addEntry = async (req, res) => {
     // Add the entry to the transaction
     transaction.entries.push({
       account,
-      amount: parsedAmount,
+      amount,
       type,
       description
     });
@@ -59,11 +47,7 @@ exports.addEntry = async (req, res) => {
       data: updatedTransaction
     });
   } catch (error) {
-    console.error('Error adding entry:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
+    handleError(res, error, 'Error adding entry');
   }
 };
 
@@ -107,42 +91,27 @@ exports.splitTransaction = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error splitting transaction:', error);
-    res.status(500).json({ error: 'Error splitting transaction' });
+    handleError(res, error, 'Error splitting transaction');
   }
 }; 
-
 
 // @desc    Create a new entry for a transaction
 // @route   POST /api/transactions/:transactionId/entries
 // @access  Public
 exports.createEntry = async (req, res) => {
   try {
-    const { account, description, amount, type } = req.body;
-
-    if (!account || !amount || !type) {
+    const validationResult = validateEntry(req.body);
+    
+    if (!validationResult.isValid) {
       return res.status(400).json({
         success: false,
-        error: 'Account, amount, and type are required'
+        error: validationResult.error
       });
     }
     
-    // Make sure amount is a number
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Amount must be a positive number'
-      });
-    }
-    
-    // Make sure type is valid
-    if (type !== 'debit' && type !== 'credit') {
-      return res.status(400).json({
-        success: false,
-        error: 'Type must be either debit or credit'
-      });
-    }
+    const { account, description } = req.body;
+    const { parsedAmount: amount } = validationResult;
+    const type = req.body.type;
 
     // Verify transaction exists
     const transaction = await Transaction.findById(req.params.transactionId);
@@ -157,7 +126,7 @@ exports.createEntry = async (req, res) => {
     transaction.entries.push({
       account,
       description,
-      amount: parsedAmount,
+      amount,
       type
     });
 
@@ -172,19 +141,7 @@ exports.createEntry = async (req, res) => {
       data: updatedTransaction
     });
   } catch (error) {
-    console.error('Error creating entry:', error);
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        error: messages
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
+    handleError(res, error, 'Error creating entry');
   }
 };
 
@@ -203,26 +160,22 @@ exports.getEntries = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       count: transaction.entries.length,
       data: transaction.entries
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
+    handleError(res, error, 'Error retrieving entries');
   }
 };
 
-// @desc    Get single entry
+// @desc    Get a specific entry for a transaction
 // @route   GET /api/transactions/:transactionId/entries/:entryId
 // @access  Public
 exports.getEntry = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.transactionId)
-      .populate('entries.account', 'name type');
+    const transaction = await Transaction.findById(req.params.transactionId);
 
     if (!transaction) {
       return res.status(404).json({
@@ -232,6 +185,7 @@ exports.getEntry = async (req, res) => {
     }
 
     const entry = transaction.entries.id(req.params.entryId);
+
     if (!entry) {
       return res.status(404).json({
         success: false,
@@ -239,27 +193,35 @@ exports.getEntry = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       data: entry
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
+    handleError(res, error, 'Error retrieving entry');
   }
 };
 
-// @desc    Update entry
+// @desc    Update an entry
 // @route   PUT /api/transactions/:transactionId/entries/:entryId
 // @access  Public
 exports.updateEntry = async (req, res) => {
   try {
-    const { account, description, amount, type } = req.body;
+    const validationResult = validateEntry(req.body);
+    
+    if (!validationResult.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: validationResult.error
+      });
+    }
 
-    // Find transaction and entry
+    const { account, description } = req.body;
+    const { parsedAmount: amount } = validationResult;
+    const type = req.body.type;
+
     const transaction = await Transaction.findById(req.params.transactionId);
+
     if (!transaction) {
       return res.status(404).json({
         success: false,
@@ -268,6 +230,7 @@ exports.updateEntry = async (req, res) => {
     }
 
     const entry = transaction.entries.id(req.params.entryId);
+
     if (!entry) {
       return res.status(404).json({
         success: false,
@@ -275,40 +238,33 @@ exports.updateEntry = async (req, res) => {
       });
     }
 
-    // Update entry fields
-    if (account) entry.account = account;
-    if (description !== undefined) entry.description = description;
-    if (amount) entry.amount = amount;
-    if (type) entry.type = type;
+    // Update entry
+    entry.account = account;
+    entry.amount = amount;
+    entry.type = type;
+    if (description) entry.description = description;
 
     await transaction.save();
 
-    return res.status(200).json({
+    const updatedTransaction = await Transaction.findById(req.params.transactionId)
+      .populate('entries.account');
+
+    res.status(200).json({
       success: true,
-      data: entry
+      data: updatedTransaction
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        error: messages
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-        error: 'Server Error'
-      });
-    }
+    handleError(res, error, 'Error updating entry');
   }
 };
 
-// @desc    Delete entry
+// @desc    Delete an entry
 // @route   DELETE /api/transactions/:transactionId/entries/:entryId
 // @access  Public
 exports.deleteEntry = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.transactionId);
+
     if (!transaction) {
       return res.status(404).json({
         success: false,
@@ -317,6 +273,7 @@ exports.deleteEntry = async (req, res) => {
     }
 
     const entry = transaction.entries.id(req.params.entryId);
+
     if (!entry) {
       return res.status(404).json({
         success: false,
@@ -337,36 +294,17 @@ exports.deleteEntry = async (req, res) => {
       });
     }
 
-    // Remove entry
     entry.remove();
     await transaction.save();
 
-    return res.status(200).json({
+    const updatedTransaction = await Transaction.findById(req.params.transactionId)
+      .populate('entries.account');
+
+    res.status(200).json({
       success: true,
-      data: {}
+      data: updatedTransaction
     });
   } catch (error) {
-    // Log the detailed error
-    console.error(`Error deleting entry ${req.params.entryId}:`, error);
-    
-    // Return more specific error message if possible
-    if (error.name === 'CastError') {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid entry ID format'
-      });
-    } else if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation error',
-        details: Object.values(error.errors).map(err => err.message)
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-        error: 'Server Error',
-        message: error.message || 'Unknown error occurred when deleting entry'
-      });
-    }
+    handleError(res, error, 'Error deleting entry');
   }
 }; 
