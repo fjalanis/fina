@@ -192,7 +192,7 @@ describe('Account Hierarchy API', () => {
         date: new Date(),
         description: 'Parent Transaction 1',
         entries: [{
-          account: accountWithTransactions._id,
+          accountId: accountWithTransactions._id,
           amount: 100,
           type: 'debit'
         }]
@@ -202,7 +202,7 @@ describe('Account Hierarchy API', () => {
         date: new Date(),
         description: 'Parent Transaction 2',
         entries: [{
-          account: accountWithTransactions._id,
+          accountId: accountWithTransactions._id,
           amount: 200,
           type: 'credit'
         }]
@@ -213,7 +213,7 @@ describe('Account Hierarchy API', () => {
         date: new Date(),
         description: 'Child Transaction 1',
         entries: [{
-          account: childAccount._id,
+          accountId: childAccount._id,
           amount: 300,
           type: 'debit'
         }]
@@ -223,7 +223,7 @@ describe('Account Hierarchy API', () => {
         date: new Date(),
         description: 'Child Transaction 2',
         entries: [{
-          account: childAccount._id,
+          accountId: childAccount._id,
           amount: 400,
           type: 'credit'
         }]
@@ -233,7 +233,7 @@ describe('Account Hierarchy API', () => {
         date: new Date(),
         description: 'Child Transaction 3',
         entries: [{
-          account: childAccount._id,
+          accountId: childAccount._id,
           amount: 500,
           type: 'debit'
         }]

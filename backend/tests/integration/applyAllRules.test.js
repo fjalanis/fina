@@ -77,12 +77,11 @@ describe('Apply Rules to All Transactions', () => {
       description: 'Bulk Transaction 1',
       entries: [
         {
-          account: testAccount._id,
-          amount: 100, // debit of 100 (positive amount)
+          accountId: testAccount._id,
+          amount: 100,
           memo: 'Test debit',
-          entryType: 'debit'
+          type: 'debit'
         }
-        // No offsetting credit entry, so this is unbalanced
       ]
     });
     unbalancedTransactions.push(transaction1);
@@ -94,12 +93,11 @@ describe('Apply Rules to All Transactions', () => {
       description: 'Bulk Transaction 2',
       entries: [
         {
-          account: testAccount._id,
-          amount: 50, // debit of 50 (positive amount)
+          accountId: testAccount._id,
+          amount: 50,
           memo: 'Test debit',
-          entryType: 'debit'
+          type: 'debit'
         }
-        // No offsetting credit entry, so this is unbalanced
       ]
     });
     unbalancedTransactions.push(transaction2);
@@ -111,12 +109,11 @@ describe('Apply Rules to All Transactions', () => {
       description: 'Other Transaction',
       entries: [
         {
-          account: testAccount._id,
-          amount: 75, // debit of 75 (positive amount)
+          accountId: testAccount._id,
+          amount: 75,
           memo: 'Test debit',
-          entryType: 'debit'
+          type: 'debit'
         }
-        // No offsetting credit entry, so this is unbalanced
       ]
     });
     unbalancedTransactions.push(transaction3);

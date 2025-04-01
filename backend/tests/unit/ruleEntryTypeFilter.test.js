@@ -55,7 +55,7 @@ describe('Rule Entry Type Filtering', () => {
       date: new Date(),
       description: 'TEST TRANSACTION',
       entries: [{
-        account: assetAccount._id,
+        accountId: assetAccount._id,
         amount: 100,
         type: 'debit'
       }]
@@ -86,7 +86,7 @@ describe('Rule Entry Type Filtering', () => {
       date: new Date(),
       description: 'TEST TRANSACTION',
       entries: [{
-        account: assetAccount._id,
+        accountId: assetAccount._id,
         amount: 100,
         type: 'debit'
       }]
@@ -117,7 +117,7 @@ describe('Rule Entry Type Filtering', () => {
       date: new Date(),
       description: 'TEST TRANSACTION',
       entries: [{
-        account: assetAccount._id,
+        accountId: assetAccount._id,
         amount: 100,
         type: 'debit' // This doesn't match the rule's entryType
       }]
@@ -149,12 +149,12 @@ describe('Rule Entry Type Filtering', () => {
       description: 'TEST TRANSACTION',
       entries: [
         {
-          account: expenseAccount._id, // Different account
+          accountId: expenseAccount._id, // Different account
           amount: 100,
           type: 'debit'
         },
         {
-          account: assetAccount._id, // This matches the rule's sourceAccount
+          accountId: assetAccount._id, // This matches the rule's sourceAccount
           amount: 100,
           type: 'credit' // This matches the rule's entryType
         }
@@ -186,7 +186,7 @@ describe('Rule Entry Type Filtering', () => {
       date: new Date(),
       description: 'TEST TRANSACTION',
       entries: [{
-        account: assetAccount._id,  // Correct account
+        accountId: assetAccount._id,  // Correct account
         amount: 100,
         type: 'debit'  // Wrong entry type
       }]
@@ -217,7 +217,7 @@ describe('Rule Entry Type Filtering', () => {
       date: new Date(),
       description: 'TEST TRANSACTION',
       entries: [{
-        account: assetAccount._id,  // Correct account
+        accountId: assetAccount._id,  // Correct account
         amount: 100,
         type: 'credit'  // Correct entry type
       }]

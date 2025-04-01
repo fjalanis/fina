@@ -50,12 +50,11 @@ describe('Rule Preview Functionality', () => {
         description: 'GROCERY STORE',
         entries: [
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 100,
             type: 'debit'
           }
-        ],
-        isBalanced: false
+        ]
       });
       
       // Execute the preview request
@@ -97,12 +96,11 @@ describe('Rule Preview Functionality', () => {
         description: 'TEST GROCERY STORE',
         entries: [
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 100,
             type: 'debit'
           }
-        ],
-        isBalanced: false
+        ]
       });
       
       // Mock request and response objects
@@ -138,12 +136,11 @@ describe('Rule Preview Functionality', () => {
         description: 'TEST GROCERY PURCHASE',
         entries: [
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 75,
             type: 'debit'
           }
-        ],
-        isBalanced: false
+        ]
       });
       
       // Mock request with credit entry type (which shouldn't match)
@@ -194,15 +191,15 @@ describe('Rule Preview Integration Tests', () => {
       description: 'GROCERY STORE',
       entries: [
         {
-          account: testAccount._id,
+          accountId: testAccount._id,
           amount: 50,
-          entryType: 'debit',
+          type: 'debit',
           memo: 'Groceries'
         },
         {
-          account: new mongoose.Types.ObjectId(), // Some other account
+          accountId: new mongoose.Types.ObjectId(),
           amount: 50,
-          entryType: 'credit',
+          type: 'credit',
           memo: 'Groceries payment'
         }
       ]

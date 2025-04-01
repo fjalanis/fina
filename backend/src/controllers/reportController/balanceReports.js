@@ -31,7 +31,7 @@ exports.getAccountBalanceReport = async (req, res) => {
     };
     
     if (accountId) {
-      query['entries.account'] = accountId;
+      query['entries.accountId'] = accountId;
     }
     
     const transactions = await Transaction.find(query)
@@ -41,29 +41,33 @@ exports.getAccountBalanceReport = async (req, res) => {
     // Calculate running balance for each account
     const accountBalances = {};
     
-    transactions.forEach(transaction => {
-      transaction.entries.forEach(entry => {
-        const accountId = entry.account._id.toString();
-        if (!accountBalances[accountId]) {
-          accountBalances[accountId] = {
-            accountId: accountId,
+    // Fetch account data within the loop instead of relying on populate
+    for (const transaction of transactions) {
+      for (const entry of transaction.entries) {
+        const accountIdStr = entry.accountId.toString();
+        if (!accountBalances[accountIdStr]) {
+          // Fetch Account data explicitly
+          const accountData = await Account.findById(entry.accountId).lean();
+          accountBalances[accountIdStr] = {
+            accountId: accountIdStr,
+            accountName: accountData ? accountData.name : 'Unknown Account', // Use fetched data
+            accountType: accountData ? accountData.type : 'Unknown', // Use fetched data
             balance: 0,
             entries: []
           };
         }
         
-        // Fix the sign calculation to match test expectations
-        // For debits, add the amount; for credits, subtract the amount
         const amount = entry.type === 'debit' ? entry.amount : -entry.amount;
-        accountBalances[accountId].balance += amount;
-        accountBalances[accountId].entries.push({
+        accountBalances[accountIdStr].balance += amount;
+        // Add minimal entry info for the report
+        accountBalances[accountIdStr].entries.push({
           date: transaction.date,
           description: transaction.description,
           amount: entry.amount,
           type: entry.type
         });
-      });
-    });
+      }
+    }
     
     res.json(Object.values(accountBalances));
   } catch (error) {
@@ -95,7 +99,7 @@ exports.getAccountBalance = async (req, res) => {
     }
     
     if (accountId) {
-      query['entries.account'] = accountId;
+      query['entries.accountId'] = accountId;
     }
     
     const transactions = await Transaction.find(query)
@@ -103,25 +107,28 @@ exports.getAccountBalance = async (req, res) => {
     
     const balances = {};
     
-    transactions.forEach(transaction => {
-      transaction.entries.forEach(entry => {
-        const accountId = entry.account._id.toString();
-        if (!balances[accountId]) {
-          balances[accountId] = {
-            accountId,
-            accountName: entry.account.name,
-            accountType: entry.account.type,
+    // Use a for...of loop to allow await inside
+    for (const transaction of transactions) {
+      for (const entry of transaction.entries) {
+        const accountIdStr = entry.accountId.toString();
+        if (!balances[accountIdStr]) {
+          // Fetch account data since populate only gives the virtual 'account'
+          const accountData = await Account.findById(entry.accountId).lean(); 
+          balances[accountIdStr] = {
+            accountId: accountIdStr,
+            accountName: accountData ? accountData.name : 'Unknown Account', 
+            accountType: accountData ? accountData.type : 'Unknown',
             balance: 0
           };
         }
         
         if (entry.type === 'debit') {
-          balances[accountId].balance += entry.amount;
+          balances[accountIdStr].balance += entry.amount;
         } else {
-          balances[accountId].balance -= entry.amount;
+          balances[accountIdStr].balance -= entry.amount;
         }
-      });
-    });
+      }
+    }
     
     res.json({
       balances: Object.values(balances)
@@ -186,16 +193,16 @@ exports.getNetWorthReport = async (req, res) => {
       
       transactions.forEach(txn => {
         txn.entries.forEach(entry => {
-          const accountId = entry.account.toString();
-          if (!accountBalances[accountId]) {
-            accountBalances[accountId] = 0;
+          const accountIdStr = entry.accountId.toString();
+          if (!accountBalances[accountIdStr]) {
+            accountBalances[accountIdStr] = 0;
           }
           
           // Update balance based on debit/credit
           if (entry.type === 'debit') {
-            accountBalances[accountId] += entry.amount;
+            accountBalances[accountIdStr] += entry.amount;
           } else {
-            accountBalances[accountId] -= entry.amount;
+            accountBalances[accountIdStr] -= entry.amount;
           }
         });
       });

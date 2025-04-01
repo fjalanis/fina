@@ -258,31 +258,39 @@ exports.getAccountHierarchy = async (req, res) => {
 
 // Recursively get an account with its children and transaction counts
 async function getAccountWithChildren(accountId) {
-  // Get the account with transaction count
+  // Use .lean() for efficiency, we build the plain object manually
   const account = await Account.findById(accountId).lean();
+
+  if (!account) {
+    // Handle case where account might not be found
+    return null; 
+  }
   
   // Get direct transaction count
   const directTransactionCount = await Account.model('Transaction').countDocuments({
-    'entries.account': accountId
+    'entries.accountId': accountId
   });
   
-  // Get children
+  // Get children (lean)
   const children = await Account.find({ parent: accountId }).sort({ name: 1 }).lean();
   
-  // Process children recursively
   const processedChildren = [];
   let childrenTransactionCount = 0;
   
   for (const child of children) {
-    const processedChild = await getAccountWithChildren(child._id);
-    processedChildren.push(processedChild);
-    childrenTransactionCount += processedChild.totalTransactionCount;
+    // Recursive call returns a plain object with calculated counts, or null
+    const processedChild = await getAccountWithChildren(child._id); 
+    if (processedChild) {
+      // Access the count property directly from the returned plain object
+      childrenTransactionCount += processedChild.totalTransactionCount || 0; 
+      processedChildren.push(processedChild);
+    } 
   }
   
-  // Set values on the account
+  // Add calculated counts and children to the plain object
   account.children = processedChildren;
   account.transactionCount = directTransactionCount;
   account.totalTransactionCount = directTransactionCount + childrenTransactionCount;
   
-  return account;
+  return account; // Return the augmented plain object
 } 

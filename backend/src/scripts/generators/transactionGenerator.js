@@ -9,7 +9,7 @@ const createTransaction = async (date, description, entries) => {
     description,
     isBalanced: true,
     entries: entries.map(entry => ({
-      account: entry.account._id,
+      accountId: entry.account._id,
       amount: entry.amount,
       type: entry.type,
       description: entry.description || description

@@ -62,12 +62,12 @@ describe('Rule Application Integration', () => {
           description: 'Test Transaction',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 50,
               type: 'debit'
             },
             {
-              account: testAccount2._id,
+              accountId: testAccount2._id,
               amount: 50,
               type: 'credit'
             }
@@ -99,12 +99,12 @@ describe('Rule Application Integration', () => {
           description: 'Different Transaction',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 50,
               type: 'debit'
             },
             {
-              account: testAccount2._id,
+              accountId: testAccount2._id,
               amount: 50,
               type: 'credit'
             }
@@ -136,12 +136,12 @@ describe('Rule Application Integration', () => {
         description: 'Different Transaction',
         entries: [
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 50,
             type: 'debit'
           },
           {
-            account: testAccount2._id,
+            accountId: testAccount2._id,
             amount: 50,
             type: 'credit'
           }
@@ -155,12 +155,12 @@ describe('Rule Application Integration', () => {
           description: 'Test Transaction',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 50,
               type: 'debit'
             },
             {
-              account: testAccount2._id,
+              accountId: testAccount2._id,
               amount: 50,
               type: 'credit'
             }
@@ -195,7 +195,7 @@ describe('Rule Application Integration', () => {
           description: 'Test Transaction',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 100,
               type: 'debit'
             }
@@ -210,7 +210,7 @@ describe('Rule Application Integration', () => {
           description: 'Test Transaction',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 100,
               type: 'credit'
             }
@@ -248,7 +248,6 @@ describe('Rule Application Integration', () => {
         pattern: 'Bulk',
         newDescription: 'Processed Bulk',
         sourceAccounts: [sourceAccount._id],
-        entryType: 'both',
         autoApply: true
       });
       
@@ -259,7 +258,7 @@ describe('Rule Application Integration', () => {
         description: 'Bulk Transaction 1',
         entries: [
           {
-            account: sourceAccount._id,
+            accountId: sourceAccount._id,
             amount: 100,
             entryType: 'debit',
             memo: 'Test entry'
@@ -274,7 +273,7 @@ describe('Rule Application Integration', () => {
         description: 'Bulk Transaction 2',
         entries: [
           {
-            account: sourceAccount._id,
+            accountId: sourceAccount._id,
             amount: 200,
             entryType: 'debit',
             memo: 'Test entry'
@@ -289,7 +288,7 @@ describe('Rule Application Integration', () => {
         description: 'Other Transaction',
         entries: [
           {
-            account: sourceAccount._id,
+            accountId: sourceAccount._id,
             amount: 300,
             entryType: 'debit',
             memo: 'Test entry'

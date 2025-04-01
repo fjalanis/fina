@@ -15,7 +15,7 @@ exports.addEntry = async (req, res) => {
       });
     }
     
-    const { account, description } = req.body;
+    const { accountId, description } = req.body;
     const { parsedAmount: amount } = validationResult;
     const type = req.body.type;
     
@@ -30,7 +30,7 @@ exports.addEntry = async (req, res) => {
     
     // Add the entry to the transaction
     transaction.entries.push({
-      account,
+      accountId,
       amount,
       type,
       description
@@ -95,56 +95,6 @@ exports.splitTransaction = async (req, res) => {
   }
 }; 
 
-// @desc    Create a new entry for a transaction
-// @route   POST /api/transactions/:transactionId/entries
-// @access  Public
-exports.createEntry = async (req, res) => {
-  try {
-    const validationResult = validateEntry(req.body);
-    
-    if (!validationResult.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: validationResult.error
-      });
-    }
-    
-    const { account, description } = req.body;
-    const { parsedAmount: amount } = validationResult;
-    const type = req.body.type;
-
-    // Verify transaction exists
-    const transaction = await Transaction.findById(req.params.transactionId);
-    if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        error: 'Transaction not found'
-      });
-    }
-
-    // Add entry to transaction
-    transaction.entries.push({
-      account,
-      description,
-      amount,
-      type
-    });
-
-    await transaction.save();
-
-    // Get the updated transaction
-    const updatedTransaction = await Transaction.findById(req.params.transactionId)
-      .populate('entries.account');
-
-    return res.status(201).json({
-      success: true,
-      data: updatedTransaction
-    });
-  } catch (error) {
-    handleError(res, error, 'Error creating entry');
-  }
-};
-
 // @desc    Get all entries for a transaction
 // @route   GET /api/transactions/:transactionId/entries
 // @access  Public
@@ -175,7 +125,8 @@ exports.getEntries = async (req, res) => {
 // @access  Public
 exports.getEntry = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.transactionId);
+    const transaction = await Transaction.findById(req.params.transactionId)
+        .populate('entries.account');
 
     if (!transaction) {
       return res.status(404).json({
@@ -216,7 +167,7 @@ exports.updateEntry = async (req, res) => {
       });
     }
 
-    const { account, description } = req.body;
+    const { accountId, description } = req.body;
     const { parsedAmount: amount } = validationResult;
     const type = req.body.type;
 
@@ -239,7 +190,7 @@ exports.updateEntry = async (req, res) => {
     }
 
     // Update entry
-    entry.account = account;
+    entry.accountId = accountId;
     entry.amount = amount;
     entry.type = type;
     if (description) entry.description = description;

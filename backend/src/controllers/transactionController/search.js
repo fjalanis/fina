@@ -130,7 +130,7 @@ exports.searchEntries = async (req, res) => {
         if (maxAmount !== undefined && entry.amount > parseFloat(maxAmount)) return false;
         
         // Account filter
-        if (accountId && accountId.trim() !== '' && entry.account._id.toString() !== accountId) return false;
+        if (accountId && accountId.trim() !== '' && entry.accountId.toString() !== accountId) return false;
         
         // Type filter
         if (type && ['debit', 'credit'].includes(type) && entry.type !== type) return false;

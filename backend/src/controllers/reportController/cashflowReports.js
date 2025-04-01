@@ -47,7 +47,7 @@ exports.getCashFlowReport = async (req, res) => {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       },
-      'entries.account': { $in: accountIds }
+      'entries.accountId': { $in: accountIds }
     })
     .populate('entries.account')
     .sort({ date: 1 });
@@ -71,7 +71,7 @@ exports.getCashFlowReport = async (req, res) => {
       // Find the bank account entry and its counterpart
       transaction.entries.forEach(entry => {
         const isEntryBankAccount = accountIds.some(id => 
-          entry.account._id.toString() === id.toString());
+          entry.accountId.toString() === id.toString());
         
         if (isEntryBankAccount) {
           isBankTransaction = true;
@@ -93,12 +93,12 @@ exports.getCashFlowReport = async (req, res) => {
         description: transaction.description,
         amount,
         account: {
-          id: bankEntry.account._id,
-          name: bankEntry.account.name
+          id: bankEntry.accountId,
+          name: bankEntry.account ? bankEntry.account.name : 'Unknown Account'
         },
         counterparty: counterEntry ? {
-          id: counterEntry.account._id,
-          name: counterEntry.account.name
+          id: counterEntry.accountId,
+          name: counterEntry.account ? counterEntry.account.name : 'Unknown Account'
         } : null
       };
       
@@ -183,7 +183,7 @@ exports.getCashFlowForecast = async (req, res) => {
         $gte: historicalStartDate,
         $lt: startDate
       },
-      'entries.account': { $in: accountIds }
+      'entries.accountId': { $in: accountIds }
     })
     .populate('entries.account')
     .sort({ date: 1 });
@@ -195,7 +195,7 @@ exports.getCashFlowForecast = async (req, res) => {
     historicalTransactions.forEach(transaction => {
       transaction.entries.forEach(entry => {
         const isAccountOfInterest = accountIds.some(id => 
-          entry.account._id.toString() === id.toString());
+          entry.accountId.toString() === id.toString());
         
         if (isAccountOfInterest) {
           if (entry.type === 'debit') {
@@ -226,13 +226,13 @@ exports.getCashFlowForecast = async (req, res) => {
     const accountBalances = await Promise.all(accountIds.map(async id => {
       const account = await Account.findById(id);
       const transactions = await Transaction.find({
-        'entries.account': id
+        'entries.accountId': id
       });
       
       let balance = 0;
       transactions.forEach(transaction => {
         transaction.entries.forEach(entry => {
-          if (entry.account.toString() === id.toString()) {
+          if (entry.accountId.toString() === id.toString()) {
             if (entry.type === 'debit') {
               balance += entry.amount;
             } else {

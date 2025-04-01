@@ -80,7 +80,7 @@ describe('Rule Application Service', () => {
         description: 'GROCERY SHOPPING',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -112,7 +112,7 @@ describe('Rule Application Service', () => {
         description: 'GROCERY SHOPPING $1',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -146,7 +146,7 @@ describe('Rule Application Service', () => {
         description: 'GROCERY SHOPPING 1',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 50,
             type: 'debit'
           }
@@ -158,7 +158,7 @@ describe('Rule Application Service', () => {
         description: 'GROCERY SHOPPING 2',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 50,
             type: 'debit'
           }
@@ -206,7 +206,7 @@ describe('Rule Application Service', () => {
         description: 'Test Transaction',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -222,10 +222,10 @@ describe('Rule Application Service', () => {
       
       // Verify the amounts
       const expenseEntry = updatedTransaction.entries.find(
-        entry => entry.account.toString() === expenseAccount._id.toString()
+        entry => entry.accountId.toString() === expenseAccount._id.toString()
       );
       const incomeEntry = updatedTransaction.entries.find(
-        entry => entry.account.toString() === incomeAccount._id.toString()
+        entry => entry.accountId.toString() === incomeAccount._id.toString()
       );
       
       expect(expenseEntry.amount).toBe(60); // 60% of 100
@@ -260,7 +260,7 @@ describe('Rule Application Service', () => {
         description: 'TEST TRANSACTION',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           }

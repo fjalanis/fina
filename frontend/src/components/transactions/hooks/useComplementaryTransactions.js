@@ -31,15 +31,12 @@ export const useComplementaryTransactions = (onSuccess) => {
         return;
       }
       
-      // Get the opposite type to find truly complementary transactions
-      const complementaryType = fixType === 'credit' ? 'debit' : 'credit';
-      
-      console.log(`Looking for transactions with ${complementaryType} imbalance of ${numericAmount}`);
+      console.log(`Looking for transactions with ${fixType} imbalance of ${numericAmount}`);
       
       // Use the updated matching API with parameters object
       const response = await transactionApi.getSuggestedMatches({
         amount: numericAmount,
-        type: complementaryType,
+        type: fixType,
         excludeTransactionId: transactionId,
         page,
         limit: transactionPagination.limit,

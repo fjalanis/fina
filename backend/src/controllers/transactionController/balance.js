@@ -38,13 +38,13 @@ exports.balanceTransactions = async (req, res) => {
     
     if (sourceType === 'debit') {
       sourceTransaction.entries.push({
-        account: targetTransaction.entries[0].account,
+        accountId: targetTransaction.entries[0].accountId,
         type: 'credit',
         amount
       });
     } else {
       sourceTransaction.entries.push({
-        account: targetTransaction.entries[0].account,
+        accountId: targetTransaction.entries[0].accountId,
         type: 'debit',
         amount
       });

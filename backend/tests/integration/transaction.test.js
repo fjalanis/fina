@@ -48,12 +48,12 @@ describe('Transaction API', () => {
           description: 'Test Transaction',
           entries: [
             {
-              account: assetAccount._id,
+              accountId: assetAccount._id,
               amount: 100,
               type: 'debit'
             },
             {
-              account: expenseAccount._id,
+              accountId: expenseAccount._id,
               amount: 100,
               type: 'credit'
             }
@@ -79,7 +79,7 @@ describe('Transaction API', () => {
           // Missing required fields
           entries: [
             {
-              account: assetAccount._id,
+              accountId: assetAccount._id,
               amount: 100,
               type: 'debit'
             }
@@ -99,12 +99,12 @@ describe('Transaction API', () => {
         description: 'Transaction 1',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           },
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'credit'
           }
@@ -116,12 +116,12 @@ describe('Transaction API', () => {
         description: 'Transaction 2',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 200,
             type: 'debit'
           },
           {
-            account: incomeAccount._id,
+            accountId: incomeAccount._id,
             amount: 200,
             type: 'credit'
           }
@@ -178,12 +178,12 @@ describe('Transaction API', () => {
         description: 'Test Transaction',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           },
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'credit'
           }
@@ -220,12 +220,12 @@ describe('Transaction API', () => {
         description: 'Test Transaction',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           },
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'credit'
           }
@@ -250,21 +250,19 @@ describe('Transaction API', () => {
           description: 'Unbalanced Transaction',
           entries: [
             {
-              account: assetAccount._id,
-              amount: 100,
+              accountId: assetAccount._id,
+              amount: 150,
               type: 'debit'
-            },
-            {
-              account: expenseAccount._id,
-              amount: 50,
-              type: 'credit'
             }
           ]
-        });
-      
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('success', true);
-      expect(res.body.data).toHaveProperty('isBalanced', false);
+        })
+        .expect(200);
+        
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.description).toBe('Unbalanced Transaction');
+      expect(res.body.data.entries.length).toBe(1);
+      expect(res.body.data.entries[0].amount).toBe(150);
+      expect(res.body.data.isBalanced).toBe(false);
     });
   });
   
@@ -277,27 +275,26 @@ describe('Transaction API', () => {
         description: 'Test Transaction',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
-          },
-          {
-            account: expenseAccount._id,
-            amount: 100,
-            type: 'credit'
           }
         ]
       });
     });
     
     it('should delete a transaction', async () => {
-      const res = await request(app)
-        .delete(`/api/transactions/${transaction._id}`);
+      const toDelete = await Transaction.findById(transaction._id);
+      expect(toDelete).not.toBeNull();
+
+      const response = await request(app)
+        .delete(`/api/transactions/${transaction._id}`)
+        .expect(200);
+        
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Transaction deleted successfully');
       
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('success', true);
-      expect(res.body).toHaveProperty('message', 'Transaction deleted successfully');
-      
+      // Verify transaction is actually deleted
       const deletedTransaction = await Transaction.findById(transaction._id);
       expect(deletedTransaction).toBeNull();
     });
@@ -311,7 +308,7 @@ describe('Transaction API', () => {
         description: 'Transaction for testing entries',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -322,7 +319,7 @@ describe('Transaction API', () => {
       const res = await request(app)
         .post(`/api/transactions/${transaction._id}/entries`)
         .send({
-          account: expenseAccount._id,
+          accountId: expenseAccount._id,
           amount: 100,
           type: 'credit',
           description: 'Test entry'
@@ -346,12 +343,12 @@ describe('Transaction API', () => {
         description: 'Transaction for entry list',
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit'
           },
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'credit'
           }

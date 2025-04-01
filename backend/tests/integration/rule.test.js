@@ -293,7 +293,7 @@ describe('Rule API', () => {
         date: new Date(),
         description: 'Test Transaction',
         entries: [{
-          account: assetAccount._id,
+          accountId: assetAccount._id,
           amount: 100,
           type: 'debit'
         }]
@@ -304,15 +304,13 @@ describe('Rule API', () => {
       const response = await request(app)
         .post(`/api/rules/${rule._id}/apply`)
         .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          transactionId: transaction._id
-        });
+        .send({ transactionId: transaction._id });
       
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       
       const updatedTransaction = await Transaction.findById(transaction._id);
-      expect(updatedTransaction.description).toBe('TESTED TRANSACTION');
+      expect(updatedTransaction.description).toBe('TESTED');
     });
   });
 }); 

@@ -31,7 +31,7 @@ describe('Report Controller', () => {
           description: 'Transaction 1',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 100,
               type: 'debit'
             }
@@ -42,7 +42,7 @@ describe('Report Controller', () => {
           description: 'Transaction 2',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 50,
               type: 'credit'
             }
@@ -104,12 +104,12 @@ describe('Report Controller', () => {
           description: 'Transaction 1',
           entries: [
             {
-              account: testAccount1._id,
+              accountId: testAccount1._id,
               amount: 100,
               type: 'debit'
             },
             {
-              account: testAccount2._id,
+              accountId: testAccount2._id,
               amount: 100,
               type: 'credit'
             }

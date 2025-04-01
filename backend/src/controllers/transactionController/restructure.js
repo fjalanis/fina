@@ -234,9 +234,13 @@ exports.mergeTransaction = async (req, res) => {
           : sourceTransaction.notes;
     }
     
+    // Log the entries before validation
+    console.log('Merged entries before validation:', JSON.stringify(destinationTransaction.entries, null, 2));
+    
     // Validate merged transaction
     const validation = validateTransaction(destinationTransaction);
     if (!validation.isValid) {
+      console.error('Validation failed. Errors:', validation.errors);
       return res.status(400).json({
         success: false,
         error: 'Merge would create an invalid transaction',

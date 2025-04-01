@@ -127,13 +127,13 @@ const setupTestData = async () => {
     isBalanced: true,
     entries: [
       {
-        account: accounts.salary._id,
+        accountId: accounts.salary._id,
         amount: 2000,
         type: 'credit',
         description: 'Monthly salary'
       },
       {
-        account: accounts.checkingAccount._id,
+        accountId: accounts.checkingAccount._id,
         amount: 2000,
         type: 'debit',
         description: 'Salary deposit'
@@ -149,13 +149,13 @@ const setupTestData = async () => {
     isBalanced: true,
     entries: [
       {
-        account: accounts.groceries._id,
+        accountId: accounts.groceries._id,
         amount: 150,
         type: 'debit',
         description: 'Weekly groceries'
       },
       {
-        account: accounts.visa._id,
+        accountId: accounts.visa._id,
         amount: 150,
         type: 'credit',
         description: 'Grocery purchase on credit card'

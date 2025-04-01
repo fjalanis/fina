@@ -29,12 +29,12 @@ describe('Report API Tests', () => {
       description: 'Test Transaction 1',
       entries: [
         {
-          account: testAccount1._id,
+          accountId: testAccount1._id,
           amount: 100,
           type: 'debit'
         },
         {
-          account: testAccount2._id,
+          accountId: testAccount2._id,
           amount: 100,
           type: 'credit'
         }
@@ -46,12 +46,12 @@ describe('Report API Tests', () => {
       description: 'Test Transaction 2',
       entries: [
         {
-          account: testAccount1._id,
+          accountId: testAccount1._id,
           amount: 50,
           type: 'credit'
         },
         {
-          account: testAccount2._id,
+          accountId: testAccount2._id,
           amount: 50,
           type: 'debit'
         }
@@ -160,12 +160,12 @@ describe('Report API Tests', () => {
         description: 'Income Transaction',
         entries: [
           {
-            account: incomeAccount._id,
+            accountId: incomeAccount._id,
             amount: 1000,
             type: 'credit' // Credit to income account increases income
           },
           {
-            account: testAccount1._id, // Using asset account created in top-level beforeEach
+            accountId: testAccount1._id,
             amount: 1000,
             type: 'debit'
           }
@@ -177,12 +177,12 @@ describe('Report API Tests', () => {
         description: 'Expense Transaction',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 500,
             type: 'debit' // Debit to expense account increases expenses
           },
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 500,
             type: 'credit'
           }
@@ -277,12 +277,12 @@ describe('Report API Tests', () => {
         description: 'April 2025 Income',
         entries: [
           {
-            account: incomeAccount._id,
+            accountId: incomeAccount._id,
             amount: 2000,
             type: 'credit'
           },
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 2000,
             type: 'debit'
           }
@@ -294,12 +294,12 @@ describe('Report API Tests', () => {
         description: 'April 2025 Expense',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 800,
             type: 'debit'
           },
           {
-            account: testAccount1._id,
+            accountId: testAccount1._id,
             amount: 800,
             type: 'credit'
           }

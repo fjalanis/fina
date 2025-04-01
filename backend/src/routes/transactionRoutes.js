@@ -65,7 +65,7 @@ router
 router
   .route('/:transactionId/entries')
   .get(getEntries)
-  .post(createEntry);
+  .post(addEntry);
 
 // Entry routes
 router.get('/:transactionId/entries/:entryId', getEntry);

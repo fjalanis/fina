@@ -29,7 +29,7 @@ exports.getTransactionSummary = async (req, res) => {
     };
     
     if (accountId) {
-      query['entries.account'] = accountId;
+      query['entries.accountId'] = accountId;
     }
     
     const transactions = await Transaction.find(query)

@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const EntrySchema = new mongoose.Schema({
-  account: {
+  accountId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Account',
-    required: [true, 'Account reference is required']
+    required: [true, 'Account reference ID is required']
   },
   description: {
     type: String,
@@ -27,6 +27,17 @@ const EntrySchema = new mongoose.Schema({
     enum: ['debit', 'credit'],
     default: 'debit'
   }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual populate for the 'account' field
+EntrySchema.virtual('account', {
+  ref: 'Account',
+  localField: 'accountId',
+  foreignField: '_id',
+  justOne: true
 });
 
 const TransactionSchema = new mongoose.Schema({

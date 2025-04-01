@@ -4,12 +4,12 @@
  * @returns {Object} Object with isValid boolean and error message if not valid
  */
 exports.validateEntry = (entry) => {
-  const { account, amount, type } = entry;
+  const { accountId, amount, type } = entry;
   
-  if (!account || !amount || !type) {
+  if (!accountId || !amount || !type) {
     return {
       isValid: false,
-      error: 'Account, amount, and type are required'
+      error: 'Account ID, amount, and type are required'
     };
   }
   

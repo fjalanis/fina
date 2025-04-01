@@ -253,8 +253,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                   <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
                     <h3 className="font-medium mb-2 text-blue-800">Complementary Transactions</h3>
                     <p className="text-sm text-blue-600 mb-4">
-                      We found {transactionPagination.total} unbalanced {balanceData.suggestedFix.type} {transactionPagination.total === 1 ? 'transaction' : 'transactions'} with a matching imbalance.
-                      Click "Move All" to add all entries from a transaction to help balance this one.
+                      Found {transactionPagination.total} unbalanced {balanceData.suggestedFix.type} {transactionPagination.total === 1 ? 'transaction' : 'transactions'} with a matching complementary imbalance.
                     </p>
                     <ComplementaryTransactionsTable 
                       isLoading={matchLoading}

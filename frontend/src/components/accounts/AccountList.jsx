@@ -129,8 +129,8 @@ const AccountList = () => {
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-center">
-            <span className="text-sm text-gray-600">
-              {account.transactionCount || 0}
+            <span className="text-sm text-gray-600" title="Includes transactions from all child accounts">
+              {account.totalTransactionCount || 0}
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
@@ -184,7 +184,9 @@ const AccountList = () => {
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
+                <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <span title="Total transactions including all child accounts">Total Transactions</span>
+                </th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>

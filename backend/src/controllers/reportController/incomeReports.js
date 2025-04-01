@@ -44,13 +44,13 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
       },
       {
         $match: {
-          'entries.account': { $in: accountIds }
+          'entries.accountId': { $in: accountIds }
         }
       },
       {
         $lookup: {
           from: 'accounts',
-          localField: 'entries.account',
+          localField: 'entries.accountId',
           foreignField: '_id',
           as: 'accountData'
         }
@@ -61,7 +61,7 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
       {
         $group: {
           _id: {
-            accountId: '$entries.account',
+            accountId: '$entries.accountId',
             accountType: '$accountData.type'
           },
           accountName: { $first: '$accountData.name' },
@@ -102,17 +102,20 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
     entrySummary.forEach(entry => {
       const type = entry._id.accountType;
       if (type === 'income' || type === 'expense') {
-        // For income accounts, credits increase the balance (positive amount)
-        // For expense accounts, debits increase the balance (positive amount)
+        // Aggregation already handles the sign correctly. 
+        // Credits to income are summed as negative, debits to expense as positive.
+        // We want positive values for both income and expense totals in the summary.
         const amount = type === 'income' ? -entry.totalAmount : entry.totalAmount;
         
         summary[type].accounts.push({
           id: entry._id.accountId,
           name: entry.accountName,
-          amount
+          // Ensure the amount pushed is positive for display/summary purposes
+          amount: Math.abs(entry.totalAmount) 
         });
         
-        summary[type].total += amount;
+        // Use the correctly signed amount based on type for total calculation
+        summary[type].total += amount; 
       }
     });
     
@@ -164,13 +167,13 @@ exports.getAnnualIncomeExpenseSummary = async (req, res) => {
       },
       {
         $match: {
-          'entries.account': { $in: accountIds }
+          'entries.accountId': { $in: accountIds }
         }
       },
       {
         $lookup: {
           from: 'accounts',
-          localField: 'entries.account',
+          localField: 'entries.accountId',
           foreignField: '_id',
           as: 'accountData'
         }
@@ -281,38 +284,42 @@ exports.getIncomeVsExpenseReport = async (req, res) => {
       net: 0
     };
     
-    transactions.forEach(transaction => {
-      transaction.entries.forEach(entry => {
-        // Skip accounts that aren't income or expense
-        if (!entry.account || (entry.account.type !== 'income' && entry.account.type !== 'expense')) {
-          return;
+    // Fetch account data explicitly inside the loop
+    for (const transaction of transactions) {
+      for (const entry of transaction.entries) { 
+        // Fetch account data to check type
+        const accountData = await Account.findById(entry.accountId).lean();
+        
+        // Skip if no account data or not income/expense
+        if (!accountData || (accountData.type !== 'income' && accountData.type !== 'expense')) {
+          continue; 
         }
         
-        const accountId = entry.account._id.toString();
-        const accountName = entry.account.name;
-        const accountType = entry.account.type;
+        const accountIdStr = entry.accountId.toString();
+        const accountName = accountData.name;
+        const accountType = accountData.type;
         
         if (accountType === 'income' && entry.type === 'credit') {
-          if (!report.income.byAccount[accountId]) {
-            report.income.byAccount[accountId] = {
+          if (!report.income.byAccount[accountIdStr]) {
+            report.income.byAccount[accountIdStr] = {
               name: accountName,
               total: 0
             };
           }
-          report.income.byAccount[accountId].total += entry.amount;
+          report.income.byAccount[accountIdStr].total += entry.amount;
           report.income.total += entry.amount;
         } else if (accountType === 'expense' && entry.type === 'debit') {
-          if (!report.expense.byAccount[accountId]) {
-            report.expense.byAccount[accountId] = {
+          if (!report.expense.byAccount[accountIdStr]) {
+            report.expense.byAccount[accountIdStr] = {
               name: accountName,
               total: 0
             };
           }
-          report.expense.byAccount[accountId].total += entry.amount;
+          report.expense.byAccount[accountIdStr].total += entry.amount;
           report.expense.total += entry.amount;
         }
-      });
-    });
+      }
+    }
     
     report.net = report.income.total - report.expense.total;
     

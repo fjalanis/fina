@@ -105,13 +105,11 @@ baseRuleSchema.methods.matchesTransaction = function(transaction) {
     
     // Match source account if specified
     const accountMatches = this.sourceAccounts.length === 0 || 
-      this.sourceAccounts.some(accountId => {
-        if (!accountId || !entry.account) return false;
-        const accountIdStr = accountId.toString();
-        const entryAccountStr = typeof entry.account === 'object' && entry.account._id 
-          ? entry.account._id.toString() 
-          : entry.account.toString();
-        return accountIdStr === entryAccountStr;
+      this.sourceAccounts.some(sourceAccountId => {
+        if (!sourceAccountId || !entry.accountId) return false;
+        const sourceAccountIdStr = sourceAccountId.toString();
+        const entryAccountIdStr = entry.accountId.toString();
+        return sourceAccountIdStr === entryAccountIdStr;
       });
     
     return typeMatches && accountMatches;
@@ -145,13 +143,11 @@ baseRuleSchema.statics.matchesTransaction = function(rule, transaction) {
     // Match source account if specified
     let accountMatches = true;
     if (rule.sourceAccounts && rule.sourceAccounts.length > 0) {
-      accountMatches = rule.sourceAccounts.some(accountId => {
-        if (!accountId || !entry.account) return false;
-        const accountIdStr = accountId.toString();
-        const entryAccountStr = typeof entry.account === 'object' && entry.account._id 
-          ? entry.account._id.toString() 
-          : entry.account.toString();
-        return accountIdStr === entryAccountStr;
+      accountMatches = rule.sourceAccounts.some(sourceAccountId => {
+        if (!sourceAccountId || !entry.accountId) return false;
+        const sourceAccountIdStr = sourceAccountId.toString();
+        const entryAccountIdStr = entry.accountId.toString();
+        return sourceAccountIdStr === entryAccountIdStr;
       });
     }
     

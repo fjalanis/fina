@@ -35,7 +35,7 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: 100,
           type: 'debit'
         }
@@ -51,7 +51,7 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: 100,
           type: 'credit'
         }
@@ -67,12 +67,12 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: 100,
           type: 'debit'
         },
         {
-          account: account._id,
+          accountId: account._id,
           amount: 90,
           type: 'credit'
         }
@@ -88,12 +88,12 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: 100,
           type: 'debit'
         },
         {
-          account: account._id,
+          accountId: account._id,
           amount: 100,
           type: 'credit'
         }
@@ -109,12 +109,12 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: 10.25,
           type: 'debit'
         },
         {
-          account: account._id,
+          accountId: account._id,
           amount: 10.25,
           type: 'credit'
         }
@@ -130,17 +130,17 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: 0.1,
           type: 'debit'
         },
         {
-          account: account._id,
+          accountId: account._id,
           amount: 0.2,
           type: 'debit'
         },
         {
-          account: account._id,
+          accountId: account._id,
           amount: 0.3,
           type: 'credit'
         }
@@ -156,12 +156,12 @@ describe('Transaction.isBalanced virtual property', () => {
       description: 'Test Transaction',
       entries: [
         {
-          account: account._id,
+          accountId: account._id,
           amount: '100',
           type: 'debit'
         },
         {
-          account: account._id,
+          accountId: account._id,
           amount: '100',
           type: 'credit'
         }

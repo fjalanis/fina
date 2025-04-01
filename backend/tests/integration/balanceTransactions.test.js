@@ -44,7 +44,7 @@ describe('Balance Transactions API', () => {
         isBalanced: false,
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -58,7 +58,7 @@ describe('Balance Transactions API', () => {
         isBalanced: false,
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'credit'
           }
@@ -97,12 +97,12 @@ describe('Balance Transactions API', () => {
         isBalanced: false,
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'debit'
           },
           {
-            account: liabilityAccount._id,
+            accountId: liabilityAccount._id,
             amount: 50,
             type: 'credit'
           }
@@ -116,7 +116,7 @@ describe('Balance Transactions API', () => {
         isBalanced: false,
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 50,
             type: 'credit'
           }
@@ -167,7 +167,7 @@ describe('Balance Transactions API', () => {
         isBalanced: false,
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -180,7 +180,7 @@ describe('Balance Transactions API', () => {
         isBalanced: false,
         entries: [
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 100,
             type: 'debit' // Same type as transaction1
           }

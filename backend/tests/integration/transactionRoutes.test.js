@@ -49,12 +49,12 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 1',
         entries: [
           {
-            account: incomeAccount._id,
+            accountId: incomeAccount._id,
             amount: 150,
             type: 'credit'
           },
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 50,
             type: 'debit'
           }
@@ -67,7 +67,7 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 2',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -80,7 +80,7 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 3',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 200,
             type: 'debit'
           }
@@ -130,12 +130,12 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 1',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 150,
             type: 'debit'
           },
           {
-            account: assetAccount._id,
+            accountId: assetAccount._id,
             amount: 50,
             type: 'credit'
           }
@@ -148,7 +148,7 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 2',
         entries: [
           {
-            account: incomeAccount._id,
+            accountId: incomeAccount._id,
             amount: 100,
             type: 'credit'
           }
@@ -161,7 +161,7 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 3',
         entries: [
           {
-            account: incomeAccount._id,
+            accountId: incomeAccount._id,
             amount: 200,
             type: 'credit'
           }
@@ -211,7 +211,7 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 1',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -224,7 +224,7 @@ describe('Transaction Routes', () => {
         description: 'Test Transaction 2',
         entries: [
           {
-            account: expenseAccount._id,
+            accountId: expenseAccount._id,
             amount: 100,
             type: 'debit'
           }
@@ -253,6 +253,11 @@ describe('Transaction Routes', () => {
                 description: 'Test Transaction 2'
               })
             ]),
+            transactions: expect.not.arrayContaining([
+              expect.objectContaining({
+                description: 'Test Transaction 1'
+              })
+            ]),
             pagination: expect.objectContaining({
               total: 1,
               page: 1,
@@ -262,6 +267,40 @@ describe('Transaction Routes', () => {
           })
         })
       );
+    });
+
+    it('should return empty results if no matches found', async () => {
+      const targetAmount = 100;
+      // Use a simple fixed date
+      const testDate = new Date('2023-01-15');
+      
+      // Create a transaction with debit imbalance
+      await Transaction.create({
+        date: testDate,
+        description: 'Test Transaction 1',
+        entries: [
+          {
+            accountId: expenseAccount._id,
+            amount: 150,
+            type: 'debit'
+          }
+        ]
+      });
+
+      const response = await request(app)
+        .post('/api/transactions/matches')
+        .send({
+          amount: targetAmount.toString(),
+          type: 'credit', // Looking for credit matches
+          dateRange: '5',
+          page: '1',
+          limit: '10',
+          referenceDate: testDate.toISOString()
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.transactions).toHaveLength(0);
+      expect(response.body.data.pagination.total).toBe(0);
     });
 
     it('should handle pagination correctly', async () => {
@@ -276,7 +315,7 @@ describe('Transaction Routes', () => {
           description: `Test Transaction ${i + 1}`,
           entries: [
             {
-              account: expenseAccount._id,
+              accountId: expenseAccount._id,
               amount: 100,
               type: 'debit'
             }

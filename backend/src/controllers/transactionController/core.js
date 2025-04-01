@@ -8,28 +8,47 @@ const mongoose = require('mongoose');
 // @access  Private
 exports.createTransaction = async (req, res) => {
   try {
-    const transaction = await Transaction.create(req.body);
+    // Explicitly map fields, especially entries
+    const { date, description, reference, notes, entries } = req.body;
     
-    // Apply rules to the transaction
-    await applyRulesToTransaction(transaction._id);
+    const mappedEntries = entries?.map(entry => ({
+      accountId: entry.account || entry.accountId, // Accept either field name initially
+      amount: entry.amount,
+      type: entry.type,
+      description: entry.description
+    })) || [];
     
-    // Refresh transaction data after rule application
-    const updatedTransaction = await Transaction.findById(transaction._id)
-      .populate('entries.account');
+    // Create transaction data object
+    const transactionData = {
+      date,
+      description,
+      reference,
+      notes,
+      entries: mappedEntries
+    };
     
-    // Calculate if the transaction is balanced
-    const totalDebit = updatedTransaction.entries
-      .filter(e => e.type === 'debit')
-      .reduce((sum, e) => sum + e.amount, 0);
+    // Create the transaction in the database
+    const newTransaction = await Transaction.create(transactionData);
+    
+    // Apply rules to the newly created transaction
+    await applyRulesToTransaction(newTransaction._id);
+    
+    // Fetch the final transaction data, populated with account details and applied rules
+    const finalTransaction = await Transaction.findById(newTransaction._id)
+      .populate('entries.account'); // Populate virtual 'account'
       
-    const totalCredit = updatedTransaction.entries
-      .filter(e => e.type === 'credit')
-      .reduce((sum, e) => sum + e.amount, 0);
-      
-    await updatedTransaction.save();
+    if (!finalTransaction) {
+        // This case should ideally not happen after successful creation
+        // but adding a safeguard check.
+        console.error('Failed to fetch transaction immediately after creation.');
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve transaction after creation.'
+        });
+    }
     
-    // Convert to plain object to ensure proper serialization
-    const transactionObject = updatedTransaction.toObject({ virtuals: true });
+    // Convert to plain object to ensure virtuals like isBalanced are included
+    const transactionObject = finalTransaction.toObject({ virtuals: true });
     
     res.status(201).json({
       success: true,
@@ -62,7 +81,7 @@ exports.getTransactions = async (req, res) => {
     }
     
     if (accountId) {
-      query['entries.account'] = accountId;
+      query['entries.accountId'] = accountId;
     }
     
     console.log('MongoDB query:', JSON.stringify(query));
@@ -152,30 +171,58 @@ exports.updateTransaction = async (req, res) => {
       });
     }
     
-    // Update fields
-    Object.assign(transaction, req.body);
+    // Explicitly map fields, especially entries, from req.body
+    const { date, description, reference, notes, entries } = req.body;
     
-    // Calculate if the transaction is balanced, but don't enforce it
-    const totalDebit = transaction.entries
-      .filter(e => e.type === 'debit')
-      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
-      
-    const totalCredit = transaction.entries
-      .filter(e => e.type === 'credit')
-      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
-      
+    // Map incoming entries, ensuring accountId is used
+    const mappedEntries = entries?.map(entry => ({
+      _id: entry._id, // Keep existing _id if present for updates
+      accountId: entry.account || entry.accountId, // Accept either field name
+      amount: entry.amount,
+      type: entry.type,
+      description: entry.description
+    }));
+    
+    // Update transaction fields selectively
+    if (date) transaction.date = date;
+    if (description) transaction.description = description;
+    if (reference !== undefined) transaction.reference = reference;
+    if (notes !== undefined) transaction.notes = notes;
+    // Only update entries if provided in the request body
+    if (mappedEntries) {
+      transaction.entries = mappedEntries;
+    }
+    
+    // Manually mark entries as modified if they were updated
+    // This is important if validation relies on checking modified paths
+    if (mappedEntries) {
+      transaction.markModified('entries');
+    }
+
+    // Save the updated transaction (pre-save hook will validate)
     await transaction.save();
     
     // Apply rules to the updated transaction
     await applyRulesToTransaction(transaction._id);
     
-    // Get the updated transaction with applied rules
-    const updatedTransaction = await Transaction.findById(transaction._id)
+    // Fetch the final transaction data, populated
+    const finalTransaction = await Transaction.findById(transaction._id)
       .populate('entries.account');
+      
+    if (!finalTransaction) {
+        console.error('Failed to fetch transaction immediately after update.');
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve transaction after update.'
+        });
+    }
+      
+    // Convert to plain object to ensure virtuals are included
+    const transactionObject = finalTransaction.toObject({ virtuals: true });
     
     res.json({
       success: true,
-      data: updatedTransaction
+      data: transactionObject
     });
   } catch (error) {
     console.error('Error updating transaction:', error);
@@ -209,50 +256,6 @@ exports.deleteTransaction = async (req, res) => {
   } catch (error) {
     console.error('Error deleting transaction:', error);
     res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
-};
-
-exports.addEntry = async (req, res) => {
-  try {
-    const transaction = await Transaction.findById(req.params.transactionId);
-    
-    if (!transaction) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Transaction not found' 
-      });
-    }
-    
-    transaction.entries.push(req.body);
-    
-    // Calculate if the transaction is balanced, but don't enforce it
-    const totalDebit = transaction.entries
-      .filter(e => e.type === 'debit')
-      .reduce((sum, e) => sum + e.amount, 0);
-      
-    const totalCredit = transaction.entries
-      .filter(e => e.type === 'credit')
-      .reduce((sum, e) => sum + e.amount, 0);
-      
-    await transaction.save();
-    
-    // Apply rules to the updated transaction
-    await applyRulesToTransaction(transaction._id);
-    
-    // Get the updated transaction with applied rules
-    const updatedTransaction = await Transaction.findById(transaction._id)
-      .populate('entries.account');
-    
-    res.json({
-      success: true,
-      data: updatedTransaction
-    });
-  } catch (error) {
-    console.error('Error adding entry:', error);
-    res.status(400).json({ 
       success: false,
       error: error.message 
     });

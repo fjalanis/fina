@@ -71,13 +71,12 @@ exports.getSuggestedMatches = async (req, res) => {
     const skipAmount = (parseInt(page) - 1) * parseInt(limit);
     
     // Calculate the date range filter based on the reference date
-    const halfDateRange = Math.floor(parseInt(dateRange) / 2);
     const dateRangeStart = new Date(referenceDateObj);
-    dateRangeStart.setDate(dateRangeStart.getDate() - halfDateRange);
+    dateRangeStart.setDate(dateRangeStart.getDate() - parseInt(dateRange));
     const dateRangeEnd = new Date(referenceDateObj);
-    dateRangeEnd.setDate(dateRangeEnd.getDate() + halfDateRange);
+    dateRangeEnd.setDate(dateRangeEnd.getDate() + parseInt(dateRange));
     
-    console.log(`Date range: ${dateRangeStart} to ${dateRangeEnd}`);
+    console.log(`Date range: ${dateRangeStart} to ${dateRangeEnd} (full ${dateRange} days range)`);
     
     // Build the aggregation pipeline
     const pipeline = [
@@ -167,9 +166,9 @@ exports.getSuggestedMatches = async (req, res) => {
     const countPipeline = pipeline.slice(0, -2); // Remove skip and limit stages
     const totalCount = (await Transaction.aggregate([...countPipeline, { $count: 'total' }]))[0]?.total || 0;
     
-    // Populate the entries.account field
+    // Populate the entries.account field using the virtual populate
     const populatedTransactions = await Transaction.populate(complementaryTransactions, {
-      path: 'entries.account',
+      path: 'entries.account', // This will now populate the virtual field
       select: 'name type'
     });
     
