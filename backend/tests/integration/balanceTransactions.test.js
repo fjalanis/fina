@@ -12,27 +12,39 @@ describe('Balance Transactions API', () => {
   let assetAccount;
   let expenseAccount;
   let liabilityAccount;
+  let incomeAccount;
 
   beforeAll(async () => {
     // Create test accounts
     assetAccount = await Account.create({
       name: 'Bank Account',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     expenseAccount = await Account.create({
       name: 'Groceries',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
     
     liabilityAccount = await Account.create({
       name: 'Credit Card',
-      type: 'liability'
+      type: 'liability',
+      unit: 'USD'
     });
   });
 
   beforeEach(async () => {
+    // Clear collections before each test
     await Transaction.deleteMany({});
+    await Account.deleteMany({});
+
+    // Create test accounts
+    assetAccount = await Account.create({ name: 'Bank', type: 'asset', unit: 'USD' });
+    liabilityAccount = await Account.create({ name: 'Credit Card', type: 'liability', unit: 'USD' });
+    incomeAccount = await Account.create({ name: 'Salary', type: 'income', unit: 'USD' });
+    expenseAccount = await Account.create({ name: 'Groceries', type: 'expense', unit: 'USD' });
   });
 
   describe('POST /api/transactions/balance', () => {
@@ -46,7 +58,8 @@ describe('Balance Transactions API', () => {
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -60,7 +73,8 @@ describe('Balance Transactions API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -99,12 +113,14 @@ describe('Balance Transactions API', () => {
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: liabilityAccount._id,
             amount: 50,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -118,7 +134,8 @@ describe('Balance Transactions API', () => {
           {
             accountId: assetAccount._id,
             amount: 50,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -169,7 +186,8 @@ describe('Balance Transactions API', () => {
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -182,7 +200,8 @@ describe('Balance Transactions API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit' // Same type as transaction1
+            type: 'debit', // Same type as transaction1
+            unit: 'USD'
           }
         ]
       });
@@ -225,4 +244,68 @@ describe('Balance Transactions API', () => {
     });
   });
 
+  it('should return balanced transactions', async () => {
+    // Create balanced transactions
+    await Transaction.create({
+      date: new Date(),
+      description: 'Salary deposit',
+      entries: [
+        { accountId: assetAccount._id, amount: 1000, type: 'debit', unit: 'USD' },
+        { accountId: incomeAccount._id, amount: 1000, type: 'credit', unit: 'USD' },
+      ],
+    });
+    await Transaction.create({
+      date: new Date(),
+      description: 'Grocery shopping',
+      entries: [
+        { accountId: expenseAccount._id, amount: 100, type: 'debit', unit: 'USD' },
+        { accountId: assetAccount._id, amount: 100, type: 'credit', unit: 'USD' },
+      ],
+    });
+    // Create unbalanced transaction (should not be returned)
+    await Transaction.create({
+      date: new Date(),
+      description: 'Unbalanced transaction',
+      entries: [{ accountId: assetAccount._id, amount: 50, type: 'debit', unit: 'USD' }],
+    });
+
+    const response = await request(app).get('/api/transactions/balance?balanced=true');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data).toHaveLength(2);
+    response.body.data.forEach(tx => {
+      expect(tx.isBalanced).toBe(true);
+    });
+  });
+
+  it('should return unbalanced transactions', async () => {
+    // Create balanced transaction (should not be returned)
+    await Transaction.create({
+      date: new Date(),
+      description: 'Balanced transaction',
+      entries: [
+        { accountId: assetAccount._id, amount: 200, type: 'debit', unit: 'USD' },
+        { accountId: liabilityAccount._id, amount: 200, type: 'credit', unit: 'USD' },
+      ],
+    });
+    // Create unbalanced transactions
+    await Transaction.create({
+      date: new Date(),
+      description: 'Unbalanced debit',
+      entries: [{ accountId: expenseAccount._id, amount: 75, type: 'debit', unit: 'USD' }],
+    });
+    await Transaction.create({
+      date: new Date(),
+      description: 'Unbalanced credit',
+      entries: [{ accountId: incomeAccount._id, amount: 150, type: 'credit', unit: 'USD' }],
+    });
+
+    const response = await request(app).get('/api/transactions/balance?balanced=false');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data).toHaveLength(2);
+    response.body.data.forEach(tx => {
+      expect(tx.isBalanced).toBe(false);
+    });
+  });
 }); 

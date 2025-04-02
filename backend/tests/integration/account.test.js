@@ -13,35 +13,57 @@ describe('Account API Endpoints', () => {
     name: 'Test Account',
     type: 'asset',
     description: 'This is a test account',
-    isActive: true
+    isActive: true,
+    unit: 'USD'
+  };
+  
+  const nonUsdAccount = {
+    name: 'AAPL Stock',
+    type: 'asset',
+    description: 'Apple Inc. Shares',
+    isActive: true,
+    unit: 'stock:AAPL'
   };
   
   const parentAccount = {
     name: 'Parent Account',
     type: 'asset',
     description: 'This is a parent account',
-    isActive: true
+    isActive: true,
+    unit: 'USD'
   };
   
   const childAccount = {
     name: 'Child Account',
     type: 'asset',
     description: 'This is a child account',
-    isActive: true
+    isActive: true,
+    unit: 'USD'
   };
 
   // Test 1: Create account
   describe('POST /api/accounts', () => {
-    it('should create a new account', async () => {
+    it('should create a new account with default USD unit if not provided', async () => {
+      const accountData = { name: 'Cash', type: 'asset' };
       const res = await request(app)
         .post('/api/accounts')
-        .send(testAccount);
+        .send(accountData);
       
       expect(res.statusCode).toEqual(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.name).toBe(testAccount.name);
-      expect(res.body.data.type).toBe(testAccount.type);
-      expect(res.body.data.description).toBe(testAccount.description);
+      expect(res.body.data.name).toBe(accountData.name);
+      expect(res.body.data.unit).toBe('USD');
+    });
+
+    it('should create a new account with a specified unit', async () => {
+      const res = await request(app)
+        .post('/api/accounts')
+        .send(nonUsdAccount);
+      
+      expect(res.statusCode).toEqual(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.name).toBe(nonUsdAccount.name);
+      expect(res.body.data.unit).toBe(nonUsdAccount.unit);
     });
 
     it('should return validation error if name is missing', async () => {
@@ -97,13 +119,16 @@ describe('Account API Endpoints', () => {
 
   // Test 4: Update account
   describe('PUT /api/accounts/:id', () => {
-    it('should update an account', async () => {
-      // Create test account first
-      const account = await Account.create(testAccount);
+    it('should update an account including the unit', async () => {
+      // Create test account first with default unit
+      let account = await Account.create({ name: 'Initial', type: 'asset', unit: 'USD'});
+      account = await Account.findById(account._id).select('+unit');
+      expect(account.unit).toBe('USD');
       
       const updatedData = {
-        name: 'Updated Account',
-        description: 'This account has been updated'
+        name: 'Updated Name',
+        description: 'Updated description',
+        unit: 'EUR'
       };
       
       const res = await request(app)
@@ -114,8 +139,27 @@ describe('Account API Endpoints', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.name).toBe(updatedData.name);
       expect(res.body.data.description).toBe(updatedData.description);
-      // Type should remain unchanged
-      expect(res.body.data.type).toBe(account.type);
+      expect(res.body.data.unit).toBe(updatedData.unit);
+    });
+
+    it('should update other fields while keeping unit unchanged if unit not provided', async () => {
+      // Create test account first with custom unit
+      let account = await Account.create(nonUsdAccount);
+      account = await Account.findById(account._id).select('+unit');
+      expect(account.unit).toBe(nonUsdAccount.unit);
+      
+      const updatedData = {
+        name: 'Updated AAPL Stock Name'
+      };
+      
+      const res = await request(app)
+        .put(`/api/accounts/${account._id}`)
+        .send(updatedData);
+      
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.name).toBe(updatedData.name);
+      expect(res.body.data.unit).toBe(nonUsdAccount.unit);
     });
   });
 
@@ -137,12 +181,13 @@ describe('Account API Endpoints', () => {
 
     it('should prevent deleting an account with children', async () => {
       // Create parent account
-      const parent = await Account.create(parentAccount);
+      const parent = await Account.create({ ...parentAccount, unit: 'USD' });
       
       // Create child account with parent reference
       await Account.create({
         ...childAccount,
-        parent: parent._id
+        parent: parent._id,
+        unit: 'USD'
       });
       
       // Try to delete the parent
@@ -162,12 +207,13 @@ describe('Account API Endpoints', () => {
   describe('Account Parent-Child Relationship', () => {
     it('should establish parent-child relationship', async () => {
       // Create parent account
-      const parent = await Account.create(parentAccount);
+      const parent = await Account.create({ ...parentAccount, unit: 'USD' });
       
       // Create child account with parent reference
       const child = await Account.create({
         ...childAccount,
-        parent: parent._id
+        parent: parent._id,
+        unit: 'USD'
       });
       
       // Get the child with populated parent
@@ -180,20 +226,22 @@ describe('Account API Endpoints', () => {
 
     it('should get account hierarchy', async () => {
       // Create parent account
-      const parent = await Account.create(parentAccount);
+      const parent = await Account.create({ ...parentAccount, unit: 'USD' });
       const parentId = parent._id;
       
       // Create child accounts with parent reference
       await Account.create({
         name: 'Child 1',
         type: 'asset',
-        parent: parentId
+        parent: parentId,
+        unit: 'USD'
       });
       
       await Account.create({
         name: 'Child 2',
         type: 'asset',
-        parent: parentId
+        parent: parentId,
+        unit: 'USD'
       });
       
       // Get hierarchy
@@ -220,7 +268,7 @@ describe('Account API Endpoints', () => {
 
     it('should prevent circular parent references', async () => {
       // Create an account
-      const account = await Account.create(testAccount);
+      const account = await Account.create({ ...testAccount, unit: 'USD' });
       
       // Try to make the account its own parent
       const res = await request(app)

@@ -1,22 +1,58 @@
 const Transaction = require('../../models/Transaction');
+const Account = require('../../models/Account');
 const { validateTransaction } = require('../../utils/validation');
 const { applyRulesToTransaction } = require('../../services/ruleApplicationService');
 const mongoose = require('mongoose');
+
+// Helper function to enrich entries with units
+async function enrichEntriesWithUnits(entriesData) {
+  if (!entriesData || entriesData.length === 0) {
+    return [];
+  }
+  
+  const accountIds = entriesData.map(entry => entry.accountId).filter(id => !!id);
+  if (accountIds.length === 0) {
+    throw new Error('No valid account IDs found in entries.');
+  }
+
+  // Find accounts and create a map for quick lookup
+  const accounts = await Account.find({ '_id': { $in: accountIds } }).select('_id unit').lean();
+  const accountUnitMap = accounts.reduce((map, acc) => {
+    map[acc._id.toString()] = acc.unit || 'USD'; // Default to USD if unit is somehow missing
+    return map;
+  }, {});
+
+  // Map entries and add the unit
+  return entriesData.map(entry => {
+    const unit = accountUnitMap[entry.accountId?.toString()];
+    if (!unit) {
+      // This indicates an entry references an account that doesn't exist or wasn't found
+      throw new Error(`Account not found for entry referencing ID: ${entry.accountId}`);
+    }
+    return {
+      ...entry,
+      unit: unit // Add the denormalized unit
+    };
+  });
+}
 
 // @route   POST /api/transactions
 // @desc    Create a new transaction
 // @access  Private
 exports.createTransaction = async (req, res) => {
   try {
-    // Explicitly map fields, especially entries
     const { date, description, reference, notes, entries } = req.body;
     
-    const mappedEntries = entries?.map(entry => ({
-      accountId: entry.account || entry.accountId, // Accept either field name initially
+    // Prepare raw entries data
+    const rawEntries = entries?.map(entry => ({
+      accountId: entry.account || entry.accountId,
       amount: entry.amount,
       type: entry.type,
       description: entry.description
     })) || [];
+
+    // Enrich entries with units from their accounts
+    const enrichedEntries = await enrichEntriesWithUnits(rawEntries);
     
     // Create transaction data object
     const transactionData = {
@@ -24,7 +60,7 @@ exports.createTransaction = async (req, res) => {
       description,
       reference,
       notes,
-      entries: mappedEntries
+      entries: enrichedEntries // Use enriched entries
     };
     
     // Create the transaction in the database
@@ -35,7 +71,10 @@ exports.createTransaction = async (req, res) => {
     
     // Fetch the final transaction data, populated with account details and applied rules
     const finalTransaction = await Transaction.findById(newTransaction._id)
-      .populate('entries.account'); // Populate virtual 'account'
+      .populate({ // Populate virtual 'account'
+        path: 'entries.account',
+        select: 'name type unit' // Add unit
+      });
       
     if (!finalTransaction) {
         // This case should ideally not happen after successful creation
@@ -89,7 +128,7 @@ exports.getTransactions = async (req, res) => {
     const transactions = await Transaction.find(query)
       .populate({
         path: 'entries.account',
-        select: 'name type'
+        select: 'name type unit' // Add unit
       })
       .sort({ date: -1 });
     
@@ -134,7 +173,7 @@ exports.getTransaction = async (req, res) => {
     const transaction = await Transaction.findById(req.params.id)
       .populate({
         path: 'entries.account',
-        select: 'name type'
+        select: 'name type unit' // Add unit
       });
       
     if (!transaction) {
@@ -171,13 +210,12 @@ exports.updateTransaction = async (req, res) => {
       });
     }
     
-    // Explicitly map fields, especially entries, from req.body
     const { date, description, reference, notes, entries } = req.body;
     
-    // Map incoming entries, ensuring accountId is used
-    const mappedEntries = entries?.map(entry => ({
-      _id: entry._id, // Keep existing _id if present for updates
-      accountId: entry.account || entry.accountId, // Accept either field name
+    // Prepare raw entries data from request
+    const rawEntries = entries?.map(entry => ({
+      _id: entry._id,
+      accountId: entry.account || entry.accountId,
       amount: entry.amount,
       type: entry.type,
       description: entry.description
@@ -189,13 +227,14 @@ exports.updateTransaction = async (req, res) => {
     if (reference !== undefined) transaction.reference = reference;
     if (notes !== undefined) transaction.notes = notes;
     // Only update entries if provided in the request body
-    if (mappedEntries) {
-      transaction.entries = mappedEntries;
+    if (rawEntries) {
+      // Enrich the updated entries with units before assigning
+      const enrichedEntries = await enrichEntriesWithUnits(rawEntries);
+      transaction.entries = enrichedEntries;
     }
     
     // Manually mark entries as modified if they were updated
-    // This is important if validation relies on checking modified paths
-    if (mappedEntries) {
+    if (rawEntries) {
       transaction.markModified('entries');
     }
 
@@ -207,7 +246,10 @@ exports.updateTransaction = async (req, res) => {
     
     // Fetch the final transaction data, populated
     const finalTransaction = await Transaction.findById(transaction._id)
-      .populate('entries.account');
+      .populate({ // Populate virtual 'account'
+        path: 'entries.account',
+        select: 'name type unit' // Add unit
+      });
       
     if (!finalTransaction) {
         console.error('Failed to fetch transaction immediately after update.');
@@ -267,7 +309,7 @@ exports.getEntries = async (req, res) => {
     const transaction = await Transaction.findById(req.params.transactionId)
       .populate({
         path: 'entries.account',
-        select: 'name type'
+        select: 'name type unit' // Add unit
       });
       
     if (!transaction) {

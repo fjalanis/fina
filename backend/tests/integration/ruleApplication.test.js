@@ -15,22 +15,6 @@ setupDB();
 describe('Rule Application Integration', () => {
   let testAccount1, testAccount2, testAccount3;
 
-  beforeAll(async () => {
-    // Create test accounts
-    testAccount1 = await Account.create({
-      name: 'Test Account 1',
-      type: 'asset'
-    });
-    testAccount2 = await Account.create({
-      name: 'Test Account 2',
-      type: 'expense'
-    });
-    testAccount3 = await Account.create({
-      name: 'Test Account 3',
-      type: 'expense'
-    });
-  });
-
   afterAll(async () => {
     await Account.deleteMany({});
     await Rule.deleteMany({});
@@ -38,8 +22,25 @@ describe('Rule Application Integration', () => {
   });
 
   beforeEach(async () => {
+    await Account.deleteMany({});
     await Rule.deleteMany({});
     await Transaction.deleteMany({});
+
+    testAccount1 = await Account.create({
+      name: 'Test Account 1',
+      type: 'asset',
+      unit: 'USD'
+    });
+    testAccount2 = await Account.create({
+      name: 'Test Account 2',
+      type: 'expense',
+      unit: 'USD'
+    });
+    testAccount3 = await Account.create({
+      name: 'Test Account 3',
+      type: 'expense',
+      unit: 'USD'
+    });
   });
 
   describe('Transaction Creation with Rule Application', () => {
@@ -64,12 +65,14 @@ describe('Rule Application Integration', () => {
             {
               accountId: testAccount1._id,
               amount: 50,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             },
             {
               accountId: testAccount2._id,
               amount: 50,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         });
@@ -101,12 +104,14 @@ describe('Rule Application Integration', () => {
             {
               accountId: testAccount1._id,
               amount: 50,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             },
             {
               accountId: testAccount2._id,
               amount: 50,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         });
@@ -138,12 +143,14 @@ describe('Rule Application Integration', () => {
           {
             accountId: testAccount1._id,
             amount: 50,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: testAccount2._id,
             amount: 50,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -157,12 +164,14 @@ describe('Rule Application Integration', () => {
             {
               accountId: testAccount1._id,
               amount: 50,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             },
             {
               accountId: testAccount2._id,
               amount: 50,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         });
@@ -197,7 +206,8 @@ describe('Rule Application Integration', () => {
             {
               accountId: testAccount1._id,
               amount: 100,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             }
           ]
         });
@@ -212,7 +222,8 @@ describe('Rule Application Integration', () => {
             {
               accountId: testAccount1._id,
               amount: 100,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         });
@@ -232,13 +243,15 @@ describe('Rule Application Integration', () => {
       const sourceAccount = await Account.create({
         name: 'Source Account',
         type: 'asset',
-        subtype: 'checking'
+        subtype: 'checking',
+        unit: 'USD'
       });
       
       const targetAccount = await Account.create({
         name: 'Target Account',
         type: 'expense',
-        subtype: 'general'
+        subtype: 'general',
+        unit: 'USD'
       });
       
       // Create an edit rule
@@ -261,7 +274,8 @@ describe('Rule Application Integration', () => {
             accountId: sourceAccount._id,
             amount: 100,
             entryType: 'debit',
-            memo: 'Test entry'
+            memo: 'Test entry',
+            unit: 'USD'
           }
           // No offsetting credit entry makes this unbalanced
         ]
@@ -276,7 +290,8 @@ describe('Rule Application Integration', () => {
             accountId: sourceAccount._id,
             amount: 200,
             entryType: 'debit',
-            memo: 'Test entry'
+            memo: 'Test entry',
+            unit: 'USD'
           }
           // No offsetting credit entry makes this unbalanced
         ]
@@ -291,7 +306,8 @@ describe('Rule Application Integration', () => {
             accountId: sourceAccount._id,
             amount: 300,
             entryType: 'debit',
-            memo: 'Test entry'
+            memo: 'Test entry',
+            unit: 'USD'
           }
           // No offsetting credit entry makes this unbalanced
         ]

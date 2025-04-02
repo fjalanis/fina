@@ -12,6 +12,7 @@ describe('Rule Entry Type Filtering', () => {
   let assetAccount;
   let expenseAccount;
   let incomeAccount;
+  let otherAssetAccount;
   
   beforeEach(async () => {
     // Clear the database
@@ -24,17 +25,26 @@ describe('Rule Entry Type Filtering', () => {
     // Create test accounts
     assetAccount = await Account.create({
       name: 'Bank Account',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     expenseAccount = await Account.create({
       name: 'Groceries',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
     
     incomeAccount = await Account.create({
       name: 'Salary',
-      type: 'income'
+      type: 'income',
+      unit: 'USD'
+    });
+    
+    otherAssetAccount = await Account.create({
+      name: 'Other Asset',
+      type: 'asset',
+      unit: 'USD'
     });
   });
 
@@ -57,7 +67,8 @@ describe('Rule Entry Type Filtering', () => {
       entries: [{
         accountId: assetAccount._id,
         amount: 100,
-        type: 'debit'
+        type: 'debit',
+        unit: 'USD'
       }]
     });
     
@@ -88,7 +99,8 @@ describe('Rule Entry Type Filtering', () => {
       entries: [{
         accountId: assetAccount._id,
         amount: 100,
-        type: 'debit'
+        type: 'debit',
+        unit: 'USD'
       }]
     });
     
@@ -119,7 +131,8 @@ describe('Rule Entry Type Filtering', () => {
       entries: [{
         accountId: assetAccount._id,
         amount: 100,
-        type: 'debit' // This doesn't match the rule's entryType
+        type: 'debit', // This doesn't match the rule's entryType
+        unit: 'USD' // Add unit
       }]
     });
     
@@ -151,12 +164,14 @@ describe('Rule Entry Type Filtering', () => {
         {
           accountId: expenseAccount._id, // Different account
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD' // Add unit
         },
         {
           accountId: assetAccount._id, // This matches the rule's sourceAccount
           amount: 100,
-          type: 'credit' // This matches the rule's entryType
+          type: 'credit',
+          unit: 'USD' // Add unit
         }
       ]
     });
@@ -188,7 +203,8 @@ describe('Rule Entry Type Filtering', () => {
       entries: [{
         accountId: assetAccount._id,  // Correct account
         amount: 100,
-        type: 'debit'  // Wrong entry type
+        type: 'debit',  // Wrong entry type
+        unit: 'USD'
       }]
     });
     
@@ -219,7 +235,8 @@ describe('Rule Entry Type Filtering', () => {
       entries: [{
         accountId: assetAccount._id,  // Correct account
         amount: 100,
-        type: 'credit'  // Correct entry type
+        type: 'credit',  // Correct entry type
+        unit: 'USD'
       }]
     });
     

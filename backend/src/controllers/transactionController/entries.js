@@ -1,5 +1,18 @@
 const Transaction = require('../../models/Transaction');
+const Account = require('../../models/Account');
 const { validateEntry, handleError } = require('../../utils/validators');
+
+// Helper to get unit for an account ID
+async function getUnitForAccount(accountId) {
+  if (!accountId) {
+    throw new Error('Account ID is required to fetch unit.');
+  }
+  const account = await Account.findById(accountId).select('unit').lean();
+  if (!account) {
+    throw new Error(`Account not found for ID: ${accountId}`);
+  }
+  return account.unit || 'USD'; // Default to USD if missing
+}
 
 // @route   POST /api/transactions/:transactionId/entries
 // @desc    Add an entry to a transaction
@@ -19,6 +32,9 @@ exports.addEntry = async (req, res) => {
     const { parsedAmount: amount } = validationResult;
     const type = req.body.type;
     
+    // Fetch the unit for the account
+    const unit = await getUnitForAccount(accountId);
+
     const transaction = await Transaction.findById(req.params.transactionId);
     
     if (!transaction) {
@@ -28,11 +44,12 @@ exports.addEntry = async (req, res) => {
       });
     }
     
-    // Add the entry to the transaction
+    // Add the entry to the transaction, including the unit
     transaction.entries.push({
       accountId,
       amount,
       type,
+      unit,
       description
     });
     
@@ -40,7 +57,7 @@ exports.addEntry = async (req, res) => {
     
     // Get the updated transaction
     const updatedTransaction = await Transaction.findById(req.params.transactionId)
-      .populate('entries.account');
+      .populate({ path: 'entries.account', select: 'name type unit' });
     
     res.status(201).json({
       success: true,
@@ -101,7 +118,7 @@ exports.splitTransaction = async (req, res) => {
 exports.getEntries = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.transactionId)
-      .populate('entries.account', 'name type');
+      .populate({ path: 'entries.account', select: 'name type unit' });
 
     if (!transaction) {
       return res.status(404).json({
@@ -126,7 +143,7 @@ exports.getEntries = async (req, res) => {
 exports.getEntry = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.transactionId)
-        .populate('entries.account');
+        .populate({ path: 'entries.account', select: 'name type unit' });
 
     if (!transaction) {
       return res.status(404).json({
@@ -171,6 +188,9 @@ exports.updateEntry = async (req, res) => {
     const { parsedAmount: amount } = validationResult;
     const type = req.body.type;
 
+    // Fetch the unit for the potentially new account ID
+    const unit = await getUnitForAccount(accountId);
+
     const transaction = await Transaction.findById(req.params.transactionId);
 
     if (!transaction) {
@@ -189,16 +209,17 @@ exports.updateEntry = async (req, res) => {
       });
     }
 
-    // Update entry
+    // Update entry, including the unit
     entry.accountId = accountId;
     entry.amount = amount;
     entry.type = type;
-    if (description) entry.description = description;
+    entry.unit = unit;
+    if (description !== undefined) entry.description = description;
 
     await transaction.save();
 
     const updatedTransaction = await Transaction.findById(req.params.transactionId)
-      .populate('entries.account');
+      .populate({ path: 'entries.account', select: 'name type unit' });
 
     res.status(200).json({
       success: true,
@@ -249,7 +270,7 @@ exports.deleteEntry = async (req, res) => {
     await transaction.save();
 
     const updatedTransaction = await Transaction.findById(req.params.transactionId)
-      .populate('entries.account');
+      .populate({ path: 'entries.account', select: 'name type unit' });
 
     res.status(200).json({
       success: true,

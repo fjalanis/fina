@@ -9,6 +9,8 @@ const Account = require('../../src/models/Account');
 describe('Apply Rules to All Transactions', () => {
   let testAccount;
   let expenseAccount;
+  let assetAccount;
+  let incomeAccount;
 
   beforeAll(async () => {
     // Connect to the test database
@@ -27,7 +29,8 @@ describe('Apply Rules to All Transactions', () => {
       type: 'asset',
       subtype: 'checking',
       institution: 'Test Bank',
-      isHidden: false
+      isHidden: false,
+      unit: 'USD'
     });
     console.log(`Created test account: ${testAccount._id}`);
 
@@ -36,9 +39,13 @@ describe('Apply Rules to All Transactions', () => {
       type: 'expense',
       subtype: 'general',
       institution: 'None',
-      isHidden: false
+      isHidden: false,
+      unit: 'USD'
     });
     console.log(`Created expense account: ${expenseAccount._id}`);
+
+    assetAccount = await Account.create({ name: 'Bank Account', type: 'asset', unit: 'USD' });
+    incomeAccount = await Account.create({ name: 'Salary', type: 'income', unit: 'USD' });
   });
 
   afterAll(async () => {
@@ -64,7 +71,8 @@ describe('Apply Rules to All Transactions', () => {
       targetAccount: expenseAccount._id,
       autoApply: true,
       lastApplied: null,
-      type: 'edit'
+      type: 'edit',
+      unit: 'USD'
     });
     console.log(`Created rule: ${rule._id}`);
 
@@ -80,7 +88,8 @@ describe('Apply Rules to All Transactions', () => {
           accountId: testAccount._id,
           amount: 100,
           memo: 'Test debit',
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });
@@ -96,7 +105,8 @@ describe('Apply Rules to All Transactions', () => {
           accountId: testAccount._id,
           amount: 50,
           memo: 'Test debit',
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });
@@ -112,7 +122,8 @@ describe('Apply Rules to All Transactions', () => {
           accountId: testAccount._id,
           amount: 75,
           memo: 'Test debit',
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });

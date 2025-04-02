@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { fetchTransactionById, deleteTransaction } from '../../../../services/transactionService';
+import { fetchTransactionById, deleteTransaction, fetchTransactions } from '../../../../services/transactionService';
 import { fetchAccounts } from '../../../../services/accountService';
 import { formatCurrency } from '../../../../utils/formatters';
+
 
 // Determine suggested fix based on transaction imbalance
 export const getSuggestedFix = (totalDebits, totalCredits) => {
@@ -79,6 +80,7 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
   const [loading, setLoading] = useState(false);
   const [balanceData, setBalanceData] = useState(null);
   const [accounts, setAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -117,8 +119,14 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
       // Analyze the transaction balance
       const analysis = analyzeTransactionBalance(freshTransaction);
       setBalanceData(analysis);
+
+      // If we have a transaction with entries, fetch all transactions for the account
+      if (freshTransaction.entries[0]?.accountId) {
+        const accountId = freshTransaction.entries[0].accountId;
+        const transactionsResponse = await fetchTransactions({ accountId });
+        setTransactions(transactionsResponse.data);
+      }
       
-      // setError(null);
       return analysis;
     } catch (err) {
       console.error('Error analyzing transaction:', err);
@@ -160,6 +168,7 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
     loading,
     balanceData,
     accounts,
+    transactions,
     fetchAccounts: fetchAccountsHook,
     fetchTransactionData: fetchTransactionDataHook,
     handleDeleteTransaction: handleDeleteTransactionHook,

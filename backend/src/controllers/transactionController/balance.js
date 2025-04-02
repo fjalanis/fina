@@ -1,5 +1,45 @@
 const Transaction = require('../../models/Transaction');
 
+// New controller function for GET /balance
+exports.getBalancedOrUnbalanced = async (req, res) => {
+  try {
+    const balancedQuery = req.query.balanced;
+    let shouldBeBalanced;
+
+    if (balancedQuery === 'true') {
+      shouldBeBalanced = true;
+    } else if (balancedQuery === 'false') {
+      shouldBeBalanced = false;
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter \'balanced\' must be true or false.'
+      });
+    }
+
+    // Fetch all transactions and filter in application code
+    // Mongoose virtuals aren't easily queryable directly in find()
+    const allTransactions = await Transaction.find()
+                                            .populate('entries.account')
+                                            .sort({ date: -1 });
+
+    // Filter based on the virtual isBalanced property
+    const filteredTransactions = allTransactions.filter(tx => tx.isBalanced === shouldBeBalanced);
+
+    res.json({
+      success: true,
+      data: filteredTransactions
+    });
+
+  } catch (error) {
+    console.error('Error getting balanced/unbalanced transactions:', error);
+    res.status(500).json({ // Use 500 for unexpected server errors
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 // Balance two transactions
 exports.balanceTransactions = async (req, res) => {
   try {
@@ -33,20 +73,34 @@ exports.balanceTransactions = async (req, res) => {
       });
     }
     
-    // Add entries from target transaction to source transaction
+    // Get necessary info from target and source
     const amount = Math.abs(targetTransaction.entries[0].amount);
+    const targetAccountId = targetTransaction.entries[0].accountId;
+    // Assume source transaction entries have consistent units, get from first entry
+    const sourceUnit = sourceTransaction.entries[0]?.unit;
     
+    if (!sourceUnit) {
+        // Handle case where source transaction might somehow lack a unit (defensive coding)
+        return res.status(400).json({
+            success: false,
+            error: 'Could not determine unit from source transaction.'
+        });
+    }
+
+    // Add balancing entry to source transaction
     if (sourceType === 'debit') {
       sourceTransaction.entries.push({
-        accountId: targetTransaction.entries[0].accountId,
+        accountId: targetAccountId,
         type: 'credit',
-        amount
+        amount,
+        unit: sourceUnit // Add unit
       });
     } else {
       sourceTransaction.entries.push({
-        accountId: targetTransaction.entries[0].accountId,
+        accountId: targetAccountId,
         type: 'debit',
-        amount
+        amount,
+        unit: sourceUnit // Add unit
       });
     }
     

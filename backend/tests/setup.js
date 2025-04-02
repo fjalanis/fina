@@ -29,7 +29,6 @@ const setupDB = () => {
         await mongoose.disconnect();
       }
       await mongoose.connect(MONGODB_URI);
-      console.log(`Connected to MongoDB using database: ${uniqueDbName}`);
     } catch (error) {
       console.error('MongoDB connection error:', error);
       throw error;
@@ -54,11 +53,9 @@ const setupDB = () => {
       try {
         // Drop the entire test database to clean up
         await mongoose.connection.dropDatabase();
-        console.log(`Dropped test database: ${uniqueDbName}`);
         
         // Close the connection
         await mongoose.disconnect();
-        console.log('Closed MongoDB connection');
       } catch (error) {
         console.error('Error cleaning up test database:', error);
         throw error;

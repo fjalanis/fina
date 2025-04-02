@@ -12,7 +12,9 @@ const createTransaction = async (date, description, entries) => {
       accountId: entry.account._id,
       amount: entry.amount,
       type: entry.type,
-      description: entry.description || description
+      description: entry.description || description,
+      unit: entry.unit || 'USD',
+      quantity: entry.quantity || ''
     }))
   });
   
@@ -100,6 +102,25 @@ exports.createInitialBalances = async (accounts) => {
     [
       { account: accounts.openingBalance, amount: 1800, type: 'debit' },
       { account: accounts.amexCard, amount: 1800, type: 'credit' }
+    ]
+  );
+  
+  // Initial investment balances
+  await createTransaction(
+    openingDate,
+    'Initial stock portfolio balance',
+    [
+      { account: accounts.stockAccount, amount: 15000, type: 'debit', unit: 'AAPL', quantity: 100 },
+      { account: accounts.openingBalance, amount: 15000, type: 'credit', unit: 'USD' }
+    ]
+  );
+  
+  await createTransaction(
+    openingDate,
+    'Initial crypto portfolio balance',
+    [
+      { account: accounts.cryptoAccount, amount: 10000, type: 'debit', unit: 'BTC', quantity: 0.5 },
+      { account: accounts.openingBalance, amount: 10000, type: 'credit', unit: 'USD' }
     ]
   );
   
@@ -262,6 +283,37 @@ exports.generateMonthlyTransactions = async (accounts, year, month) => {
       [
         { account: accounts.groceries, amount: groceryAmount, type: 'debit' },
         { account: paymentMethod, amount: groceryAmount, type: paymentMethod === accounts.checkingAccount ? 'credit' : 'credit' }
+      ]
+    ));
+  }
+  
+  // Investment transactions (randomly throughout the month)
+  if (Math.random() < 0.3) { // 30% chance of investment transaction
+    const investmentDate = new Date(year, month - 1, Math.floor(Math.random() * 28) + 1);
+    const isStock = Math.random() < 0.5;
+    const account = isStock ? accounts.stockAccount : accounts.cryptoAccount;
+    const unit = isStock ? 'AAPL' : 'BTC';
+    const isBuy = Math.random() < 0.5;
+    const amount = isStock ? utils.varyAmount(1000) : utils.varyAmount(500);
+    const quantity = isStock ? Math.floor(Math.random() * 5) + 1 : (Math.random() * 0.1).toFixed(4);
+
+    transactions.push(await createTransaction(
+      investmentDate,
+      `${isBuy ? 'Buy' : 'Sell'} ${unit}`,
+      [
+        { 
+          account: account, 
+          amount: amount, 
+          type: isBuy ? 'debit' : 'credit', 
+          unit: unit,
+          quantity: quantity
+        },
+        { 
+          account: accounts.checkingAccount, 
+          amount: amount, 
+          type: isBuy ? 'credit' : 'debit', 
+          unit: 'USD'
+        }
       ]
     ));
   }

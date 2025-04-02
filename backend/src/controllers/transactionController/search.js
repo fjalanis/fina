@@ -28,10 +28,8 @@ exports.searchEntries = async (req, res) => {
     let referenceDateObj;
     if (referenceDate) {
       referenceDateObj = new Date(referenceDate);
-      console.log('Using provided reference date:', referenceDateObj);
     } else {
       referenceDateObj = new Date();
-      console.log('Using current date as reference:', referenceDateObj);
     }
     
     // Use the utility function to calculate the date range based on business days
@@ -39,7 +37,6 @@ exports.searchEntries = async (req, res) => {
     const dateRangeStart = dateRangeResult.startDate;
     const dateRangeEnd = dateRangeResult.endDate;
     
-    console.log(`Date range: ${dateRangeStart} to ${dateRangeEnd} (${dateRangeResult.businessDays} business days range around reference date)`);
     
     // Calculate pagination
     const skipAmount = (parseInt(page) - 1) * parseInt(limit);
@@ -51,8 +48,6 @@ exports.searchEntries = async (req, res) => {
         $lte: dateRangeEnd
       }
     }).select('_id date description isBalanced');
-    
-    console.log(`Found ${recentTransactions.length} transactions in date range`);
     
     // If no transactions in date range, return empty results
     if (!recentTransactions || recentTransactions.length === 0) {
@@ -128,8 +123,6 @@ exports.searchEntries = async (req, res) => {
       }
     }
     
-    console.log('Final search query:', JSON.stringify(searchQuery));
-    
     // Get transactions with matching entries
     const transactions = await Transaction.find(searchQuery)
       .populate('entries.account')
@@ -166,7 +159,6 @@ exports.searchEntries = async (req, res) => {
     
     // Count total matching entries for pagination
     const totalCount = filteredEntries.length;
-    console.log(`Found ${totalCount} matching entries`);
     
     return res.status(200).json({
       success: true,

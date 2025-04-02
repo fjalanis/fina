@@ -68,9 +68,18 @@ exports.getAccount = async (req, res) => {
 // @access  Public
 exports.createAccount = async (req, res) => {
   try {
+    // Destructure allowed fields to prevent unwanted fields from being saved
+    const { name, type, subtype, institution, isHidden, parent, description, unit } = req.body;
+    const accountData = { name, type, subtype, institution, isHidden, parent, description, unit };
+
+    // Remove parent if it's an empty string or null to avoid CastError
+    if (accountData.parent === '' || accountData.parent === null) {
+      delete accountData.parent;
+    }
+
     // Check if parent exists when specified
-    if (req.body.parent) {
-      const parentAccount = await Account.findById(req.body.parent);
+    if (accountData.parent) {
+      const parentAccount = await Account.findById(accountData.parent);
       
       if (!parentAccount) {
         return res.status(400).json({
@@ -80,7 +89,12 @@ exports.createAccount = async (req, res) => {
       }
     }
     
-    const account = await Account.create(req.body);
+    // Ensure unit defaults to USD if not provided or empty (model default handles this, but good practice)
+    if (!accountData.unit) {
+      accountData.unit = 'USD';
+    }
+
+    const account = await Account.create(accountData);
     
     res.status(201).json({
       success: true,
@@ -111,9 +125,21 @@ exports.createAccount = async (req, res) => {
 // @access  Public
 exports.updateAccount = async (req, res) => {
   try {
-    // Check if parent exists when specified
-    if (req.body.parent) {
-      const parentAccount = await Account.findById(req.body.parent);
+    // Destructure allowed fields for update
+    const { name, type, subtype, institution, isHidden, parent, description, unit } = req.body;
+    const updateData = { name, type, subtype, institution, isHidden, parent, description, unit };
+
+    // Remove fields that are explicitly set to null or undefined to avoid overwriting with null
+    Object.keys(updateData).forEach(key => (updateData[key] === undefined || updateData[key] === null) && delete updateData[key]);
+
+    // Special handling for parent: if empty string, set to null to remove parent
+    if (updateData.parent === '') {
+      updateData.parent = null;
+    }
+
+    // Check if parent exists when specified and is not null
+    if (updateData.parent) {
+      const parentAccount = await Account.findById(updateData.parent);
       
       if (!parentAccount) {
         return res.status(400).json({
@@ -123,7 +149,7 @@ exports.updateAccount = async (req, res) => {
       }
       
       // Prevent circular references
-      if (req.body.parent === req.params.id) {
+      if (updateData.parent === req.params.id) {
         return res.status(400).json({
           success: false,
           error: 'Account cannot be its own parent'
@@ -133,7 +159,7 @@ exports.updateAccount = async (req, res) => {
     
     const account = await Account.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true

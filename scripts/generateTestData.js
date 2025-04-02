@@ -16,6 +16,161 @@ const clearAllData = async () => {
   logger.info('All data cleared');
 };
 
+// Generate Cypress test data
+const generateCypressTestData = async (accounts) => {
+  logger.info('Generating Cypress test data...');
+  
+  // Create test accounts for Cypress
+  const cypressTestAccount = await Account.create({
+    name: 'Cypress Test Account',
+    type: 'asset',
+    description: 'Account for Cypress testing',
+    unit: 'USD'
+  });
+
+  const cypressStockAccount = await Account.create({
+    name: 'Cypress Stock Account',
+    type: 'asset',
+    description: 'Stock account for Cypress testing',
+    unit: 'AAPL'
+  });
+
+  const cypressCryptoAccount = await Account.create({
+    name: 'Cypress Crypto Account',
+    type: 'asset',
+    description: 'Crypto account for Cypress testing',
+    unit: 'BTC'
+  });
+
+  // Create test transactions for Cypress
+  const cypressDate = new Date(2025, 0, 1); // Jan 1, 2025
+
+  // Initial balance for test account
+  await Transaction.create({
+    date: cypressDate,
+    description: 'Initial balance for Cypress test account',
+    isBalanced: true,
+    entries: [
+      {
+        accountId: cypressTestAccount._id,
+        amount: 1000,
+        type: 'debit',
+        unit: 'USD'
+      },
+      {
+        accountId: accounts.openingBalance._id,
+        amount: 1000,
+        type: 'credit',
+        unit: 'USD'
+      }
+    ]
+  });
+
+  // Stock purchase transaction
+  await Transaction.create({
+    date: cypressDate,
+    description: 'Stock purchase for Cypress testing',
+    isBalanced: true,
+    entries: [
+      {
+        accountId: cypressStockAccount._id,
+        amount: 1000,
+        type: 'debit',
+        unit: 'AAPL',
+        quantity: 5
+      },
+      {
+        accountId: accounts.checkingAccount._id,
+        amount: 1000,
+        type: 'credit',
+        unit: 'USD'
+      }
+    ]
+  });
+
+  // Crypto purchase transaction
+  await Transaction.create({
+    date: cypressDate,
+    description: 'Crypto purchase for Cypress testing',
+    isBalanced: true,
+    entries: [
+      {
+        accountId: cypressCryptoAccount._id,
+        amount: 500,
+        type: 'debit',
+        unit: 'BTC',
+        quantity: 0.1
+      },
+      {
+        accountId: accounts.checkingAccount._id,
+        amount: 500,
+        type: 'credit',
+        unit: 'USD'
+      }
+    ]
+  });
+
+  // Stock sale with gain
+  await Transaction.create({
+    date: new Date(2025, 0, 15),
+    description: 'Stock sale with gain for Cypress testing',
+    isBalanced: true,
+    entries: [
+      {
+        accountId: cypressStockAccount._id,
+        amount: 1200,
+        type: 'credit',
+        unit: 'AAPL',
+        quantity: 5
+      },
+      {
+        accountId: accounts.checkingAccount._id,
+        amount: 1200,
+        type: 'debit',
+        unit: 'USD'
+      },
+      {
+        accountId: accounts.investmentIncome._id,
+        amount: 200,
+        type: 'credit',
+        unit: 'USD',
+        description: 'Capital gain'
+      }
+    ]
+  });
+
+  // Crypto sale with loss
+  await Transaction.create({
+    date: new Date(2025, 0, 20),
+    description: 'Crypto sale with loss for Cypress testing',
+    isBalanced: true,
+    entries: [
+      {
+        accountId: cypressCryptoAccount._id,
+        amount: 400,
+        type: 'credit',
+        unit: 'BTC',
+        quantity: 0.1
+      },
+      {
+        accountId: accounts.checkingAccount._id,
+        amount: 400,
+        type: 'debit',
+        unit: 'USD'
+      },
+      {
+        accountId: accounts.investmentIncome._id,
+        amount: 100,
+        type: 'debit',
+        unit: 'USD',
+        description: 'Capital loss'
+      }
+    ]
+  });
+
+  logger.info('Cypress test data generated');
+};
+
 // Generate test data
 const generateTestData = async () => {
   try {
@@ -31,7 +186,8 @@ const generateTestData = async () => {
       name: 'Home Office',
       type: 'expense',
       description: 'Home office expenses (tax deductible)',
-      parent: accounts.groceries._id
+      parent: accounts.groceries._id,
+      unit: 'USD'
     });
     
     // Add office supplies account for the balancing test transactions
@@ -39,7 +195,8 @@ const generateTestData = async () => {
       name: 'Office Supplies',
       type: 'expense',
       description: 'Office supplies and equipment',
-      parent: accounts.groceries._id
+      parent: accounts.groceries._id,
+      unit: 'USD'
     });
     
     // Update accounts object with new accounts
@@ -64,7 +221,8 @@ const generateTestData = async () => {
       "[UNMATCHED-DEBIT] Intentionally imbalanced transaction - needs any credit $500",
       accounts.checkingAccount._id,
       500,
-      'debit'
+      'debit',
+      'USD'
     );
     
     // Add some additional unbalanced transactions with specific edge cases
@@ -73,7 +231,8 @@ const generateTestData = async () => {
       "[UNMATCHED-CREDIT] Credit without matching debit - needs any debit $123.45",
       accounts.visaCard._id,
       123.45,
-      'credit'
+      'credit',
+      'USD'
     );
     
     // Create a very small amount transaction to test minimum thresholds
@@ -82,7 +241,8 @@ const generateTestData = async () => {
       "[SMALL-AMOUNT-DEBIT] Very small unbalanced transaction - needs credit $0.01",
       accounts.checkingAccount._id,
       0.01,
-      'debit'
+      'debit',
+      'USD'
     );
     
     // Create a large amount transaction to test maximum thresholds
@@ -91,7 +251,8 @@ const generateTestData = async () => {
       "[LARGE-AMOUNT-CREDIT] Large unbalanced transaction - needs debit $9999.99",
       accounts.savingsAccount._id,
       9999.99,
-      'credit'
+      'credit',
+      'USD'
     );
     
     // Add complementary unbalanced transactions for testing the balancing feature
@@ -102,6 +263,9 @@ const generateTestData = async () => {
     
     // Create sample rules (disabled by default)
     await ruleGenerator.createSampleRules(accounts);
+
+    // Generate Cypress test data
+    await generateCypressTestData(accounts);
     
     logger.info('Test data generation complete!');
     process.exit(0);

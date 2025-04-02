@@ -24,7 +24,8 @@ const {
 } = require('../controllers/transactionController/entries');
 
 const {
-  balanceTransactions
+  balanceTransactions,
+  getBalancedOrUnbalanced
 } = require('../controllers/transactionController/balance');
 
 // Transaction routes
@@ -42,6 +43,7 @@ router
 // Transaction balancing routes
 router
   .route('/balance')
+  .get(getBalancedOrUnbalanced)
   .post(balanceTransactions);
 
 router

@@ -8,6 +8,7 @@ import EntryLineEditForm from '../entry/EntryLineEditForm';
 import EntryLineAddForm from '../entry/EntryLineAddForm';
 import ComplementaryTransactionsTable from '../matching/ComplementaryTransactionsTable';
 import ManualEntrySearch from '../matching/ManualEntrySearch';
+import AssetTable from '../asset/AssetTable';
 import {
   useTransactionBalance,
   useComplementaryTransactions,
@@ -20,7 +21,8 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
   const {
     loading, 
     balanceData, 
-    accounts, 
+    accounts,
+    transactions,
     fetchAccounts,
     fetchTransactionData,
     handleDeleteTransaction,
@@ -167,6 +169,21 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     }
   };
 
+  // Check if any entries have non-USD units
+  const hasNonUSDEntries = balanceData?.transaction?.entries?.some(
+    entry => entry.unit && entry.unit !== 'USD'
+  );
+
+  // Get the account for the current transaction
+  const currentAccount = accounts.find(acc => 
+    acc._id === balanceData?.transaction?.entries[0]?.accountId
+  );
+
+  // Get all transactions for this account
+  const accountTransactions = transactions.filter(t => 
+    t.entries.some(e => e.accountId === currentAccount?._id)
+  );
+
   return (
     <Modal
       isOpen={isOpen}
@@ -190,6 +207,17 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
 
               {/* Balance Analysis */}
               <TransactionBalanceAnalysis balanceData={balanceData} />
+
+              {/* Asset Table - Only show for non-USD transactions */}
+              {hasNonUSDEntries && currentAccount && (
+                <div className="mt-4">
+                  <h3 className="font-medium mb-3">Asset Details</h3>
+                  <AssetTable 
+                    account={currentAccount}
+                    transactions={accountTransactions}
+                  />
+                </div>
+              )}
 
               {/* Entry Lines */}
               <div>

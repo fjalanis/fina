@@ -19,17 +19,20 @@ describe('Rule API', () => {
     // Create test accounts
     assetAccount = await Account.create({
       name: 'Bank Account',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     expenseAccount = await Account.create({
       name: 'Groceries',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
     
     incomeAccount = await Account.create({
       name: 'Salary',
-      type: 'income'
+      type: 'income',
+      unit: 'USD'
     });
     
     // Get auth token (you'll need to implement this based on your auth system)
@@ -295,22 +298,25 @@ describe('Rule API', () => {
         entries: [{
           accountId: assetAccount._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }]
       });
     });
     
     it('should apply a rule to a transaction', async () => {
-      const response = await request(app)
+      await rule.save();
+      await transaction.save();
+
+      const res = await request(app)
         .post(`/api/rules/${rule._id}/apply`)
-        .set('Authorization', `Bearer ${authToken}`)
         .send({ transactionId: transaction._id });
-      
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      
-      const updatedTransaction = await Transaction.findById(transaction._id);
-      expect(updatedTransaction.description).toBe('TESTED');
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.transaction).toBeDefined();
+      expect(res.body.data.transaction.description).toBe('TESTED');
     });
   });
 }); 

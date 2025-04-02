@@ -15,7 +15,7 @@ exports.varyAmount = (baseAmount) => {
 };
 
 // Helper to create imbalanced transactions with single entry
-exports.createImbalancedTransaction = async (date, description, accountId, amount, type) => {
+exports.createImbalancedTransaction = async (date, description, accountId, amount, type, unit = 'USD') => {
   logger.info(`Creating imbalanced transaction: ${description}`);
   
   const transaction = await Transaction.create({
@@ -25,7 +25,8 @@ exports.createImbalancedTransaction = async (date, description, accountId, amoun
       accountId: accountId,
       amount,
       type,
-      description
+      description,
+      unit
     }]
   });
   
@@ -33,7 +34,7 @@ exports.createImbalancedTransaction = async (date, description, accountId, amoun
 };
 
 // Helper to create a set of complementary unbalanced transactions
-exports.createComplementaryTransactions = async (account1Id, account2Id, amount, description1, description2, date1, date2) => {
+exports.createComplementaryTransactions = async (account1Id, account2Id, amount, description1, description2, date1, date2, unit = 'USD') => {
   logger.info(`Creating complementary unbalanced transactions for testing`);
   
   // First unbalanced transaction (debit)
@@ -44,7 +45,8 @@ exports.createComplementaryTransactions = async (account1Id, account2Id, amount,
       accountId: account1Id,
       amount,
       type: 'debit',
-      description: description1
+      description: description1,
+      unit
     }]
   });
   
@@ -56,7 +58,8 @@ exports.createComplementaryTransactions = async (account1Id, account2Id, amount,
       accountId: account2Id,
       amount,
       type: 'credit',
-      description: description2
+      description: description2,
+      unit
     }]
   });
   
@@ -83,7 +86,8 @@ exports.createPatternsForRuleTesting = async (accounts) => {
         accountId: accounts.visaCard._id,
         amount: groceryAmounts[i],
         type: 'credit',
-        description: `Purchase at ${groceryStores[i]}`
+        description: `Purchase at ${groceryStores[i]}`,
+        unit: 'USD'
       }]
     });
   }
@@ -102,7 +106,8 @@ exports.createPatternsForRuleTesting = async (accounts) => {
       accountId: accounts.amexCard._id,
       amount: 42.30,
       type: 'credit',
-      description: 'Fuel purchase'
+      description: 'Fuel purchase',
+      unit: 'USD'
     }]
   });
   
@@ -113,7 +118,8 @@ exports.createPatternsForRuleTesting = async (accounts) => {
       accountId: accounts.visaCard._id,
       amount: 38.75,
       type: 'credit',
-      description: 'Fuel purchase'
+      description: 'Fuel purchase',
+      unit: 'USD'
     }]
   });
   
@@ -132,7 +138,8 @@ exports.createPatternsForRuleTesting = async (accounts) => {
         accountId: accounts.checkingAccount._id,
         amount: utilityAmounts[i],
         type: 'credit',
-        description: `Monthly ${utilities[i]}`
+        description: `Monthly ${utilities[i]}`,
+        unit: 'USD'
       }]
     });
   }
@@ -153,7 +160,8 @@ exports.createPatternsForRuleTesting = async (accounts) => {
         accountId: accounts.visaCard._id,
         amount: restaurantAmounts[i],
         type: 'credit',
-        description: `Purchase at ${restaurants[i]}`
+        description: `Purchase at ${restaurants[i]}`,
+        unit: 'USD'
       }]
     });
   }
@@ -203,7 +211,8 @@ exports.createBalancingTestTransactions = async (accounts) => {
       debitDescriptions[i],
       creditDescriptions[i],
       date1,
-      date2
+      date2,
+      'USD'
     );
   }
   
@@ -217,7 +226,8 @@ exports.createBalancingTestTransactions = async (accounts) => {
     '[PAIR-6-DEBIT] Payment to unknown vendor - different accounts',
     '[PAIR-6-CREDIT] Customer payment received - different accounts',
     new Date(currentYear, currentMonth - 1, 18),
-    new Date(currentYear, currentMonth - 1, 19)
+    new Date(currentYear, currentMonth - 1, 19),
+    'USD'
   );
   
   // 2. Exact amount but far apart dates (should still be findable but not suggested)
@@ -228,7 +238,8 @@ exports.createBalancingTestTransactions = async (accounts) => {
     '[PAIR-7-DEBIT] Quarterly membership fee - distant dates',
     '[PAIR-7-CREDIT] Refund - duplicate charge - distant dates',
     new Date(currentYear, currentMonth - 1, 5),
-    new Date(currentYear, currentMonth - 1, 28)
+    new Date(currentYear, currentMonth - 1, 28),
+    'USD'
   );
   
   // 3. Multiple entries that would balance a single entry
@@ -242,7 +253,8 @@ exports.createBalancingTestTransactions = async (accounts) => {
       accountId: accounts.officeSupplies._id,
       amount: baseAmount,
       type: 'debit',
-      description: 'Office supplies'
+      description: 'Office supplies',
+      unit: 'USD'
     }]
   });
   
@@ -254,7 +266,8 @@ exports.createBalancingTestTransactions = async (accounts) => {
       accountId: accounts.checkingAccount._id,
       amount: baseAmount * 0.6, // 60% of the total
       type: 'credit',
-      description: 'Partial payment'
+      description: 'Partial payment',
+      unit: 'USD'
     }]
   });
   
@@ -265,7 +278,8 @@ exports.createBalancingTestTransactions = async (accounts) => {
       accountId: accounts.checkingAccount._id,
       amount: baseAmount * 0.4, // 40% of the total
       type: 'credit',
-      description: 'Remaining payment'
+      description: 'Remaining payment',
+      unit: 'USD'
     }]
   });
   

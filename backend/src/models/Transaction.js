@@ -6,6 +6,10 @@ const EntrySchema = new mongoose.Schema({
     ref: 'Account',
     required: [true, 'Account reference ID is required']
   },
+  unit: { // The unit of measure for the entry (denormalized from Account)
+    type: String,
+    required: [true, 'Unit is required for transaction entry']
+  },
   description: {
     type: String,
     trim: true,
@@ -82,16 +86,35 @@ const TransactionSchema = new mongoose.Schema({
 // Virtual property to check if transaction is balanced
 TransactionSchema.virtual('isBalanced').get(function() {
   if (!this.entries || this.entries.length === 0) {
-    return false;
+    return false; // Cannot be balanced with no entries
   }
-  
+
+  // Use a Set to find unique units involved directly from the denormalized entry field
+  const units = new Set();
+  for (const entry of this.entries) {
+    // The unit field is required by the schema, so it should exist if validation passed.
+    // If it's missing here, it indicates an earlier issue (e.g., direct manipulation bypassing validation).
+    if (!entry.unit) {
+      console.warn(`Transaction ${this._id}: Entry missing required unit field. Cannot reliably determine balance.`);
+      return false; 
+    }
+    units.add(entry.unit);
+  }
+
+  // If more than one unit is involved, consider it implicitly balanced (as per Step 8 design)
+  if (units.size > 1) {
+    return true;
+  }
+
+  // If only one unit is involved (or zero entries, handled above), check debit/credit balance for that unit
   const totalDebits = this.entries.reduce((sum, entry) => 
     sum + (entry.type === 'debit' ? entry.amount : 0), 0);
   const totalCredits = this.entries.reduce((sum, entry) => 
     sum + (entry.type === 'credit' ? entry.amount : 0), 0);
   
-  // For a transaction to be balanced, total debits must equal total credits
-  return Math.abs(totalDebits - totalCredits) < 0.01;
+  // Use a small threshold for floating point comparisons
+  const threshold = 0.01;
+  return Math.abs(totalDebits - totalCredits) < threshold;
 });
 
 // Pre-save middleware to validate entries

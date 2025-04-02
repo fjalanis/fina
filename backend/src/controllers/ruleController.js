@@ -470,7 +470,6 @@ exports.applyRulesToAllTransactions = async (req, res) => {
       }
     }
     
-    console.log('Rules processing completed:', results);
     res.status(200).json({
       success: true,
       message: 'Rules processing completed',
