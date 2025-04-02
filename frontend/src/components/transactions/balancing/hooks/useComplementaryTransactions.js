@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { fetchSuggestedMatches, mergeTransaction, moveEntry } from '../../../services/transactionService';
+import { fetchSuggestedMatches, mergeTransaction, moveEntry } from '../../../../services/transactionService';
 
 /**
  * Custom hook for managing complementary transactions
  */
-export const useComplementaryTransactions = (onSuccess) => {
+export const useComplementaryTransactions = (onSuccessCallback, toast) => {
   const [matchLoading, setMatchLoading] = useState(false);
   const [complementaryTransactions, setComplementaryTransactions] = useState([]);
   const [transactionPagination, setTransactionPagination] = useState({
@@ -15,7 +15,7 @@ export const useComplementaryTransactions = (onSuccess) => {
   });
 
   // Fetch complementary transactions based on balance amount and type
-  const fetchComplementaryTransactions = async (amount, type, transactionId, page = 1, referenceDate) => {
+  const fetchComplementaryTransactionsHook = async (amount, type, transactionId, page = 1, referenceDate) => {
     try {
       setMatchLoading(true);
       
@@ -27,6 +27,7 @@ export const useComplementaryTransactions = (onSuccess) => {
       if (isNaN(numericAmount) || !fixType) {
         console.error('Invalid amount or type for matching:', { amount, type });
         setComplementaryTransactions([]);
+        toast.error('Error finding complementary transactions');
         setMatchLoading(false);
         return;
       }
@@ -68,19 +69,20 @@ export const useComplementaryTransactions = (onSuccess) => {
     } catch (err) {
       console.error('Error finding complementary transactions:', err);
       setComplementaryTransactions([]);
+      toast.error('Error finding complementary transactions');
     } finally {
       setMatchLoading(false);
     }
   };
 
   // Handle transaction page change for pagination
-  const handleTransactionPageChange = async (amount, type, transactionId, page, referenceDate) => {
-    await fetchComplementaryTransactions(amount, type, transactionId, page, referenceDate);
+  const handleTransactionPageChangeHook = async (amount, type, transactionId, page, referenceDate) => {
+    await fetchComplementaryTransactionsHook(amount, type, transactionId, page, referenceDate);
   };
 
   // Handle moving a complementary transaction
-  const handleMoveTransaction = async (sourceTransaction, targetTransactionId) => {
-    if (!sourceTransaction || !targetTransactionId) return;
+  const handleMoveTransactionHook = async (sourceTransaction, targetTransactionId) => {
+    if (!sourceTransaction || !targetTransactionId) return false;
     
     try {
       setMatchLoading(true);
@@ -96,13 +98,15 @@ export const useComplementaryTransactions = (onSuccess) => {
       // Reset selection state
       setComplementaryTransactions([]);
       
-      // Notify that a transaction was merged successfully
-      if (onSuccess) {
-        onSuccess('Transaction merged successfully!');
+      // Call the success callback (which now uses toast)
+      if (onSuccessCallback) {
+        onSuccessCallback('Transaction merged successfully!');
       }
       
       return true;
     } catch (err) {
+      const errorMsg = 'Error merging transaction: ' + (err.message || 'Please try again.');
+      toast.error(errorMsg);
       console.error('Error merging transaction:', err);
       return false;
     } finally {
@@ -111,8 +115,8 @@ export const useComplementaryTransactions = (onSuccess) => {
   };
 
   // Handle moving an entry from manual search
-  const handleMoveEntry = async (entry, targetTransactionId) => {
-    if (!entry || !targetTransactionId) return;
+  const handleMoveEntryHook = async (entry, targetTransactionId) => {
+    if (!entry || !targetTransactionId) return false;
     
     try {
       setMatchLoading(true);
@@ -125,13 +129,15 @@ export const useComplementaryTransactions = (onSuccess) => {
         targetTransactionId
       );
       
-      // Notify that an entry was moved successfully
-      if (onSuccess) {
-        onSuccess('Entry moved successfully!');
+      // Call the success callback (which now uses toast)
+      if (onSuccessCallback) {
+        onSuccessCallback('Entry moved successfully!');
       }
       
       return true;
     } catch (err) {
+      const errorMsg = 'Error moving entry: ' + (err.message || 'Please try again.');
+      toast.error(errorMsg);
       console.error('Error moving entry:', err);
       return false;
     } finally {
@@ -143,9 +149,9 @@ export const useComplementaryTransactions = (onSuccess) => {
     matchLoading,
     complementaryTransactions,
     transactionPagination,
-    fetchComplementaryTransactions,
-    handleTransactionPageChange,
-    handleMoveTransaction,
-    handleMoveEntry
+    fetchComplementaryTransactions: fetchComplementaryTransactionsHook,
+    handleTransactionPageChange: handleTransactionPageChangeHook,
+    handleMoveTransaction: handleMoveTransactionHook,
+    handleMoveEntry: handleMoveEntryHook
   };
 }; 

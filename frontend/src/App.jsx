@@ -9,8 +9,7 @@ import AccountList from './components/accounts/AccountList';
 import AccountDetail from './components/accounts/AccountDetail';
 
 // Transaction Components
-import TransactionList from './components/transactions/TransactionList';
-import TransactionDetail from './components/transactions/TransactionDetail';
+import { TransactionList } from './components/transactions';
 
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
@@ -59,7 +58,6 @@ function App() {
               <Route path="/accounts" element={<AccountList />} />
               <Route path="/accounts/:id" element={<AccountDetail />} />
               <Route path="/transactions" element={<TransactionList />} />
-              <Route path="/transactions/:id" element={<TransactionDetail />} />
               <Route path="/reports" element={<ReportDashboard />} />
               <Route path="/rules" element={<RuleList />} />
               <Route path="/rules/test/:id" element={<RuleTest />} />

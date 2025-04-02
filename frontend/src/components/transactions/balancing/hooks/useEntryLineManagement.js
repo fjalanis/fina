@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { updateEntryInTransaction, addEntryToTransaction, deleteEntryFromTransaction } from '../../../services/transactionService';
+import { updateEntryInTransaction, addEntryToTransaction, deleteEntryFromTransaction } from '../../../../services/transactionService';
 
 /**
  * Custom hook for managing entry lines
  */
-export const useEntryLineManagement = (onSuccess, onError) => {
+export const useEntryLineManagement = (toast) => {
   const [loading, setLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -74,18 +74,13 @@ export const useEntryLineManagement = (onSuccess, onError) => {
       setEditingEntry(null);
       
       // Notify success
-      if (onSuccess) {
-        onSuccess('Entry updated successfully!');
-      }
+      toast.success('Entry updated successfully!');
       
       return true;
     } catch (err) {
       const errorMsg = 'Failed to update entry: ' + (err.message || 'Please try again.');
+      toast.error(errorMsg);
       console.error('Error updating entry:', err);
-      
-      if (onError) {
-        onError(errorMsg);
-      }
       
       return false;
     } finally {
@@ -112,9 +107,7 @@ export const useEntryLineManagement = (onSuccess, onError) => {
   // Save new entry
   const handleSaveNewEntry = async (transactionId) => {
     if (!newEntryForm.account || !newEntryForm.amount) {
-      if (onError) {
-        onError('Account and amount are required.');
-      }
+      toast.error('Account and amount are required.');
       return false;
     }
     
@@ -131,18 +124,13 @@ export const useEntryLineManagement = (onSuccess, onError) => {
       setShowAddEntryForm(false);
       
       // Notify success
-      if (onSuccess) {
-        onSuccess('Entry added successfully!');
-      }
+      toast.success('Entry added successfully!');
       
       return true;
     } catch (err) {
       const errorMsg = 'Failed to add entry: ' + (err.message || 'Please try again.');
+      toast.error(errorMsg);
       console.error('Error adding entry:', err);
-      
-      if (onError) {
-        onError(errorMsg);
-      }
       
       return false;
     } finally {
@@ -152,15 +140,13 @@ export const useEntryLineManagement = (onSuccess, onError) => {
 
   // Handle deleting an entry
   const handleDeleteEntry = async (entry, entryCount) => {
-    if (!entry || !entry._id) return;
+    if (!entry || !entry._id) return false;
     
     // We need the transaction ID to delete an entry
     const transactionId = entry.transactionId || (entry.transaction && entry.transaction._id);
     
     if (!transactionId) {
-      if (onError) {
-        onError('Cannot delete entry: Missing transaction ID');
-      }
+      toast.error('Cannot delete entry: Missing transaction ID');
       return false;
     }
     
@@ -184,22 +170,17 @@ export const useEntryLineManagement = (onSuccess, onError) => {
       setSelectedEntry(null);
       
       // Notify success
-      if (onSuccess) {
-        const successMessage = isLastEntry 
-          ? 'Entry and its transaction were deleted successfully!' 
-          : 'Entry deleted successfully!';
-          
-        onSuccess(successMessage);
-      }
+      const successMessage = isLastEntry 
+        ? 'Entry and its transaction were deleted successfully!' 
+        : 'Entry deleted successfully!';
+        
+      toast.success(successMessage);
       
       return isLastEntry ? 'transaction_deleted' : true;
     } catch (err) {
       const errorMsg = 'Failed to delete entry: ' + (err.message || 'Please try again.');
+      toast.error(errorMsg);
       console.error('Error deleting entry:', err);
-      
-      if (onError) {
-        onError(errorMsg);
-      }
       
       return false;
     } finally {

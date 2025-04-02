@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency } from './TransactionBalancerUtils';
+import { formatCurrency } from '../../../utils/formatters';
 
 const TransactionBalanceAnalysis = ({ balanceData }) => {
   return (

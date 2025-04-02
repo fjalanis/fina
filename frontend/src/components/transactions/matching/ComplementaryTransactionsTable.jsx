@@ -1,6 +1,6 @@
 import React from 'react';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import Pagination from '../common/Pagination';
+import { formatCurrency, formatDate } from '../../../utils/formatters';
+import Pagination from '../../common/Pagination';
 
 const ComplementaryTransactionsTable = ({ 
   isLoading, 

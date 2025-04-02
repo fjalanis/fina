@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
-import Modal from '../common/Modal';
-import TransactionHeader from './TransactionHeader';
+import { toast } from 'react-toastify';
+import Modal from '../../common/Modal';
+import TransactionHeader from '../list/TransactionHeader';
 import TransactionBalanceAnalysis from './TransactionBalanceAnalysis';
-import EntryLineTable from './EntryLineTable';
-import EntryLineEditForm from './EntryLineEditForm';
-import EntryLineAddForm from './EntryLineAddForm';
-import ComplementaryTransactionsTable from './ComplementaryTransactionsTable';
-import ManualEntrySearch from './ManualEntrySearch';
-import { 
+import EntryLineTable from '../entry/EntryLineTable';
+import EntryLineEditForm from '../entry/EntryLineEditForm';
+import EntryLineAddForm from '../entry/EntryLineAddForm';
+import ComplementaryTransactionsTable from '../matching/ComplementaryTransactionsTable';
+import ManualEntrySearch from '../matching/ManualEntrySearch';
+import {
   useTransactionBalance,
   useComplementaryTransactions,
   useEntryLineManagement,
@@ -20,14 +21,10 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     loading, 
     balanceData, 
     accounts, 
-    error, 
-    successMessage,
     fetchAccounts,
     fetchTransactionData,
     handleDeleteTransaction,
-    setTemporarySuccessMessage,
-    setError
-  } = useTransactionBalance(transaction?._id, isOpen);
+  } = useTransactionBalance(transaction?._id, isOpen, toast);
 
   // Complementary transactions for imbalance resolution
   const {
@@ -39,11 +36,11 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
     handleMoveTransaction,
     handleMoveEntry
   } = useComplementaryTransactions((message) => {
-    setTemporarySuccessMessage(message);
+    toast.success(message);
     fetchTransactionData().then(() => {
       if (onTransactionBalanced) onTransactionBalanced();
     });
-  });
+  }, toast);
 
   // Entry line management
   const {
@@ -65,13 +62,13 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
   } = useEntryLineManagement(
     // onSuccess
     (message) => {
-      setTemporarySuccessMessage(message);
+      toast.success(message);
       fetchTransactionData().then(() => {
         if (onTransactionBalanced) onTransactionBalanced();
       });
     },
     // onError
-    (message) => setError(message)
+    (message) => toast.error(message)
   );
 
   // Manual search control
@@ -183,18 +180,6 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
         </div>
       ) : (
         <div>
-          {error && (
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-              <p>{error}</p>
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">
-              <p>{successMessage}</p>
-            </div>
-          )}
-
           {balanceData && (
             <div className="space-y-6">
               {/* Transaction Header */}
@@ -239,7 +224,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                   />
                 ) : (
                   <EntryLineTable 
-                    entries={balanceData.transaction.entries}
+                    entries={balanceData.transaction.entries || []}
                     selectedEntryId={selectedEntry?._id}
                     onEditEntry={handleEditEntry}
                     onDeleteEntry={handleDeleteEntry}

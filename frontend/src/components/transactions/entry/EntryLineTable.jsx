@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatCurrency } from './TransactionBalancerUtils';
 
 const EntryLineTable = ({ 
   entries, 

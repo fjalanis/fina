@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchTransactions } from '../../services/transactionService';
-import Modal from '../common/Modal';
-import TransactionForm from './TransactionForm';
-import SingleEntryForm from './SingleEntryForm';
-import TransactionBalanceModal from './TransactionBalanceModal';
+import { toast } from 'react-toastify';
+import { fetchTransactions } from '../../../services/transactionService';
+import Modal from '../../common/Modal';
+import { TransactionForm, SingleEntryForm } from '../form';
+import TransactionBalanceModal from '../balancing/TransactionBalanceModal';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'balanced', 'unbalanced'
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isSingleEntryModalOpen, setIsSingleEntryModalOpen] = useState(false);
@@ -32,22 +31,16 @@ const TransactionList = () => {
       setLoading(true);
       const response = await fetchTransactions();
       setTransactions(response.data);
-      setError(null);
     } catch (err) {
-      setError('Failed to load transactions. Please try again.');
+      toast.error('Failed to load transactions. Please try again.');
       console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateTransaction = () => {
-    setIsTransactionModalOpen(true);
-  };
-
-  const handleCreateSingleEntry = () => {
-    setIsSingleEntryModalOpen(true);
-  };
+  const handleCreateTransaction = () => { setIsTransactionModalOpen(true); };
+  const handleCreateSingleEntry = () => { setIsSingleEntryModalOpen(true); };
 
   const handleSaveTransaction = async () => {
     setIsTransactionModalOpen(false);
@@ -84,8 +77,10 @@ const TransactionList = () => {
         // We're already loading, just do the normal fetch
         await getTransactions();
       }
+      toast.success('Transaction balanced successfully!');
     } catch (err) {
       console.error('Error refreshing transactions:', err);
+      toast.error('Failed to refresh transaction list after balancing.');
       // Don't show error for background refreshes
     }
   };
@@ -103,8 +98,6 @@ const TransactionList = () => {
   };
 
   if (loading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
-
-  if (error) return <div className="text-red-500 p-4 text-center">{error}</div>;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

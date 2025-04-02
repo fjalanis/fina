@@ -3,14 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { fetchTransactionById } from '../../services/transactionService';
 import { applyRulesToAllTransactions } from '../../services/ruleService';
 import Modal from '../common/Modal';
-import SingleEntryForm from './SingleEntryForm';
+import SingleEntryForm from './form/SingleEntryForm';
 import { toast } from 'react-toastify';
 
 const TransactionDetail = () => {
   const { id } = useParams();
   const [transaction, setTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = useState(false);
   const [applyingRules, setApplyingRules] = useState(false);
   
@@ -23,9 +22,8 @@ const TransactionDetail = () => {
       setLoading(true);
       const response = await fetchTransactionById(id);
       setTransaction(response.data);
-      setError(null);
     } catch (err) {
-      setError('Failed to load transaction. Please try again.');
+      toast.error('Failed to load transaction. Please try again.');
       console.error('Error fetching transaction:', err);
     } finally {
       setLoading(false);
@@ -65,15 +63,11 @@ const TransactionDetail = () => {
   };
   
   const formatCurrency = (amount) => {
-    return `$${amount.toFixed(2)}`;
+    return `$${Number(amount).toFixed(2)}`;
   };
   
   if (loading) {
     return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
-  }
-  
-  if (error) {
-    return <div className="text-red-500 p-4 text-center">{error}</div>;
   }
   
   if (!transaction) {

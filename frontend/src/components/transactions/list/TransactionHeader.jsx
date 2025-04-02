@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDate } from './TransactionBalancerUtils';
+import { formatDate } from '../../../utils/formatters';
 
 const TransactionHeader = ({
   transaction,

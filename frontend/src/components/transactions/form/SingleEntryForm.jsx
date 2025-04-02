@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { createTransaction } from '../../services/transactionService';
-import { fetchAccounts } from '../../services/accountService';
+import { toast } from 'react-toastify';
+import { createTransaction } from '../../../services/transactionService';
+import { fetchAccounts } from '../../../services/accountService';
 
 const SingleEntryForm = ({ onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -15,7 +16,6 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
   
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   
   // Fetch accounts for the dropdown
@@ -25,10 +25,10 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
         setLoading(true);
         const response = await fetchAccounts();
         setAccounts(response.data);
-        setLoading(false);
       } catch (err) {
-        setError('Failed to load accounts. Please try again.');
+        toast.error('Failed to load accounts. Please try again.');
         console.error('Error fetching accounts:', err);
+      } finally {
         setLoading(false);
       }
     };
@@ -50,14 +50,14 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
     e.preventDefault();
     
     if (!formData.description || !formData.account || !formData.amount) {
-      setError('Please fill in all required fields.');
+      toast.error('Please fill in all required fields.');
       return;
     }
     
     // Validate amount is a positive number
     const amount = parseFloat(formData.amount);
     if (isNaN(amount) || amount <= 0) {
-      setError('Please enter a valid positive amount.');
+      toast.error('Please enter a valid positive amount.');
       return;
     }
     
@@ -80,10 +80,11 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
       
       await createTransaction(transactionData);
       
+      toast.success('Entry created successfully!');
       setSubmitting(false);
       onSave();
     } catch (err) {
-      setError('Failed to create entry. Please try again.');
+      toast.error('Failed to create entry. Please try again.');
       console.error('Error creating single entry transaction:', err);
       setSubmitting(false);
     }
@@ -95,12 +96,6 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
   
   return (
     <div>
-      {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded mb-6">
-          {error}
-        </div>
-      )}
-      
       <form onSubmit={handleSubmit}>
         <div className="space-y-4">
           <div>
