@@ -97,59 +97,27 @@ const RuleList = () => {
     }
   };
 
-  // Render rule-specific details based on the rule type
-  const renderRuleTypeSpecificDetails = (rule) => {
-    switch (rule.type) {
-      case 'edit':
-        return <span>New Description: <span className="font-mono">{rule.newDescription}</span></span>;
-      case 'merge':
-        return <span>Max Date Difference: {rule.maxDateDifference} days</span>;
-      case 'complementary':
-        return (
-          <div>
-            {rule.destinationAccounts?.map((dest, index) => (
-              <div key={index} className="text-xs">
-                {dest.accountId?.name || 'Unknown'}: {dest.ratio ? `${(dest.ratio * 100).toFixed(0)}%` : ''} 
-                {dest.absoluteAmount ? ` $${dest.absoluteAmount.toFixed(2)}` : ''}
-              </div>
-            ))}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Format source accounts display
-  const formatSourceAccounts = (sourceAccounts) => {
-    if (!sourceAccounts || sourceAccounts.length === 0) {
-      return 'All accounts';
-    }
-    
-    return sourceAccounts.map(acc => acc.name || 'Unknown').join(', ');
-  };
-
   if (loading) {
     return <div className="flex justify-center mt-8">Loading rules...</div>;
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Transaction Balancing Rules</h1>
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-800">Rules</h2>
         <div className="space-x-2">
           <button 
             onClick={handleApplyAllRules}
             disabled={processingRules || rules.length === 0}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
           >
             {processingRules ? 'Processing...' : 'Apply Rules to All Transactions'}
           </button>
-          <button 
+          <button
             onClick={handleCreateRule}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
           >
-            Create New Rule
+            Add Rule
           </button>
         </div>
       </div>
@@ -170,58 +138,48 @@ const RuleList = () => {
           No rules found. Create a new rule to get started.
         </div>
       ) : (
-        <div className="overflow-x-auto bg-white shadow-md rounded">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr className="bg-gray-200 text-gray-700">
-                <th className="py-3 px-4 text-left">Name</th>
-                <th className="py-3 px-4 text-left">Type</th>
-                <th className="py-3 px-4 text-left">Pattern</th>
-                <th className="py-3 px-4 text-left">Entry Type</th>
-                <th className="py-3 px-4 text-left">Source Accounts</th>
-                <th className="py-3 px-4 text-left">Details</th>
-                <th className="py-3 px-4 text-left">Status</th>
-                <th className="py-3 px-4 text-center">Actions</th>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th scope="col" className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filter</th>
+                <th scope="col" className="w-1/8 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {rules.map((rule) => (
-                <tr key={rule._id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4">{rule.name}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded text-xs ${
+                <tr key={rule._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    <div className="truncate">{rule.name}</div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       rule.type === 'edit' ? 'bg-blue-100 text-blue-800' : 
                       rule.type === 'merge' ? 'bg-purple-100 text-purple-800' : 
                       'bg-green-100 text-green-800'
                     }`}>
-                      {rule.type.charAt(0).toUpperCase() + rule.type.slice(1)}
+                      {rule.type.charAt(0).toUpperCase() + rule.type.slice(1).substring(0, 3)}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-mono">{rule.pattern}</td>
-                  <td className="py-3 px-4">{rule.entryType.charAt(0).toUpperCase() + rule.entryType.slice(1)}</td>
-                  <td className="py-3 px-4">{formatSourceAccounts(rule.sourceAccounts)}</td>
-                  <td className="py-3 px-4">
-                    {renderRuleTypeSpecificDetails(rule)}
+                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">
+                    <div className="truncate">{rule.pattern}</div>
                   </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded text-xs ${rule.autoApply ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800`}>
                       {rule.autoApply ? 'Auto-Apply' : 'Manual'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex justify-center space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex space-x-2">
                       <button 
                         onClick={() => handleEditRule(rule)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-indigo-600 hover:text-indigo-900"
                       >
                         Edit
                       </button>
-                      <Link 
-                        to={`/rules/test/${rule._id}`}
-                        className="text-green-600 hover:text-green-800"
-                      >
-                        Test
-                      </Link>
                       <button 
                         onClick={() => handleDeleteRule(rule._id)}
                         className="text-red-600 hover:text-red-800"

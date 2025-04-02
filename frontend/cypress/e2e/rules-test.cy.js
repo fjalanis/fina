@@ -19,11 +19,11 @@ describe('Rules Test', () => {
     cy.wait('@getRules');
 
     // Now verify the heading is visible
-    cy.contains('h1', 'Transaction Balancing Rules').should('be.visible');
+    cy.contains('h2', 'Rules').should('be.visible');
 
     // Verify the main action buttons are visible
     cy.contains('button', 'Apply Rules to All Transactions').should('be.visible');
-    cy.contains('button', 'Create New Rule').should('be.visible');
+    cy.contains('button', 'Add Rule').should('be.visible');
 
     // Optional: Verify the table exists (more robust selectors might be needed)
     // cy.get('table').should('be.visible'); 
@@ -41,7 +41,7 @@ describe('Rules Test', () => {
     cy.wait('@getRules');
 
     // Click the Create button
-    cy.contains('button', 'Create New Rule').click();
+    cy.contains('button', 'Add Rule').click();
 
     // Verify the modal title is visible (now correctly using h3)
     cy.contains('h3', 'Create New Rule').should('be.visible');
@@ -92,7 +92,7 @@ describe('Rules Test', () => {
     cy.wait('@getRules');
 
     // Open modal
-    cy.contains('button', 'Create New Rule').click();
+    cy.contains('button', 'Add Rule').click();
     cy.wait('@getAccounts');
     
     // Verify modal is open
@@ -115,7 +115,7 @@ describe('Rules Test', () => {
     cy.wait('@getRules');
 
     // Open modal
-    cy.contains('button', 'Create New Rule').click();
+    cy.contains('button', 'Add Rule').click();
     cy.wait('@getAccounts');
     
     // Fill in the required fields
@@ -140,7 +140,7 @@ describe('Rules Test', () => {
       .should('be.visible')                         // It should be visible
       .within(() => {
         // Verify it's the correct rule type (complementary)
-        cy.contains('Complementary').should('be.visible');
+        cy.contains('Comp').should('be.visible');
         
         // Verify the pattern we entered is shown
         cy.contains('TestPattern').should('be.visible');
@@ -167,7 +167,7 @@ describe('Rules Test', () => {
     cy.wait('@getRules');
 
     // Open modal
-    cy.contains('button', 'Create New Rule').click();
+    cy.contains('button', 'Add Rule').click();
     cy.wait('@getAccounts');
     
     // Fill in minimal data but with something that would cause a server error
@@ -187,7 +187,7 @@ describe('Rules Test', () => {
     cy.get('.Toastify__toast--error').should('be.visible');
     
     // Modal should remain open when there's an error
-    cy.contains('h3', 'Create New Rule').should('be.visible');
+    cy.contains('h3', 'Create New Rule').scrollIntoView().should('be.visible');
   });
 
 }); 

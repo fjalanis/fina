@@ -18,7 +18,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "cypress run --spec 'cypress/e2e/*.cy.js'"
+    "test": "cypress run --spec 'cypress/e2e/*.cy.js'",
+    "test:gui": "cypress open"
   },
   "devDependencies": {
     "@testing-library/react": "^16.2.0",
