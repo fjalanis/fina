@@ -1,23 +1,34 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TransactionBalanceModal from '../src/components/transactions/TransactionBalanceModal';
-import { transactionApi, accountApi } from '../src/services/api';
+import {
+  fetchTransactionById,
+  fetchSuggestedMatches,
+  mergeTransaction,
+  moveEntry,
+  deleteTransaction,
+  // Add other transaction functions if used in this file
+} from '../src/services/transactionService';
+import { 
+  // Assuming accountApi was used for fetchAccounts or similar
+  fetchAccounts, 
+  fetchAccountById 
+} from '../src/services/accountService';
 
-// Mock the API
-jest.mock('../src/services/api', () => ({
-  transactionApi: {
-    getTransaction: jest.fn(),
-    getSuggestedMatches: jest.fn(),
-    addEntryLine: jest.fn(),
-    deleteTransaction: jest.fn()
-  },
-  entryLineApi: {
-    updateEntryLine: jest.fn(),
-    deleteEntryLine: jest.fn()
-  },
-  accountApi: {
-    getAccounts: jest.fn()
-  }
+// Replace api mocks
+jest.mock('../src/services/transactionService', () => ({
+  fetchTransactionById: jest.fn(),
+  fetchSuggestedMatches: jest.fn(),
+  mergeTransaction: jest.fn(),
+  moveEntry: jest.fn(),
+  deleteTransaction: jest.fn(),
+  // Add mocks for other imported transaction functions
+}));
+
+jest.mock('../src/services/accountService', () => ({
+  fetchAccounts: jest.fn(),
+  fetchAccountById: jest.fn(),
+  // Add mocks for other imported account functions
 }));
 
 describe('TransactionBalanceModal', () => {
@@ -65,16 +76,16 @@ describe('TransactionBalanceModal', () => {
     jest.clearAllMocks();
 
     // Setup default mock responses
-    transactionApi.getTransaction.mockResolvedValue({ 
+    fetchTransactionById.mockResolvedValue({ 
       data: mockTransaction 
     });
     
-    accountApi.getAccounts.mockResolvedValue({
+    fetchAccounts.mockResolvedValue({
       data: mockAccounts
     });
     
     // Mock the suggested matches API to return complementary entries
-    transactionApi.getSuggestedMatches.mockImplementation((params) => {
+    fetchSuggestedMatches.mockImplementation((params) => {
       return Promise.resolve({
         data: {
           targetEntry: mockTransaction.entries[0],
@@ -173,7 +184,7 @@ describe('TransactionBalanceModal', () => {
     };
     
     // Mock the API to return the balanced transaction
-    transactionApi.getTransaction.mockResolvedValue({ 
+    fetchTransactionById.mockResolvedValue({ 
       data: balancedTransaction 
     });
     
@@ -197,7 +208,7 @@ describe('TransactionBalanceModal', () => {
 
   test('displays no complementary entries found message when there are no matches', async () => {
     // Mock the suggested matches API to return empty matches
-    transactionApi.getSuggestedMatches.mockImplementation((params) => {
+    fetchSuggestedMatches.mockImplementation((params) => {
       return Promise.resolve({
         data: {
           targetEntry: mockTransaction.entries[0],

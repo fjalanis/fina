@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { transactionApi, accountApi } from '../../services/api';
+import { createTransaction } from '../../services/transactionService';
+import { fetchAccounts } from '../../services/accountService';
 
 const TransactionForm = ({ onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
     const fetchAccounts = async () => {
       try {
         setLoading(true);
-        const response = await accountApi.getAccounts();
+        const response = await fetchAccounts();
         setAccounts(response.data);
         setLoading(false);
       } catch (err) {
@@ -134,7 +135,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
         }))
       };
       
-      await transactionApi.createTransaction(transactionData);
+      await createTransaction(transactionData);
       
       setSubmitting(false);
       onSave();

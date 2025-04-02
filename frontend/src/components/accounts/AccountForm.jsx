@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountApi } from '../../services/api';
+import { fetchAccounts, createAccount, updateAccount } from '../../services/accountService';
 
 const AccountForm = ({ account = null, onSave, onCancel }) => {
   const isEditing = Boolean(account);
@@ -24,7 +24,7 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
         setLoading(true);
         
         // Get all accounts for parent dropdown
-        const accountsResponse = await accountApi.getAccounts();
+        const accountsResponse = await fetchAccounts();
         setAccounts(accountsResponse.data);
         
         // If editing, use provided account data
@@ -77,10 +77,10 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
       let savedAccount;
       
       if (isEditing) {
-        const response = await accountApi.updateAccount(account._id, accountData);
+        const response = await updateAccount(account._id, accountData);
         savedAccount = response.data;
       } else {
-        const response = await accountApi.createAccount(accountData);
+        const response = await createAccount(accountData);
         savedAccount = response.data;
       }
       

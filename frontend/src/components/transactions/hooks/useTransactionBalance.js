@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { transactionApi, accountApi } from '../../../services/api';
+import { fetchTransactionById, deleteTransaction } from '../../../services/transactionService';
+import { fetchAccounts } from '../../../services/accountService';
 import { analyzeTransactionBalance } from '../TransactionBalanceLogic';
 
 /**
@@ -23,7 +24,7 @@ export const useTransactionBalance = (transactionId, isOpen) => {
   // Fetch accounts for dropdown
   const fetchAccounts = async () => {
     try {
-      const response = await accountApi.getAccounts();
+      const response = await fetchAccounts();
       setAccounts(response.data);
     } catch (err) {
       console.error('Error fetching accounts:', err);
@@ -39,7 +40,7 @@ export const useTransactionBalance = (transactionId, isOpen) => {
       setLoading(true);
       
       // Make sure we have the latest data
-      const response = await transactionApi.getTransaction(transactionId);
+      const response = await fetchTransactionById(transactionId);
       const freshTransaction = response.data;
       
       if (!freshTransaction || !freshTransaction.entries) {
@@ -74,7 +75,7 @@ export const useTransactionBalance = (transactionId, isOpen) => {
     try {
       setLoading(true);
       
-      await transactionApi.deleteTransaction(balanceData.transaction._id);
+      await deleteTransaction(balanceData.transaction._id);
       
       setSuccessMessage('Transaction deleted successfully!');
       return true;

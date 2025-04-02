@@ -1,46 +1,39 @@
-import api from './api';
+import { fetchData } from './api'; // Import the generic fetch function
+
+// Define account-specific endpoints and logic
+const ACCOUNT_ENDPOINT = '/accounts';
 
 export const fetchAccounts = async () => {
-  try {
-    return await api.accountApi.getAccounts();
-  } catch (error) {
-    console.error('Error fetching accounts:', error);
-    throw error;
-  }
+  // Call fetchData with the specific endpoint
+  return fetchData(ACCOUNT_ENDPOINT);
 };
 
 export const fetchAccountById = async (accountId) => {
-  try {
-    return await api.accountApi.getAccount(accountId);
-  } catch (error) {
-    console.error('Error fetching account:', error);
-    throw error;
-  }
+  // Construct the endpoint dynamically
+  return fetchData(`${ACCOUNT_ENDPOINT}/${accountId}`);
 };
 
 export const createAccount = async (accountData) => {
-  try {
-    return await api.accountApi.createAccount(accountData);
-  } catch (error) {
-    console.error('Error creating account:', error);
-    throw error;
-  }
+  // Pass method and body in options
+  return fetchData(ACCOUNT_ENDPOINT, {
+    method: 'POST',
+    body: JSON.stringify(accountData),
+  });
 };
 
 export const updateAccount = async (accountId, accountData) => {
-  try {
-    return await api.accountApi.updateAccount(accountId, accountData);
-  } catch (error) {
-    console.error('Error updating account:', error);
-    throw error;
-  }
+  return fetchData(`${ACCOUNT_ENDPOINT}/${accountId}`, {
+    method: 'PUT',
+    body: JSON.stringify(accountData),
+  });
 };
 
 export const deleteAccount = async (accountId) => {
-  try {
-    return await api.accountApi.deleteAccount(accountId);
-  } catch (error) {
-    console.error('Error deleting account:', error);
-    throw error;
-  }
+  return fetchData(`${ACCOUNT_ENDPOINT}/${accountId}`, {
+    method: 'DELETE',
+  });
+};
+
+export const fetchAccountHierarchy = async () => {
+  return fetchData(`${ACCOUNT_ENDPOINT}/hierarchy`);
 }; 

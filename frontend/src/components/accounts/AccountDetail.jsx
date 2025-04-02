@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { accountApi } from '../../services/api';
+import { fetchAccountById, deleteAccount } from '../../services/accountService';
 import Modal from '../common/Modal';
 import AccountForm from './AccountForm';
 
@@ -15,7 +15,7 @@ const AccountDetail = () => {
   const fetchAccount = async () => {
     try {
       setLoading(true);
-      const response = await accountApi.getAccount(id);
+      const response = await fetchAccountById(id);
       setAccount(response.data);
       setError(null);
     } catch (err) {
@@ -35,7 +35,7 @@ const AccountDetail = () => {
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this account?')) {
       try {
-        await accountApi.deleteAccount(id);
+        await deleteAccount(id);
         navigate('/accounts');
       } catch (err) {
         setError(err.message || 'Failed to delete account');

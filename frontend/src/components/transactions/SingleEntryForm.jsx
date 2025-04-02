@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { transactionApi, accountApi } from '../../services/api';
+import { createTransaction } from '../../services/transactionService';
+import { fetchAccounts } from '../../services/accountService';
 
 const SingleEntryForm = ({ onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -19,10 +20,10 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
   
   // Fetch accounts for the dropdown
   useEffect(() => {
-    const fetchAccounts = async () => {
+    const getAccounts = async () => {
       try {
         setLoading(true);
-        const response = await accountApi.getAccounts();
+        const response = await fetchAccounts();
         setAccounts(response.data);
         setLoading(false);
       } catch (err) {
@@ -32,7 +33,7 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
       }
     };
     
-    fetchAccounts();
+    getAccounts();
   }, []);
   
   // Handle form input changes
@@ -77,7 +78,7 @@ const SingleEntryForm = ({ onSave, onCancel }) => {
         }]
       };
       
-      await transactionApi.createTransaction(transactionData);
+      await createTransaction(transactionData);
       
       setSubmitting(false);
       onSave();

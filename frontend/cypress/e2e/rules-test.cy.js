@@ -130,6 +130,9 @@ describe('Rules Test', () => {
     
     // Wait for the API call to complete
     cy.wait('@createRule');
+
+    // Check that no error toast appears
+    cy.get('.Toastify__toast--error').should('not.exist');
     
     // Verify the modal is closed
     cy.contains('h3', 'Create New Rule').should('not.exist');
@@ -188,6 +191,57 @@ describe('Rules Test', () => {
     
     // Modal should remain open when there's an error
     cy.contains('h3', 'Create New Rule').scrollIntoView().should('be.visible');
+  });
+
+  it('should edit an existing rule', () => {
+    // Intercept API calls
+    cy.intercept('GET', '/api/rules').as('getRules');
+    cy.intercept('GET', '/api/accounts').as('getAccounts');
+    cy.intercept('PUT', '/api/rules/*').as('updateRule');
+
+    // Create a rule first to ensure we have something to edit
+    cy.visit('http://localhost:3000'); 
+    cy.get('nav a[href="/rules"]').click();
+    cy.wait('@getRules');
+
+    // Find the edit button for the first rule
+    cy.get('table tbody tr')
+      .first()
+      .find('button[aria-label="Edit rule"]')
+      .click();
+
+    cy.wait('@getAccounts');
+    
+    // Verify the modal opens with title "Edit Rule"
+    cy.contains('h3', 'Edit Rule').should('be.visible');
+    
+    // Verify form is pre-filled with rule values
+    cy.get('input[name="name"]').should('not.have.value', '');
+    cy.get('input[placeholder="E.g., Grocery|Supermarket"]').should('not.have.value', '');
+    
+    // Make changes to the rule
+    const newRuleName = 'Updated Rule Name';
+    const newPattern = 'NewPattern|Updated';
+    
+    cy.get('input[name="name"]').clear().type(newRuleName);
+    cy.get('input[placeholder="E.g., Grocery|Supermarket"]').clear().type(newPattern);
+    
+    // Submit the form
+    cy.contains('button', 'Save Rule').click();
+    
+    // Wait for the update API call to complete
+    cy.wait('@updateRule');
+    
+    // Verify the modal is closed
+    cy.contains('h3', 'Edit Rule').should('not.exist');
+    
+    // Verify the changes are reflected in the table
+    cy.get('table tbody tr')
+      .contains('tr', newRuleName)
+      .should('be.visible')
+      .within(() => {
+        cy.contains(newPattern).should('be.visible');
+      });
   });
 
 }); 

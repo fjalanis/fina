@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { transactionApi } from '../../services/api';
+import { fetchTransactions } from '../../services/transactionService';
 import Modal from '../common/Modal';
 import TransactionForm from './TransactionForm';
 import SingleEntryForm from './SingleEntryForm';
@@ -18,7 +18,7 @@ const TransactionList = () => {
   const [unbalancedCount, setUnbalancedCount] = useState(0);
 
   useEffect(() => {
-    fetchTransactions();
+    getTransactions();
   }, []);
 
   // Update unbalanced count when transactions change
@@ -27,10 +27,10 @@ const TransactionList = () => {
     setUnbalancedCount(count);
   }, [transactions]);
 
-  const fetchTransactions = async () => {
+  const getTransactions = async () => {
     try {
       setLoading(true);
-      const response = await transactionApi.getTransactions();
+      const response = await fetchTransactions();
       setTransactions(response.data);
       setError(null);
     } catch (err) {
@@ -78,11 +78,11 @@ const TransactionList = () => {
       const wasLoading = loading;
       if (!wasLoading) {
         // We're not setting loading to true here to avoid flicker
-        const response = await transactionApi.getTransactions();
+        const response = await fetchTransactions();
         setTransactions(response.data);
       } else {
         // We're already loading, just do the normal fetch
-        await fetchTransactions();
+        await getTransactions();
       }
     } catch (err) {
       console.error('Error refreshing transactions:', err);

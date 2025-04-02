@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { transactionApi } from '../../../services/api';
+import { fetchSuggestedMatches, mergeTransaction, moveEntry } from '../../../services/transactionService';
 
 /**
  * Custom hook for managing complementary transactions
@@ -34,7 +34,7 @@ export const useComplementaryTransactions = (onSuccess) => {
       console.log(`Looking for transactions with ${fixType} imbalance of ${numericAmount}`);
       
       // Use the updated matching API with parameters object
-      const response = await transactionApi.getSuggestedMatches({
+      const response = await fetchSuggestedMatches({
         amount: numericAmount,
         type: fixType,
         excludeTransactionId: transactionId,
@@ -88,7 +88,7 @@ export const useComplementaryTransactions = (onSuccess) => {
       console.log(`Merging transaction ${sourceTransaction._id} to transaction ${targetTransactionId}`);
       
       // Call the mergeTransaction API
-      await transactionApi.mergeTransaction(
+      await mergeTransaction(
         sourceTransaction._id,
         targetTransactionId
       );
@@ -120,7 +120,7 @@ export const useComplementaryTransactions = (onSuccess) => {
       console.log(`Moving entry ${entry._id} to transaction ${targetTransactionId}`);
       
       // Call the moveEntry API to move this single entry
-      await transactionApi.moveEntry(
+      await moveEntry(
         entry._id,
         targetTransactionId
       );

@@ -177,12 +177,14 @@ const RuleList = () => {
                       <button 
                         onClick={() => handleEditRule(rule)}
                         className="text-indigo-600 hover:text-indigo-900"
+                        aria-label="Edit rule"
                       >
                         Edit
                       </button>
                       <button 
                         onClick={() => handleDeleteRule(rule._id)}
                         className="text-red-600 hover:text-red-800"
+                        aria-label="Delete rule"
                       >
                         Delete
                       </button>

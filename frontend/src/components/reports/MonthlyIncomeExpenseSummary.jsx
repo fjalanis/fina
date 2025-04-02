@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { reportApi } from '../../services/api';
+import { fetchMonthlyIncomeExpenseSummary } from '../../services/reportService';
 
 const MonthlyIncomeExpenseSummary = () => {
   const [reportData, setReportData] = useState(null);
@@ -44,7 +44,7 @@ const MonthlyIncomeExpenseSummary = () => {
     setError('');
     
     try {
-      const response = await reportApi.getMonthlyIncomeExpenseSummary(
+      const response = await fetchMonthlyIncomeExpenseSummary(
         selectedYear, 
         selectedMonth
       );

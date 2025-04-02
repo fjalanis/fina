@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import Pagination from '../common/Pagination';
-import { transactionApi } from '../../services/api';
+import { searchEntries } from '../../services/transactionService';
 
 const ManualEntrySearch = ({ 
   isOpen, 
@@ -65,7 +65,7 @@ const ManualEntrySearch = ({
       };
       
       // Call API
-      const response = await transactionApi.searchEntries(filters, page, pagination.limit);
+      const response = await searchEntries(filters, page, pagination.limit);
       
       if (response.success && response.data) {
         setSearchResults(response.data.entries || []);

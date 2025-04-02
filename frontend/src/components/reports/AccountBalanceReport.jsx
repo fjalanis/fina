@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { reportApi, accountApi } from '../../services/api';
+import { fetchAccountBalanceReport } from '../../services/reportService';
+import { fetchAccounts } from '../../services/accountService';
 import DateRangePicker from './DateRangePicker';
 
 const AccountBalanceReport = () => {
@@ -22,7 +23,7 @@ const AccountBalanceReport = () => {
   useEffect(() => {
     const loadAccounts = async () => {
       try {
-        const response = await accountApi.getAccounts();
+        const response = await fetchAccounts();
         setAccounts(response.data);
       } catch (err) {
         setError('Failed to load accounts. Please try again.');
@@ -47,7 +48,7 @@ const AccountBalanceReport = () => {
     
     try {
       const { startDate, endDate } = dateRange;
-      const response = await reportApi.getAccountBalanceReport(
+      const response = await fetchAccountBalanceReport(
         startDate, 
         endDate, 
         selectedAccount || null

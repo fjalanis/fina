@@ -1,91 +1,81 @@
-import api from './api';
+import { fetchData } from './api'; // Import the generic fetch function
+
+// Define rule-specific endpoints and logic
+const RULE_ENDPOINT = '/rules';
 
 export const fetchRules = async (type) => {
-  try {
-    return await api.ruleApi.getRules(type);
-  } catch (error) {
-    console.error('Error fetching rules:', error);
-    throw error;
-  }
+  const queryParams = type ? `?type=${type}` : '';
+  return fetchData(`${RULE_ENDPOINT}${queryParams}`);
 };
 
 export const fetchRuleById = async (ruleId) => {
-  try {
-    return await api.ruleApi.getRule(ruleId);
-  } catch (error) {
-    console.error('Error fetching rule:', error);
-    throw error;
-  }
+  return fetchData(`${RULE_ENDPOINT}/${ruleId}`);
 };
 
 export const createRule = async (ruleData) => {
-  try {
-    return await api.ruleApi.createRule(ruleData);
-  } catch (error) {
-    console.error('Error creating rule:', error);
-    throw error;
-  }
+  return fetchData(RULE_ENDPOINT, {
+    method: 'POST',
+    body: JSON.stringify(ruleData),
+  });
 };
 
 export const updateRule = async (ruleId, ruleData) => {
-  try {
-    return await api.ruleApi.updateRule(ruleId, ruleData);
-  } catch (error) {
-    console.error('Error updating rule:', error);
-    throw error;
-  }
+  return fetchData(`${RULE_ENDPOINT}/${ruleId}`, {
+    method: 'PUT',
+    body: JSON.stringify(ruleData),
+  });
 };
 
 export const deleteRule = async (ruleId) => {
-  try {
-    return await api.ruleApi.deleteRule(ruleId);
-  } catch (error) {
-    console.error('Error deleting rule:', error);
-    throw error;
-  }
+  return fetchData(`${RULE_ENDPOINT}/${ruleId}`, {
+    method: 'DELETE',
+  });
 };
 
 export const testRule = async (ruleId, testData) => {
-  try {
-    return await api.ruleApi.testRule(ruleId, testData);
-  } catch (error) {
-    console.error('Error testing rule:', error);
-    throw error;
-  }
+  return fetchData(`${RULE_ENDPOINT}/${ruleId}/test`, {
+    method: 'POST',
+    body: JSON.stringify(testData),
+  });
 };
 
 export const applyRuleToTransaction = async (ruleId, transactionId) => {
-  try {
-    return await api.ruleApi.applyRuleToTransaction(ruleId, transactionId);
-  } catch (error) {
-    console.error('Error applying rule to transaction:', error);
-    throw error;
-  }
+  return fetchData(`${RULE_ENDPOINT}/${ruleId}/apply`, {
+    method: 'POST',
+    body: JSON.stringify({ transactionId }),
+  });
 };
 
 export const applyRulesToAllTransactions = async () => {
-  try {
-    return await api.ruleApi.applyRulesToAllTransactions();
-  } catch (error) {
-    console.error('Error applying rules to all transactions:', error);
-    throw error;
-  }
+  return fetchData(`${RULE_ENDPOINT}/apply-all`, {
+    method: 'POST'
+  });
 };
 
-export const previewRule = async (ruleData) => {
-  try {
-    // Make sure we have at least the pattern to preview
-    if (!ruleData.pattern) {
-      throw new Error('Pattern is required for preview');
-    }
-    
-    return await api.ruleApi.previewRule({
-      pattern: ruleData.pattern,
-      sourceAccounts: ruleData.sourceAccounts || [],
-      entryType: ruleData.entryType || 'both'
-    });
-  } catch (error) {
-    console.error('Error previewing rule:', error);
-    throw error;
+export const previewRule = async ({ pattern, sourceAccounts, entryType }) => {
+  // Build query params for GET request
+  const params = new URLSearchParams();
+
+  // Required parameter
+  if (!pattern) {
+    // It's often better to throw validation errors *before* the API call
+    throw new Error('Pattern is required for preview');
   }
+  params.append('pattern', pattern);
+
+  // Optional parameters
+  if (sourceAccounts && sourceAccounts.length > 0) {
+    if (Array.isArray(sourceAccounts)) {
+      sourceAccounts.forEach(accountId => params.append('sourceAccounts', accountId));
+    } else {
+      params.append('sourceAccounts', sourceAccounts);
+    }
+  }
+
+  if (entryType) {
+    params.append('entryType', entryType);
+  }
+
+  // Call fetchData with the GET request and query params
+  return fetchData(`${RULE_ENDPOINT}/preview?${params.toString()}`);
 }; 

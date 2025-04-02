@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { transactionApi } from '../../services/api';
+import { fetchTransactionById } from '../../services/transactionService';
 import { applyRulesToAllTransactions } from '../../services/ruleService';
 import Modal from '../common/Modal';
 import SingleEntryForm from './SingleEntryForm';
@@ -21,7 +21,7 @@ const TransactionDetail = () => {
   const fetchTransaction = async () => {
     try {
       setLoading(true);
-      const response = await transactionApi.getTransaction(id);
+      const response = await fetchTransactionById(id);
       setTransaction(response.data);
       setError(null);
     } catch (err) {

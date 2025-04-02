@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { transactionApi } from '../../../services/api';
+import { updateEntryInTransaction, addEntryToTransaction, deleteEntryFromTransaction } from '../../../services/transactionService';
 
 /**
  * Custom hook for managing entry lines
@@ -65,7 +65,7 @@ export const useEntryLineManagement = (onSuccess, onError) => {
     try {
       setLoading(true);
       
-      await transactionApi.updateEntry(transactionId, entryId, {
+      await updateEntryInTransaction(transactionId, entryId, {
         amount: parseFloat(editForm.amount),
         type: editForm.type,
         description: editForm.description
@@ -121,7 +121,7 @@ export const useEntryLineManagement = (onSuccess, onError) => {
     try {
       setLoading(true);
       
-      await transactionApi.addEntry(transactionId, {
+      await addEntryToTransaction(transactionId, {
         account: newEntryForm.account,
         amount: parseFloat(newEntryForm.amount),
         type: newEntryForm.type,
@@ -178,7 +178,7 @@ export const useEntryLineManagement = (onSuccess, onError) => {
       setLoading(true);
       
       // Delete entry
-      await transactionApi.deleteEntry(transactionId, entry._id);
+      await deleteEntryFromTransaction(transactionId, entry._id);
       
       // Reset selection state to avoid stale data
       setSelectedEntry(null);

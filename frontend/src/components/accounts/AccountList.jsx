@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountApi } from '../../services/api';
+import { fetchAccountHierarchy, deleteAccount } from '../../services/accountService';
 import { Link } from 'react-router-dom';
 import Modal from '../common/Modal';
 import AccountForm from './AccountForm';
@@ -18,7 +18,7 @@ const AccountList = () => {
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      const response = await accountApi.getAccountHierarchy();
+      const response = await fetchAccountHierarchy();
       setAccounts(response.data);
       setError(null);
     } catch (err) {
@@ -32,7 +32,7 @@ const AccountList = () => {
   const handleDeleteAccount = async (id) => {
     if (window.confirm('Are you sure you want to delete this account?')) {
       try {
-        await accountApi.deleteAccount(id);
+        await deleteAccount(id);
         const removeAccount = (accounts) => {
           return accounts.filter(account => {
             if (account._id === id) return false;
