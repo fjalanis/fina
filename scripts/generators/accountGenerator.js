@@ -1,5 +1,5 @@
-const Account = require('../../models/Account');
-const logger = require('../../config/logger');
+const Account = require('../../backend/src/models/Account');
+const logger = require('../../backend/src/config/logger');
 
 // Create account hierarchy
 exports.createAccountHierarchy = async () => {

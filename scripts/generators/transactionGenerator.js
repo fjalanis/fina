@@ -1,5 +1,5 @@
-const Transaction = require('../../models/Transaction');
-const logger = require('../../config/logger');
+const Transaction = require('../../backend/src/models/Transaction');
+const logger = require('../../backend/src/config/logger');
 const utils = require('./dataUtils');
 
 // Create a transaction with multiple entries

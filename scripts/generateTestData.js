@@ -2,6 +2,7 @@ const Account = require('../backend/src/models/Account');
 const Transaction = require('../backend/src/models/Transaction');
 const connectDB = require('../backend/src/config/database');
 const logger = require('../backend/src/config/logger');
+
 const accountGenerator = require('./generators/accountGenerator');
 const transactionGenerator = require('./generators/transactionGenerator');
 const ruleGenerator = require('./generators/ruleGenerator');

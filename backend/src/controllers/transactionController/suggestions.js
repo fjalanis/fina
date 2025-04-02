@@ -1,5 +1,6 @@
 const Transaction = require('../../models/Transaction');
 const mongoose = require('mongoose');
+const { calculateBusinessDayRange } = require('../../utils/dateUtils');
 
 // @desc    Get suggested matches for unbalanced transactions
 // @route   GET /api/transactions/matches/
@@ -70,13 +71,12 @@ exports.getSuggestedMatches = async (req, res) => {
     // Calculate pagination
     const skipAmount = (parseInt(page) - 1) * parseInt(limit);
     
-    // Calculate the date range filter based on the reference date
-    const dateRangeStart = new Date(referenceDateObj);
-    dateRangeStart.setDate(dateRangeStart.getDate() - parseInt(dateRange));
-    const dateRangeEnd = new Date(referenceDateObj);
-    dateRangeEnd.setDate(dateRangeEnd.getDate() + parseInt(dateRange));
+    // Use the utility function to calculate the date range based on business days
+    const dateRangeResult = calculateBusinessDayRange(referenceDateObj, parseInt(dateRange));
+    const dateRangeStart = dateRangeResult.startDate;
+    const dateRangeEnd = dateRangeResult.endDate;
     
-    console.log(`Date range: ${dateRangeStart} to ${dateRangeEnd} (full ${dateRange} days range)`);
+    console.log(`Date range: ${dateRangeStart} to ${dateRangeEnd} (${dateRangeResult.businessDays} business days range around reference date)`);
     
     // Build the aggregation pipeline
     const pipeline = [

@@ -1,4 +1,5 @@
 const Transaction = require('../../models/Transaction');
+const { calculateBusinessDayRange } = require('../../utils/dateUtils');
 
 // @desc    Search for entries with filters
 // @route   GET /api/transactions/search-entries
@@ -15,6 +16,7 @@ exports.searchEntries = async (req, res) => {
       searchText, 
       dateRange = 15, 
       excludeTransactionId,
+      referenceDate,
       page = 1, 
       limit = 10 
     } = req.query;
@@ -22,22 +24,35 @@ exports.searchEntries = async (req, res) => {
     // Build the search query
     const searchQuery = {};
     
-    // Date range filter - only include entries from last N days
-    const earliestDate = new Date();
-    earliestDate.setDate(earliestDate.getDate() - parseInt(dateRange || 15));
+    // Use reference date if provided, otherwise use current date
+    let referenceDateObj;
+    if (referenceDate) {
+      referenceDateObj = new Date(referenceDate);
+      console.log('Using provided reference date:', referenceDateObj);
+    } else {
+      referenceDateObj = new Date();
+      console.log('Using current date as reference:', referenceDateObj);
+    }
+    
+    // Use the utility function to calculate the date range based on business days
+    const dateRangeResult = calculateBusinessDayRange(referenceDateObj, parseInt(dateRange));
+    const dateRangeStart = dateRangeResult.startDate;
+    const dateRangeEnd = dateRangeResult.endDate;
+    
+    console.log(`Date range: ${dateRangeStart} to ${dateRangeEnd} (${dateRangeResult.businessDays} business days range around reference date)`);
     
     // Calculate pagination
     const skipAmount = (parseInt(page) - 1) * parseInt(limit);
     
-    console.log('Filtering transactions from date:', earliestDate);
-    
     // Get transactions that match the date range
     const recentTransactions = await Transaction.find({
-      date: { $gte: earliestDate },
-      isBalanced: false // Only consider unbalanced transactions
-    }).select('_id date description');
+      date: { 
+        $gte: dateRangeStart,
+        $lte: dateRangeEnd
+      }
+    }).select('_id date description isBalanced');
     
-    console.log(`Found ${recentTransactions.length} recent transactions`);
+    console.log(`Found ${recentTransactions.length} transactions in date range`);
     
     // If no transactions in date range, return empty results
     if (!recentTransactions || recentTransactions.length === 0) {

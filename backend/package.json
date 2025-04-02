@@ -9,6 +9,9 @@
     "test": "jest --forceExit --no-cache",
     "test:unit": "jest --forceExit --no-cache tests/unit/",
     "test:integration": "jest --forceExit --no-cache tests/integration/",
+    "test:dateUtils": "jest tests/unit/dateUtils.test.js --forceExit --no-cache",
+    "test:transactionSearch": "jest tests/integration/transactionSearch.test.js --forceExit --no-cache",
+    "test:basic": "jest tests/integration/basicTest.test.js --forceExit --no-cache --verbose",
     "generate-data": "node src/scripts/generateTestData.js"
   },
   "keywords": [

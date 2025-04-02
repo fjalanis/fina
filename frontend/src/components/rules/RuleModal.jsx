@@ -21,7 +21,7 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
     maxDateDifference: 3,
     
     // Complementary rule specific fields
-    destinationAccounts: [{ accountId: '', ratio: 0.5, absoluteAmount: 0 }]
+    destinationAccounts: [{ accountId: '', ratio: 1, absoluteAmount: 0 }]
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -55,7 +55,7 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
             accountId: dest.accountId?._id || dest.accountId || '',
             ratio: dest.ratio || 0,
             absoluteAmount: dest.absoluteAmount || 0
-          })) || [{ accountId: '', ratio: 0.5, absoluteAmount: 0 }]
+          })) || [{ accountId: '', ratio: 1, absoluteAmount: 0 }]
         });
       } else {
         // Reset form for new rule
@@ -67,8 +67,14 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
   const loadAccounts = async () => {
     try {
       const response = await fetchAccounts();
-      setAccounts(response.data);
+      if (response && response.data) {
+        setAccounts(response.data);
+      } else {
+        console.error('Invalid accounts response structure:', response);
+        toast.error('Failed to load accounts: Invalid response');
+      }
     } catch (err) {
+      console.error('Failed to load accounts:', err);
       toast.error('Failed to load accounts');
     }
   };

@@ -1,5 +1,5 @@
-const Rule = require('../../models/Rule');
-const logger = require('../../config/logger');
+const Rule = require('../../backend/src/models/Rule');
+const logger = require('../../backend/src/config/logger');
 
 /**
  * Creates sample rules for testing all rule types

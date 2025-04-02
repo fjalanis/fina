@@ -2,45 +2,45 @@ import api from './api';
 
 export const fetchAccounts = async () => {
   try {
-    const response = await api.get('/accounts');
-    return response.data;
+    return await api.accountApi.getAccounts();
   } catch (error) {
+    console.error('Error fetching accounts:', error);
     throw error;
   }
 };
 
 export const fetchAccountById = async (accountId) => {
   try {
-    const response = await api.get(`/accounts/${accountId}`);
-    return response.data;
+    return await api.accountApi.getAccount(accountId);
   } catch (error) {
+    console.error('Error fetching account:', error);
     throw error;
   }
 };
 
 export const createAccount = async (accountData) => {
   try {
-    const response = await api.post('/accounts', accountData);
-    return response.data;
+    return await api.accountApi.createAccount(accountData);
   } catch (error) {
+    console.error('Error creating account:', error);
     throw error;
   }
 };
 
 export const updateAccount = async (accountId, accountData) => {
   try {
-    const response = await api.put(`/accounts/${accountId}`, accountData);
-    return response.data;
+    return await api.accountApi.updateAccount(accountId, accountData);
   } catch (error) {
+    console.error('Error updating account:', error);
     throw error;
   }
 };
 
 export const deleteAccount = async (accountId) => {
   try {
-    const response = await api.delete(`/accounts/${accountId}`);
-    return response.data;
+    return await api.accountApi.deleteAccount(accountId);
   } catch (error) {
+    console.error('Error deleting account:', error);
     throw error;
   }
 }; 
