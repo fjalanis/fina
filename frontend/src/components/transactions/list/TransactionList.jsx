@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTransactions } from '../../../services/transactionService';
 import Modal from '../../common/Modal';
 import { TransactionForm, SingleEntryForm } from '../form';
 import TransactionBalanceModal from '../balancing/TransactionBalanceModal';
+import TransactionDetailModal from '../detail/TransactionDetailModal';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
@@ -15,6 +15,8 @@ const TransactionList = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [unbalancedCount, setUnbalancedCount] = useState(0);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingTransaction, setViewingTransaction] = useState(null);
 
   useEffect(() => {
     getTransactions();
@@ -44,12 +46,12 @@ const TransactionList = () => {
 
   const handleSaveTransaction = async () => {
     setIsTransactionModalOpen(false);
-    await fetchTransactions();
+    await getTransactions();
   };
 
   const handleSaveSingleEntry = async () => {
     setIsSingleEntryModalOpen(false);
-    await fetchTransactions();
+    await getTransactions();
   };
   
   const handleOpenBalanceModal = (transaction) => {
@@ -62,6 +64,16 @@ const TransactionList = () => {
     setSelectedTransaction(null);
   };
   
+  const handleOpenViewModal = (transaction) => {
+    setViewingTransaction(transaction);
+    setIsViewModalOpen(true);
+  };
+
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setViewingTransaction(null);
+  };
+
   const handleTransactionBalanced = async () => {
     // Refresh the transaction list to reflect changes
     // This doesn't cause a full page refresh, it just updates the data
@@ -83,6 +95,7 @@ const TransactionList = () => {
       toast.error('Failed to refresh transaction list after balancing.');
       // Don't show error for background refreshes
     }
+    await getTransactions();
   };
 
   const filteredTransactions = transactions.filter(transaction => {
@@ -199,12 +212,12 @@ const TransactionList = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Link 
-                      to={`/transactions/${transaction._id}`} 
+                    <button 
+                      onClick={() => handleOpenViewModal(transaction)} 
                       className="text-blue-600 hover:text-blue-900 mr-4"
                     >
                       View
-                    </Link>
+                    </button>
                     {!transaction.isBalanced && (
                       <button
                         onClick={() => handleOpenBalanceModal(transaction)}
@@ -254,6 +267,15 @@ const TransactionList = () => {
           onClose={handleCloseBalanceModal}
           transaction={selectedTransaction}
           onTransactionBalanced={handleTransactionBalanced}
+        />
+      )}
+
+      {viewingTransaction && (
+        <TransactionDetailModal
+          isOpen={isViewModalOpen}
+          onClose={handleCloseViewModal}
+          transaction={viewingTransaction}
+          onUpdate={handleTransactionBalanced}
         />
       )}
     </div>
