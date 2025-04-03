@@ -201,20 +201,20 @@ Cypress.Commands.add('createTransaction', (nameOrData, fromAccount, toAccount, a
     cy.wait('@getAccounts');
     
     // Fill in the transaction details
-    cy.get('input[name="description"]').first().type(transactionData.description);
+    cy.get('input[name="description"]').eq(0).type(transactionData.description);
     cy.get('input[name="date"]').type(transactionData.date);
     
     // Fill in the first entry (debit)
     cy.get('input[name="description"]').eq(1).type(`${transactionData.description} (Debit)`);
-    cy.get('input[name="amount"]').first().type(transactionData.amount);
-    cy.get('select[name="type"]').first().select('debit', { force: true });
-    cy.get('select[name="account"]').first().select(transactionData.fromAccount, { force: true });
+    cy.get('input[name="amount"]').eq(0).type(transactionData.amount);
+    cy.get('select[name="type"]').eq(0).select('debit');
+    cy.get('select[name="account"]').eq(0).select(transactionData.fromAccount);
     
     // Fill in the second entry (credit)
     cy.get('input[name="description"]').eq(2).type(`${transactionData.description} (Credit)`);
     cy.get('input[name="amount"]').eq(1).type(transactionData.amount);
-    cy.get('select[name="type"]').eq(1).select('credit', { force: true });
-    cy.get('select[name="account"]').eq(1).select(transactionData.toAccount, { force: true });
+    cy.get('select[name="type"]').eq(1).select('credit');
+    cy.get('select[name="account"]').eq(1).select(transactionData.toAccount);
     
     // Submit the form
     cy.get('button').contains('Create Transaction').click();

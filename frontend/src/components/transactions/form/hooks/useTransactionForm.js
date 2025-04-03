@@ -66,14 +66,8 @@ export const useTransactionForm = (onSaveSuccess) => {
   };
 
   // Handle entry line input changes
-  const handleEntryLineChange = (index, e) => {
-    const { name, value } = e.target;
-    const updatedEntries = [...entries];
-    updatedEntries[index] = {
-      ...updatedEntries[index],
-      [name]: value
-    };
-    setEntries(updatedEntries);
+  const handleEntryLineChange = (entries) => {
+    setEntries(entries);
   };
 
   // Add new entry line

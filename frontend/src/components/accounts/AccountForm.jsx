@@ -38,7 +38,7 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
             description: account.description || '',
             parent: account.parent ? account.parent._id : '',
             isActive: account.isActive,
-            unit: account.unit || 'USD'
+            unit: account.unit
           });
         }
         
@@ -180,6 +180,7 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
               </label>
               <input
                 type="text"
+                disabled={isEditing}
                 id="unit"
                 name="unit"
                 value={formData.unit}
@@ -253,6 +254,7 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
         <div className="mt-8 flex justify-end space-x-3">
           <button
             type="button"
+            name="cancel"
             onClick={onCancel}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
           >

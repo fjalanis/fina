@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import CostBasisLotsTable from './CostBasisLotsTable';
 
-const EntryManager = ({ entries, onEntriesChange, accounts }) => {
+const EntryManager = ({ entries, accounts, onEntriesChange }) => {
   const [showLotsTable, setShowLotsTable] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
 
