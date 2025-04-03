@@ -48,17 +48,20 @@ describe('Rule Application Service', () => {
     // Create test accounts
     assetAccount = await Account.create({
       name: 'Bank Account',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     expenseAccount = await Account.create({
       name: 'Groceries',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
     
     incomeAccount = await Account.create({
       name: 'Salary',
-      type: 'income'
+      type: 'income',
+      unit: 'USD'
     });
   });
 
@@ -82,7 +85,8 @@ describe('Rule Application Service', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -114,7 +118,8 @@ describe('Rule Application Service', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -148,7 +153,8 @@ describe('Rule Application Service', () => {
           {
             accountId: assetAccount._id,
             amount: 50,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -160,7 +166,8 @@ describe('Rule Application Service', () => {
           {
             accountId: assetAccount._id,
             amount: 50,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -208,7 +215,8 @@ describe('Rule Application Service', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -262,7 +270,8 @@ describe('Rule Application Service', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });

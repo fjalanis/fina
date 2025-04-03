@@ -17,25 +17,27 @@ describe('Transaction API', () => {
   let expenseAccount;
   let incomeAccount;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     // Create test accounts
     assetAccount = await Account.create({
       name: 'Bank Account',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     expenseAccount = await Account.create({
       name: 'Groceries',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
     
     incomeAccount = await Account.create({
       name: 'Salary',
-      type: 'income'
+      type: 'income',
+      unit: 'USD'
     });
-  });
 
-  beforeEach(async () => {
+    // Clear transactions
     await Transaction.deleteMany({});
   });
 
@@ -50,12 +52,14 @@ describe('Transaction API', () => {
             {
               accountId: assetAccount._id,
               amount: 100,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             },
             {
               accountId: expenseAccount._id,
               amount: 100,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         });
@@ -81,7 +85,8 @@ describe('Transaction API', () => {
             {
               accountId: assetAccount._id,
               amount: 100,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             }
           ]
         });
@@ -101,12 +106,14 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -118,12 +125,14 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 200,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: incomeAccount._id,
             amount: 200,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -180,12 +189,14 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -222,12 +233,14 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -243,7 +256,7 @@ describe('Transaction API', () => {
       expect(response.body.data.description).toBe('Updated transaction');
     });
     
-    it('should allow unbalanced entries and set isBalanced=false', async () => {
+    it('should allow unbalanced entries', async () => {
       const res = await request(app)
         .put(`/api/transactions/${transaction._id}`)
         .send({
@@ -252,7 +265,8 @@ describe('Transaction API', () => {
             {
               accountId: assetAccount._id,
               amount: 150,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             }
           ]
         })
@@ -277,7 +291,8 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -310,7 +325,8 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -345,12 +361,14 @@ describe('Transaction API', () => {
           {
             accountId: assetAccount._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: expenseAccount._id,
             amount: 100,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });

@@ -25,12 +25,14 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 100,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -50,12 +52,14 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 100,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -66,7 +70,8 @@ describe('Transaction Model', () => {
     transaction.entries.push({
       accountId: account._id,
       amount: 50,
-      type: 'debit'
+      type: 'debit',
+      unit: 'USD'
     });
     
     await transaction.save();
@@ -81,7 +86,8 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });
@@ -112,7 +118,8 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });
@@ -128,7 +135,8 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'invalid' // Invalid type
+          type: 'invalid', // Invalid type
+          unit: 'USD'
         }
       ]
     });
@@ -144,7 +152,8 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: -100, // Negative amount
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });
@@ -160,12 +169,14 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 10.25,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 10.25,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -181,17 +192,20 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 0.1,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 0.2,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 0.3,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -208,12 +222,14 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 100,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -226,12 +242,14 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: 50,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -254,12 +272,14 @@ describe('Transaction Model', () => {
         {
           accountId: account._id,
           amount: '50.75',
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: account._id,
           amount: '50.75',
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });

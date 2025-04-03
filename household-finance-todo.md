@@ -71,23 +71,43 @@
 6. **Test**: Ensure rules apply in the correct order and with correct behavior
 7. **Test**: Verify automatic rule application works as expected
 
-### Step 8: Multi-Currency Support
-1. Extend account and transaction schemas for currency information
-2. Implement currency conversion utilities
-3. Update transaction forms to handle multiple currencies
-4. Create API for currency exchange rates (manual entry initially)
+### Step 8: Multi-Unit Support
+1. Extend account and transaction schemas for unit (e.g. currency, stock) information
+2. Implement unit conversion utilities
+3. Update transaction forms to handle multiple units
+4. Create API for unit prices and exchange rates (manual entry initially)
 5. **Test**: Create transactions in different currencies
 6. **Test**: Verify conversion calculations work correctly
 
-## Phase 3: Advanced Features
-
 ### Step 9: Basic Sankey Diagram
-1. Implement API endpoint for cash flow data
+1. Implement API endpoint for cash flow data over a period of time (default last 90 days)
+  - This can be a new report API that returns data in a format that the frontend can just pick up and use directly with D3.js for sankey
+  - Generate reports for other types of charts as well: 
+    - monthly expense/income bars over time
+    - pie charts with expense type for a period of time
+    - non USD unit transaction value over time (daily over a week, daily over a month, etc.)
 2. Create D3.js Sankey visualization component
+  - The height of each bar should represent the cashflow amount
+  - Income accounts should be on the left as a single line, expense accounts to the right. 
+    - Their respective heights should represent how much I earned and how much I spent in a month.
+    - They should start at the same height to make their comparison easy
+    - Intermediate accounts involved in the different transactions can go anywhere in between the income and expense columns
+    - A consistent color schema should be used to make reading of cashflows more convenient.
+      - You should use green and red as usual, but you should also get creative with other elements
+      - For example color coding different account types, or codify special transaction properties, etc.
 3. Implement time range selection for the diagram
-4. Build basic interactivity (hover information)
+  - We can start with a traditional date range picker for now
+4. Build basic interactivity 
+  - hover information of connection lines 
+  - hover information of account bars
+  - this information should be relevant to cash flows
+    - money in, money out in terms of debits/credits color coded
+    - also include names/types where relevant
 5. **Test**: Verify diagram data matches transaction records
 6. **Test**: Ensure time filtering works correctly
+
+
+## Phase 3: Advanced Features
 
 ### Step 10: Enhanced Sankey Diagram
 1. Implement click-through navigation from diagram to transactions and move diagram to be the main feature of the landing page
@@ -105,23 +125,14 @@
 5. **Test**: Transactions with location data appear correctly on maps
 6. **Test**: Verify heat map intensity correlates with spending amounts
 
-### Step 12: Recurring Transaction Detection
-1. Implement algorithm to detect recurring transaction patterns
-2. Create UI for confirming recurring transaction suggestions
-3. Build recurring transaction template functionality
-4. Implement dashboard widget for upcoming recurring transactions
-5. **Test**: System correctly identifies recurring patterns
-6. **Test**: Templates generate accurate preview transactions
-
-## Phase 4: Refinement and Advanced Features
-
-### Step 13: Timeline View
+### Step 12: Timeline View
 1. Implement calendar-based visualization API
 2. Build timeline UI component with day/week/month views
 3. Create filtering by account and category
 4. Implement pattern detection visualization
 5. **Test**: Transactions appear correctly on timeline
 6. **Test**: Ensure filtering works appropriately
+
 
 ### Step 14: External API for Import
 1. Design and document comprehensive API for external integration
@@ -139,6 +150,8 @@
 5. **Test**: Generate accurate tax summary reports
 6. **Test**: Verify exports contain all relevant tax information
 
+## Phase 4: Refinement and polishing
+
 ### Step 16: Performance Optimizations
 1. Implement caching strategy for report and visualization data
 2. Create background jobs for heavy calculations
@@ -146,8 +159,6 @@
 4. Implement data aggregation for historical transactions
 5. **Test**: Measure load times for large datasets before and after
 6. **Test**: Verify aggregated data remains accurate
-
-## Phase 5: Final Polishing
 
 ### Step 17: Dashboard Enhancement
 1. Design and implement comprehensive dashboard
@@ -160,22 +171,18 @@
 ### Step 18: User Experience Refinement
 1. Implement keyboard shortcuts for common actions
 2. Add bulk operations for transactions and accounts
-3. Create guided workflows for new users
-4. Implement context-sensitive help
-5. Implement modal windows for all add/edit operations:
+3. Implement modal windows for all add/edit operations:
    - Create reusable Modal component
    - Convert account forms to use modals
    - Update transaction forms to use modals
    - Convert entry line forms to use modals
    - Implement rule editing in modals
    - Ensure consistent keyboard navigation in all modals
-6. Implement modal confirmation dialogs for all deletion operations:
+4. Implement modal confirmation dialogs for all deletion operations:
    - Replace all window.confirm() calls with modal dialogs
    - Include specific messaging about what will be deleted
    - Show any dependent items that might be affected
    - Provide options to cancel or confirm the deletion
-7. **Test**: Measure task completion time with enhancements
-8. **Test**: Gather feedback on UX improvements
 
 ### Step 19: Documentation and Deployment
 1. Create comprehensive user documentation
@@ -185,10 +192,3 @@
 5. **Test**: Successful deployment to target environment
 6. **Test**: Verify backup and restore procedures
 
-### Step 20: Final Testing and Launch
-1. Conduct end-to-end testing of all features
-2. Perform security review
-3. Optimize for performance with real-world data volumes
-4. Fix any remaining issues or bugs
-5. **Test**: Complete system test with realistic data
-6. Launch v1.0 of the application

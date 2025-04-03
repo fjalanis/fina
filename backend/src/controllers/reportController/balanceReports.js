@@ -1,6 +1,6 @@
 const Transaction = require('../../models/Transaction');
 const Account = require('../../models/Account');
-const { handleError } = require('../../utils/validators');
+const { handleError } = require('../../utils/validation');
 
 // @desc    Get account balance report for a specific date range
 // @route   GET /api/reports/account-balance

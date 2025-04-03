@@ -22,12 +22,14 @@ describe('Transaction Search API', () => {
     // Create test accounts
     assetAccount = await Account.create({
       name: 'Search Test Account',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     expenseAccount = await Account.create({
       name: 'Search Test Expense',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
   });
   
@@ -42,13 +44,15 @@ describe('Transaction Search API', () => {
           accountId: assetAccount._id,
           description: 'Reference debit entry',
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: expenseAccount._id,
           description: 'Reference credit entry',
           amount: 100,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -65,13 +69,15 @@ describe('Transaction Search API', () => {
           accountId: assetAccount._id,
           description: 'Older debit entry',
           amount: 75,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: expenseAccount._id,
           description: 'Older credit entry',
           amount: 75,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -88,13 +94,15 @@ describe('Transaction Search API', () => {
           accountId: assetAccount._id,
           description: 'Newer debit entry',
           amount: 125,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: expenseAccount._id,
           description: 'Newer credit entry',
           amount: 125,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -111,13 +119,15 @@ describe('Transaction Search API', () => {
           accountId: assetAccount._id,
           description: 'Far debit entry',
           amount: 200,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: expenseAccount._id,
           description: 'Far credit entry',
           amount: 200,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -291,7 +301,8 @@ describe('Transaction Search API', () => {
             accountId: assetAccount._id,
             description: 'Excess debit entry',
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
           // No offsetting credit entry, creating a debit imbalance
         ]
@@ -306,7 +317,8 @@ describe('Transaction Search API', () => {
             accountId: expenseAccount._id,
             description: 'Excess credit entry',
             amount: 100,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
           // No offsetting debit entry, creating a credit imbalance
         ]
@@ -344,7 +356,8 @@ describe('Transaction Search API', () => {
             accountId: assetAccount._id,
             description: 'Excess debit entry',
             amount: 150,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
           // No offsetting credit entry, creating a debit imbalance
         ]
@@ -362,7 +375,8 @@ describe('Transaction Search API', () => {
             accountId: expenseAccount._id,
             description: 'Excess credit entry',
             amount: 150,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
           // No offsetting debit entry, creating a credit imbalance
         ]

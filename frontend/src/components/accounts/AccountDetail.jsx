@@ -112,6 +112,15 @@ const AccountDetail = () => {
             </div>
             
             <div>
+              <p className="text-sm text-gray-500">Unit</p>
+              <p className="mt-1">
+                <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                  {account.unit || 'USD'}
+                </span>
+              </p>
+            </div>
+            
+            <div>
               <p className="text-sm text-gray-500">Parent Account</p>
               <p className="mt-1">
                 {account.parent ? (

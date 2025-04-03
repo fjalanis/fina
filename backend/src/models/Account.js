@@ -27,6 +27,12 @@ const AccountSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  unit: {
+    type: String,
+    required: [true, 'Unit is required'],
+    default: 'USD',
+    maxlength: [20, 'Unit cannot exceed 20 characters']
+  },
   createdAt: {
     type: Date,
     default: Date.now

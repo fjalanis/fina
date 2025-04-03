@@ -15,12 +15,14 @@ describe('Report API Tests', () => {
     // Create test accounts
     testAccount1 = await Account.create({
       name: 'Test Account 1',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     testAccount2 = await Account.create({
       name: 'Test Account 2',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
     
     // Create some test transactions
@@ -31,12 +33,14 @@ describe('Report API Tests', () => {
         {
           accountId: testAccount1._id,
           amount: 100,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         },
         {
           accountId: testAccount2._id,
           amount: 100,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         }
       ]
     });
@@ -48,12 +52,14 @@ describe('Report API Tests', () => {
         {
           accountId: testAccount1._id,
           amount: 50,
-          type: 'credit'
+          type: 'credit',
+          unit: 'USD'
         },
         {
           accountId: testAccount2._id,
           amount: 50,
-          type: 'debit'
+          type: 'debit',
+          unit: 'USD'
         }
       ]
     });
@@ -162,12 +168,14 @@ describe('Report API Tests', () => {
           {
             accountId: incomeAccount._id,
             amount: 1000,
-            type: 'credit' // Credit to income account increases income
+            type: 'credit', // Credit to income account increases income
+            unit: 'USD'
           },
           {
             accountId: testAccount1._id,
             amount: 1000,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -179,12 +187,14 @@ describe('Report API Tests', () => {
           {
             accountId: expenseAccount._id,
             amount: 500,
-            type: 'debit' // Debit to expense account increases expenses
+            type: 'debit', // Debit to expense account increases expenses
+            unit: 'USD'
           },
           {
             accountId: testAccount1._id,
             amount: 500,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });
@@ -279,12 +289,14 @@ describe('Report API Tests', () => {
           {
             accountId: incomeAccount._id,
             amount: 2000,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           },
           {
             accountId: testAccount1._id,
             amount: 2000,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -296,12 +308,14 @@ describe('Report API Tests', () => {
           {
             accountId: expenseAccount._id,
             amount: 800,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           },
           {
             accountId: testAccount1._id,
             amount: 800,
-            type: 'credit'
+            type: 'credit',
+            unit: 'USD'
           }
         ]
       });

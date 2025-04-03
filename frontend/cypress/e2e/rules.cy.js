@@ -1,8 +1,7 @@
 describe('Rules Test', () => {
 
-  before(() => {
-    // Reset database before running tests
-    cy.task('resetDatabase');
+  beforeEach(() => {
+    cy.resetDatabase();
   });
 
   it('should navigate to the Rules tab and show key elements', () => {

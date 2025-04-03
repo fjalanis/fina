@@ -17,6 +17,7 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
   
   // Fetch account data if editing and get all accounts for parent selection
   useEffect(() => {
@@ -59,6 +60,15 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
       ...prevState,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
   
   // Handle form submission
@@ -68,6 +78,19 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
     try {
       setSubmitting(true);
       setError(null);
+      setValidationErrors({});
+      
+      // Validate required fields
+      const newValidationErrors = {};
+      if (!formData.unit || formData.unit.trim() === '') {
+        newValidationErrors.unit = 'Unit is required';
+      }
+      
+      if (Object.keys(newValidationErrors).length > 0) {
+        setValidationErrors(newValidationErrors);
+        setSubmitting(false);
+        return;
+      }
       
       // Format data for API
       const accountData = {
@@ -75,6 +98,8 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
         // Convert empty string to null for parent field
         parent: formData.parent || null
       };
+      
+      console.log('Submitting account data:', accountData);
       
       let savedAccount;
       
@@ -86,7 +111,9 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
         savedAccount = response.data;
       }
       
-      // Call the onSave callback with the saved account
+      console.log('API response:', savedAccount);
+      
+      // Call the onSave callback with the saved account from the API
       onSave(savedAccount);
     } catch (err) {
       setError(err.message || 'Failed to save account. Please check your inputs and try again.');
@@ -154,11 +181,15 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
                 name="unit"
                 value={formData.unit}
                 onChange={handleChange}
-                required
                 maxLength={20}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.unit ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="e.g., USD, stock:AAPL, crypto:BTC"
               />
+              {validationErrors.unit && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.unit}</p>
+              )}
               <p className="mt-1 text-sm text-gray-500">
                 Default is USD. For stocks, use format: stock:SYMBOL
               </p>

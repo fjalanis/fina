@@ -33,7 +33,8 @@ describe('Report Controller', () => {
             {
               accountId: testAccount1._id,
               amount: 100,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             }
           ]
         },
@@ -44,7 +45,8 @@ describe('Report Controller', () => {
             {
               accountId: testAccount1._id,
               amount: 50,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         }
@@ -106,12 +108,14 @@ describe('Report Controller', () => {
             {
               accountId: testAccount1._id,
               amount: 100,
-              type: 'debit'
+              type: 'debit',
+              unit: 'USD'
             },
             {
               accountId: testAccount2._id,
               amount: 100,
-              type: 'credit'
+              type: 'credit',
+              unit: 'USD'
             }
           ]
         }

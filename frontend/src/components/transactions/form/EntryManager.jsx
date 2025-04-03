@@ -73,6 +73,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
                 Account
               </label>
               <select
+                name="account"
                 value={entry.account}
                 onChange={(e) => handleAccountChange(index, e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -92,6 +93,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
               </label>
               <input
                 type="text"
+                name="description"
                 value={entry.description}
                 onChange={(e) => handleEntryChange(index, 'description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -105,6 +107,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
               </label>
               <input
                 type="number"
+                name="amount"
                 value={entry.amount}
                 onChange={(e) => handleEntryChange(index, 'amount', e.target.value)}
                 step="0.01"
@@ -118,6 +121,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
                 Type
               </label>
               <select
+                name="type"
                 value={entry.type}
                 onChange={(e) => handleEntryChange(index, 'type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -133,6 +137,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
               </label>
               <input
                 type="text"
+                name="unit"
                 value={entry.unit}
                 onChange={(e) => handleEntryChange(index, 'unit', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"

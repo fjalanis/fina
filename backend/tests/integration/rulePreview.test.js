@@ -20,12 +20,14 @@ describe('Rule Preview Functionality', () => {
     // Create test accounts
     testAccount1 = await Account.create({
       name: 'Test Account 1',
-      type: 'asset'
+      type: 'asset',
+      unit: 'USD'
     });
     
     testAccount2 = await Account.create({
       name: 'Test Account 2',
-      type: 'expense'
+      type: 'expense',
+      unit: 'USD'
     });
   });
   
@@ -52,7 +54,8 @@ describe('Rule Preview Functionality', () => {
           {
             accountId: testAccount1._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -98,7 +101,8 @@ describe('Rule Preview Functionality', () => {
           {
             accountId: testAccount1._id,
             amount: 100,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -138,7 +142,8 @@ describe('Rule Preview Functionality', () => {
           {
             accountId: testAccount1._id,
             amount: 75,
-            type: 'debit'
+            type: 'debit',
+            unit: 'USD'
           }
         ]
       });
@@ -194,12 +199,14 @@ describe('Rule Preview Integration Tests', () => {
           accountId: testAccount._id,
           amount: 50,
           type: 'debit',
+          unit: 'USD',
           memo: 'Groceries'
         },
         {
           accountId: new mongoose.Types.ObjectId(),
           amount: 50,
           type: 'credit',
+          unit: 'USD',
           memo: 'Groceries payment'
         }
       ]

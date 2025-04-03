@@ -1,6 +1,6 @@
 const Transaction = require('../../models/Transaction');
 const Account = require('../../models/Account');
-const { validateEntry, handleError } = require('../../utils/validators');
+const { validateEntry, handleError } = require('../../utils/validation');
 
 // Helper to get unit for an account ID
 async function getUnitForAccount(accountId) {
@@ -19,12 +19,12 @@ async function getUnitForAccount(accountId) {
 // @access  Private
 exports.addEntry = async (req, res) => {
   try {
-    const validationResult = validateEntry(req.body);
+    const validationResult = await validateEntry(req.body);
     
     if (!validationResult.isValid) {
       return res.status(400).json({
         success: false,
-        error: validationResult.error
+        error: validationResult.errors.join(', ')
       });
     }
     
@@ -175,12 +175,12 @@ exports.getEntry = async (req, res) => {
 // @access  Public
 exports.updateEntry = async (req, res) => {
   try {
-    const validationResult = validateEntry(req.body);
+    const validationResult = await validateEntry(req.body);
     
     if (!validationResult.isValid) {
       return res.status(400).json({
         success: false,
-        error: validationResult.error
+        error: validationResult.errors.join(', ')
       });
     }
 

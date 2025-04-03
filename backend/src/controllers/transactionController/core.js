@@ -1,8 +1,6 @@
 const Transaction = require('../../models/Transaction');
 const Account = require('../../models/Account');
-const { validateTransaction } = require('../../utils/validation');
 const { applyRulesToTransaction } = require('../../services/ruleApplicationService');
-const mongoose = require('mongoose');
 
 // Helper function to enrich entries with units
 async function enrichEntriesWithUnits(entriesData) {

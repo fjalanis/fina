@@ -58,6 +58,8 @@ const AccountList = () => {
   };
 
   const handleSaveAccount = (savedAccount) => {
+    console.log('handleSaveAccount received:', savedAccount);
+    
     if (editAccount) {
       const updateAccount = (accounts) => {
         return accounts.map(account => {
@@ -71,13 +73,20 @@ const AccountList = () => {
       setAccounts(updateAccount(accounts));
       setEditAccount(null);
     } else {
-      if (savedAccount.parent) {
+      // Format the saved account to ensure parent is null if it's an empty object or undefined
+      const formattedAccount = {
+        ...savedAccount,
+        parent: savedAccount.parent && Object.keys(savedAccount.parent).length > 0 ? savedAccount.parent : null
+      };
+      console.log('Formatted account before adding:', formattedAccount);
+
+      if (formattedAccount.parent && formattedAccount.parent._id) {
         const addToParent = (accounts) => {
           return accounts.map(account => {
-            if (account._id === savedAccount.parent) {
+            if (account._id === formattedAccount.parent._id) {
               return {
                 ...account,
-                children: [...(account.children || []), savedAccount]
+                children: [...(account.children || []), formattedAccount]
               };
             }
             if (account.children) {
@@ -88,7 +97,7 @@ const AccountList = () => {
         };
         setAccounts(addToParent(accounts));
       } else {
-        setAccounts([...accounts, savedAccount]);
+        setAccounts([...accounts, formattedAccount]);
       }
       setIsCreateModalOpen(false);
     }
@@ -121,7 +130,12 @@ const AccountList = () => {
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap">
-            {account.parent ? account.parent.name : '-'}
+            <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+              {account.unit ? account.unit : 'USD'}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap">
+            {account.parent && account.parent.name ? account.parent.name : '-'}
           </td>
           <td className="py-4 px-4 whitespace-nowrap">
             <span className={`px-2 py-1 text-xs rounded-full ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -130,7 +144,7 @@ const AccountList = () => {
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-center">
             <span className="text-sm text-gray-600" title="Includes transactions from all child accounts">
-              {account.totalTransactionCount || 0}
+              {typeof account.totalTransactionCount === 'object' ? 0 : (account.totalTransactionCount || 0)}
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
@@ -182,6 +196,7 @@ const AccountList = () => {
               <tr>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">

@@ -1,6 +1,6 @@
 const Transaction = require('../../models/Transaction');
 const Account = require('../../models/Account');
-const { handleError } = require('../../utils/validators');
+const { handleError } = require('../../utils/validation');
 
 // @desc    Get cash flow report (bank account transactions)
 // @route   GET /api/reports/cash-flow

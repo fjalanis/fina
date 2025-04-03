@@ -20,7 +20,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "cypress run --spec 'cypress/e2e/*.cy.js'",
-    "test:gui": "cypress open"
+    "test:gui": "cypress open --e2e"
   },
   "devDependencies": {
     "@testing-library/react": "^16.2.0",

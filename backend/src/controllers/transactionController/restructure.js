@@ -1,5 +1,4 @@
 const Transaction = require('../../models/Transaction');
-const { validateTransaction } = require('../../utils/validation');
 
 // @desc    Move an entry from one transaction to another
 // @route   POST /api/transactions/move-entry
@@ -48,19 +47,6 @@ exports.moveEntry = async (req, res) => {
     
     // Add entry to destination transaction
     destinationTransaction.entries.push(entryToMove);
-    
-    // Validate both transactions
-    const sourceValidation = validateTransaction(sourceTransaction);
-    const destValidation = validateTransaction(destinationTransaction);
-    
-    if (!sourceValidation.isValid || !destValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Moving entry would create invalid transactions',
-        sourceErrors: sourceValidation.errors,
-        destErrors: destValidation.errors
-      });
-    }
     
     // Save both transactions
     if (sourceTransaction.entries.length === 0) {
@@ -133,19 +119,6 @@ exports.splitTransaction = async (req, res) => {
     for (const index of sortedIndices) {
       newTransaction.entries.push(sourceTransaction.entries[index]);
       sourceTransaction.entries.splice(index, 1);
-    }
-    
-    // Validate both transactions
-    const sourceValidation = validateTransaction(sourceTransaction);
-    const newValidation = validateTransaction(newTransaction);
-    
-    if (!sourceValidation.isValid || !newValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Split would create invalid transactions',
-        sourceErrors: sourceValidation.errors,
-        newErrors: newValidation.errors
-      });
     }
     
     // Save both transactions
@@ -232,20 +205,6 @@ exports.mergeTransaction = async (req, res) => {
         destinationTransaction.notes 
           ? `${destinationTransaction.notes}\n---\n${sourceTransaction.notes}`
           : sourceTransaction.notes;
-    }
-    
-    // Log the entries before validation
-    console.log('Merged entries before validation:', JSON.stringify(destinationTransaction.entries, null, 2));
-    
-    // Validate merged transaction
-    const validation = validateTransaction(destinationTransaction);
-    if (!validation.isValid) {
-      console.error('Validation failed. Errors:', validation.errors);
-      return res.status(400).json({
-        success: false,
-        error: 'Merge would create an invalid transaction',
-        errors: validation.errors
-      });
     }
     
     // Save destination and delete source
