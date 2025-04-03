@@ -9,7 +9,7 @@ describe('Rules Test', () => {
     cy.intercept('GET', '/api/rules').as('getRules');
 
     // Start fresh for this test
-    cy.visit('http://localhost:3000'); 
+    cy.visit('/'); 
 
     // Use a more specific selector for the navigation link
     cy.get('nav a[href="/rules"]').click();
@@ -32,12 +32,12 @@ describe('Rules Test', () => {
     // Intercept the API call for rules
     cy.intercept('GET', '/api/rules').as('getRules');
 
-    // Start fresh
-    cy.visit('http://localhost:3000'); 
+    // Create a test account
+    cy.createAccount('Test USD Account', 'asset', 'USD');
 
-    // Navigate to Rules page
-    cy.get('nav a[href="/rules"]').click();
-    cy.wait('@getRules');
+    // Start fresh
+    cy.visit('/rules'); 
+
 
     // Click the Create button
     cy.contains('button', 'Add Rule').click();
@@ -86,9 +86,7 @@ describe('Rules Test', () => {
     cy.intercept('GET', '/api/accounts').as('getAccounts');
 
     // Start fresh
-    cy.visit('http://localhost:3000'); 
-    cy.get('nav a[href="/rules"]').click();
-    cy.wait('@getRules');
+    cy.visit('/rules'); 
 
     // Open modal
     cy.contains('button', 'Add Rule').click();
@@ -108,10 +106,11 @@ describe('Rules Test', () => {
     cy.intercept('GET', '/api/accounts').as('getAccounts');
     cy.intercept('POST', '/api/rules').as('createRule');
 
+    // Create a test account
+    cy.createAccount('Test USD Account', 'asset', 'USD');
+
     // Start fresh
-    cy.visit('http://localhost:3000'); 
-    cy.get('nav a[href="/rules"]').click();
-    cy.wait('@getRules');
+    cy.visit('/rules'); 
 
     // Open modal
     cy.contains('button', 'Add Rule').click();
@@ -147,12 +146,17 @@ describe('Rules Test', () => {
         // Verify the pattern we entered is shown
         cy.contains('TestPattern').should('be.visible');
       });
+
   });
 
   it('should show error toast when rule creation fails', () => {
     // Intercept API calls
     cy.intercept('GET', '/api/rules').as('getRules');
     cy.intercept('GET', '/api/accounts').as('getAccounts');
+
+    // Create a test account
+    cy.createAccount('Test USD Account', 'asset', 'USD');
+
     
     // Mock the POST with a server error
     cy.intercept('POST', '/api/rules', {
@@ -164,9 +168,7 @@ describe('Rules Test', () => {
     }).as('createRuleFail');
 
     // Start fresh
-    cy.visit('http://localhost:3000'); 
-    cy.get('nav a[href="/rules"]').click();
-    cy.wait('@getRules');
+    cy.visit('/rules'); 
 
     // Open modal
     cy.contains('button', 'Add Rule').click();
@@ -197,11 +199,30 @@ describe('Rules Test', () => {
     cy.intercept('GET', '/api/rules').as('getRules');
     cy.intercept('GET', '/api/accounts').as('getAccounts');
     cy.intercept('PUT', '/api/rules/*').as('updateRule');
+    cy.intercept('POST', '/api/rules').as('createRule');
+
+    // Create a test account
+    cy.createAccount('Test USD Account', 'asset', 'USD');
 
     // Create a rule first to ensure we have something to edit
-    cy.visit('http://localhost:3000'); 
-    cy.get('nav a[href="/rules"]').click();
-    cy.wait('@getRules');
+    cy.visit('/rules'); 
+
+    // Open modal
+    cy.contains('button', 'Add Rule').click();
+    cy.wait('@getAccounts');
+    
+    // Fill in the required fields
+    cy.get('input[name="name"]').type('Test Rule');
+    cy.get('input[placeholder="E.g., Grocery|Supermarket"]').type('TestPattern');
+    
+    // Select first account in the dropdown (assuming there's at least one)
+    cy.get('select').eq(3).select(1); // This might need adjustment based on your DOM structure
+    
+    // Submit the form
+    cy.contains('button', 'Save Rule').click();
+    
+    // Wait for the API call to complete
+    cy.wait('@createRule');
 
     // Find the edit button for the first rule
     cy.get('table tbody tr')
@@ -209,8 +230,6 @@ describe('Rules Test', () => {
       .find('button[aria-label="Edit rule"]')
       .click();
 
-    cy.wait('@getAccounts');
-    
     // Verify the modal opens with title "Edit Rule"
     cy.contains('h3', 'Edit Rule').should('be.visible');
     
@@ -230,9 +249,14 @@ describe('Rules Test', () => {
     
     // Wait for the update API call to complete
     cy.wait('@updateRule');
+
+    // Check that no error toast appears
+    cy.get('.Toastify__toast--error').should('not.exist');
     
     // Verify the modal is closed
     cy.contains('h3', 'Edit Rule').should('not.exist');
+
+    cy.get('.Toastify__toast--success').should('be.visible');
     
     // Verify the changes are reflected in the table
     cy.get('table tbody tr')
@@ -243,4 +267,48 @@ describe('Rules Test', () => {
       });
   });
 
+  it('should delete a rule', () => {
+    // Intercept API calls
+    cy.intercept('GET', '/api/rules').as('getRules');
+    cy.intercept('DELETE', '/api/rules/*').as('deleteRule');
+
+    // Create a test account  
+    cy.createAccount('Test USD Account', 'asset', 'USD');
+
+    // Create a rule first to ensure we have something to delete
+    cy.visit('/rules'); 
+
+    // Open modal
+    cy.contains('button', 'Add Rule').click();  
+
+    // Fill in the required fields
+    cy.get('input[name="name"]').type('Test Rule');
+    cy.get('input[placeholder="E.g., Grocery|Supermarket"]').type('TestPattern'); 
+    
+    // Submit the form
+    cy.contains('button', 'Save Rule').click();
+    
+    // Wait for the API call to complete
+    cy.wait('@createRule'); 
+
+    // Find the delete button for the first rule
+    cy.get('table tbody tr')
+      .first()
+      .find('button[aria-label="Delete rule"]')
+      .click(); 
+    
+    // Wait for the delete API call to complete
+    cy.wait('@deleteRule');
+
+    // Check that no error toast appears
+    cy.get('.Toastify__toast--error').should('not.exist');  
+
+    cy.get('.Toastify__toast--success').should('be.visible');
+    
+    // Verify the rule is deleted from the table
+    cy.get('table tbody tr')
+      .contains('tr', 'Test Rule')
+      .should('not.exist');
+  });
+  
 }); 

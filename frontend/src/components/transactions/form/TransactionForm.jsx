@@ -34,11 +34,7 @@ const TransactionForm = ({ onSave, onCancel }) => {
           <EntryManager
             entries={entries}
             accounts={accounts}
-            balance={balance}
-            description={formData.description} // Pass description for placeholder
-            onEntryChange={handleEntryLineChange}
-            onAddEntry={handleAddEntryLine}
-            onRemoveEntry={handleRemoveEntryLine}
+            onEntriesChange={handleEntryLineChange}
           />
           
           {/* Submit/Cancel Buttons */}

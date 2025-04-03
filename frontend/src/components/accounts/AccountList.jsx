@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { fetchAccountHierarchy, deleteAccount } from '../../services/accountService';
 import { Link } from 'react-router-dom';
 import Modal from '../common/Modal';
+import ConfirmationModal from '../common/ConfirmationModal';
 import AccountForm from './AccountForm';
+import { toast } from 'react-toastify';
 
 const AccountList = () => {
   const [accounts, setAccounts] = useState([]);
@@ -10,6 +12,7 @@ const AccountList = () => {
   const [error, setError] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editAccount, setEditAccount] = useState(null);
+  const [deleteAccountData, setDeleteAccountData] = useState(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -29,24 +32,34 @@ const AccountList = () => {
     }
   };
 
-  const handleDeleteAccount = async (id) => {
-    if (window.confirm('Are you sure you want to delete this account?')) {
-      try {
-        await deleteAccount(id);
-        const removeAccount = (accounts) => {
-          return accounts.filter(account => {
-            if (account._id === id) return false;
-            if (account.children) {
-              account.children = removeAccount(account.children);
-            }
-            return true;
-          });
-        };
-        setAccounts(removeAccount(accounts));
-      } catch (err) {
-        setError(err.message || 'Failed to delete account');
-      }
+  const handleDeleteClick = (account) => {
+    setDeleteAccountData(account);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await deleteAccount(deleteAccountData._id);
+      const removeAccount = (accounts) => {
+        return accounts.filter(account => {
+          if (account._id === deleteAccountData._id) return false;
+          if (account.children) {
+            account.children = removeAccount(account.children);
+          }
+          return true;
+        });
+      };
+      setAccounts(removeAccount(accounts));
+      toast.success('Account deleted successfully');
+    } catch (err) {
+      setError(err.message || 'Failed to delete account');
+      toast.error(err.message || 'Failed to delete account');
+    } finally {
+      setDeleteAccountData(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteAccountData(null);
   };
 
   const handleCreateAccount = () => {
@@ -72,34 +85,44 @@ const AccountList = () => {
       };
       setAccounts(updateAccount(accounts));
       setEditAccount(null);
+      console.log('Showing success toast for account update');
+      toast.success('Account updated successfully');
     } else {
       // Format the saved account to ensure parent is null if it's an empty object or undefined
       const formattedAccount = {
         ...savedAccount,
-        parent: savedAccount.parent && Object.keys(savedAccount.parent).length > 0 ? savedAccount.parent : null
+        parent: savedAccount.parent || null,
+        children: [] // Initialize empty children array
       };
       console.log('Formatted account before adding:', formattedAccount);
 
-      if (formattedAccount.parent && formattedAccount.parent._id) {
-        const addToParent = (accounts) => {
-          return accounts.map(account => {
-            if (account._id === formattedAccount.parent._id) {
-              return {
-                ...account,
-                children: [...(account.children || []), formattedAccount]
-              };
-            }
-            if (account.children) {
-              account.children = addToParent(account.children);
-            }
-            return account;
-          });
-        };
-        setAccounts(addToParent(accounts));
+      // Create a new array with the updated hierarchy
+      const updateAccountsHierarchy = (accounts) => {
+        return accounts.map(account => {
+          if (formattedAccount.parent && account._id === formattedAccount.parent) {
+            return {
+              ...account,
+              children: [...(account.children || []), formattedAccount]
+            };
+          }
+          if (account.children) {
+            return {
+              ...account,
+              children: updateAccountsHierarchy(account.children)
+            };
+          }
+          return account;
+        });
+      };
+
+      if (formattedAccount.parent) {
+        setAccounts(updateAccountsHierarchy(accounts));
       } else {
         setAccounts([...accounts, formattedAccount]);
       }
       setIsCreateModalOpen(false);
+      console.log('Showing success toast for account creation');
+      toast.success('Account created successfully');
     }
   };
 
@@ -134,14 +157,6 @@ const AccountList = () => {
               {account.unit ? account.unit : 'USD'}
             </span>
           </td>
-          <td className="py-4 px-4 whitespace-nowrap">
-            {account.parent && account.parent.name ? account.parent.name : '-'}
-          </td>
-          <td className="py-4 px-4 whitespace-nowrap">
-            <span className={`px-2 py-1 text-xs rounded-full ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-              {account.isActive ? 'Active' : 'Inactive'}
-            </span>
-          </td>
           <td className="py-4 px-4 whitespace-nowrap text-center">
             <span className="text-sm text-gray-600" title="Includes transactions from all child accounts">
               {typeof account.totalTransactionCount === 'object' ? 0 : (account.totalTransactionCount || 0)}
@@ -156,7 +171,7 @@ const AccountList = () => {
             </button>
             {!hasChildren && (
               <button
-                onClick={() => handleDeleteAccount(account._id)}
+                onClick={() => handleDeleteClick(account)}
                 className="text-red-600 hover:text-red-900"
               >
                 Delete
@@ -197,8 +212,6 @@ const AccountList = () => {
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent</th>
-                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <span title="Total transactions including all child accounts">Total Transactions</span>
                 </th>
@@ -238,6 +251,15 @@ const AccountList = () => {
           onCancel={() => setEditAccount(null)}
         />
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(deleteAccountData)}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Account"
+        message={`Are you sure you want to delete "${deleteAccountData?.name}"? This account has ${deleteAccountData?.totalTransactionCount || 0} transactions.`}
+      />
     </div>
   );
 };

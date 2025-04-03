@@ -19,7 +19,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "cypress run --spec 'cypress/e2e/*.cy.js'",
+    "test": "cypress run --e2e",
     "test:gui": "cypress open --e2e"
   },
   "devDependencies": {

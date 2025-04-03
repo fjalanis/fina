@@ -2,7 +2,7 @@ describe('Smoke Test', () => {
   
   it('should load the application and show main navigation', () => {
     // Visit the base URL (ensure your dev server is running)
-    cy.visit('http://localhost:3000'); // Adjust port if needed
+    cy.visit('/'); // Adjust port if needed
 
     // Check if the main navigation tabs are visible
     cy.contains('Accounts').should('be.visible');

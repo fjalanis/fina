@@ -24,10 +24,11 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
     onEntriesChange(newEntries);
   };
 
-  const handleEntryChange = (index, field, value) => {
+  const handleEntryChange = (index, e) => {
+    const { name, value } = e.target;
     const newEntries = entries.map((entry, i) => {
       if (i === index) {
-        return { ...entry, [field]: value };
+        return { ...entry, [name]: value };
       }
       return entry;
     });
@@ -38,15 +39,15 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
     const account = accounts.find(a => a._id === accountId);
     setSelectedAccount(account);
     setShowLotsTable(account?.unit !== 'USD');
-    handleEntryChange(index, 'account', accountId);
+    handleEntryChange(index, { target: { name: 'account', value: accountId } });
   };
 
   const handleLotSelection = (lot) => {
     // Update the entry with the selected lot's details
     const entryIndex = entries.findIndex(e => e.account === selectedAccount._id);
     if (entryIndex !== -1) {
-      handleEntryChange(entryIndex, 'quantity', lot.quantity);
-      handleEntryChange(entryIndex, 'amount', lot.amount);
+      handleEntryChange(entryIndex, { target: { name: 'quantity', value: lot.quantity } });
+      handleEntryChange(entryIndex, { target: { name: 'amount', value: lot.amount } });
     }
   };
 
@@ -95,7 +96,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
                 type="text"
                 name="description"
                 value={entry.description}
-                onChange={(e) => handleEntryChange(index, 'description', e.target.value)}
+                onChange={(e) => handleEntryChange(index, e)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter description"
               />
@@ -109,7 +110,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
                 type="number"
                 name="amount"
                 value={entry.amount}
-                onChange={(e) => handleEntryChange(index, 'amount', e.target.value)}
+                onChange={(e) => handleEntryChange(index, e)}
                 step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter amount"
@@ -123,7 +124,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
               <select
                 name="type"
                 value={entry.type}
-                onChange={(e) => handleEntryChange(index, 'type', e.target.value)}
+                onChange={(e) => handleEntryChange(index, e)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="debit">Debit</option>
@@ -139,7 +140,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
                 type="text"
                 name="unit"
                 value={entry.unit}
-                onChange={(e) => handleEntryChange(index, 'unit', e.target.value)}
+                onChange={(e) => handleEntryChange(index, e)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter unit (e.g., USD, AAPL)"
               />
@@ -152,7 +153,7 @@ const EntryManager = ({ entries, onEntriesChange, accounts }) => {
               <input
                 type="number"
                 value={entry.quantity}
-                onChange={(e) => handleEntryChange(index, 'quantity', e.target.value)}
+                onChange={(e) => handleEntryChange(index, e)}
                 step="0.0001"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter quantity"

@@ -1,5 +1,7 @@
 const Account = require('../backend/src/models/Account');
 const Transaction = require('../backend/src/models/Transaction');
+const Rule = require('../backend/src/models/Rule');
+const ExchangeRate = require('../backend/src/models/ExchangeRate');
 const connectDB = require('../backend/src/config/database');
 const logger = require('../backend/src/config/logger');
 
@@ -8,6 +10,8 @@ const clearAllData = async () => {
   logger.info('Clearing existing data...');
   await Transaction.deleteMany({});
   await Account.deleteMany({});
+  await Rule.deleteMany({});
+  await ExchangeRate.deleteMany({});
   logger.info('All data cleared');
 };
 

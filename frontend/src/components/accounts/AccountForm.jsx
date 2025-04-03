@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAccounts, createAccount, updateAccount } from '../../services/accountService';
+import { toast } from 'react-toastify';
 
 const AccountForm = ({ account = null, onSave, onCancel }) => {
   const isEditing = Boolean(account);
@@ -116,8 +117,10 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
       // Call the onSave callback with the saved account from the API
       onSave(savedAccount);
     } catch (err) {
-      setError(err.message || 'Failed to save account. Please check your inputs and try again.');
+      const errorMessage = err.message || 'Failed to save account. Please check your inputs and try again.';
+      setError(errorMessage);
       console.error('Error saving account:', err);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

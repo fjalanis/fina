@@ -23,10 +23,6 @@ const AccountSchema = new mongoose.Schema({
     ref: 'Account',
     default: null
   },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
   unit: {
     type: String,
     required: [true, 'Unit is required'],
