@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { fetchAccountBalanceReport } from '../../services/reportService';
 import { fetchAccounts } from '../../services/accountService';
 import DateRangePicker from './DateRangePicker';
@@ -34,9 +34,9 @@ const AccountBalanceReport = () => {
     loadAccounts();
   }, []);
 
-  const handleDateRangeChange = (newDateRange) => {
+  const handleDateRangeChange = useCallback((newDateRange) => {
     setDateRange(newDateRange);
-  };
+  }, []);
 
   const handleAccountChange = (e) => {
     setSelectedAccount(e.target.value);
@@ -113,7 +113,7 @@ const AccountBalanceReport = () => {
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold">
-              Account Balances: {new Date(reportData.period.startDate).toLocaleDateString()} to {new Date(reportData.period.endDate).toLocaleDateString()}
+              Account Balances: {new Date(dateRange.startDate).toLocaleDateString()} to {new Date(dateRange.endDate).toLocaleDateString()}
             </h3>
           </div>
           
@@ -139,32 +139,43 @@ const AccountBalanceReport = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {reportData.data.length === 0 ? (
+                {reportData.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
                       No data found for the selected period.
                     </td>
                   </tr>
                 ) : (
-                  reportData.data.map((account) => (
-                    <tr key={account._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {account.accountName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                        {account.accountType}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
-                        ${account.totalDebits.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
-                        ${account.totalCredits.toFixed(2)}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${account.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${Math.abs(account.balance).toFixed(2)} {account.balance < 0 ? '(CR)' : ''}
-                      </td>
-                    </tr>
-                  ))
+                  reportData.map((account) => {
+                    // Calculate totals from entries
+                    const totalDebits = account.entries
+                      .filter(entry => entry.type === 'debit')
+                      .reduce((sum, entry) => sum + entry.amount, 0);
+                      
+                    const totalCredits = account.entries
+                      .filter(entry => entry.type === 'credit')
+                      .reduce((sum, entry) => sum + entry.amount, 0);
+
+                    return (
+                      <tr key={account.accountId}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {account.accountName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                          {account.accountType}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                          ${totalDebits.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                          ${totalCredits.toFixed(2)}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${account.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ${Math.abs(account.balance).toFixed(2)} {account.balance < 0 ? '(CR)' : ''}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
