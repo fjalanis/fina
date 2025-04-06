@@ -25,4 +25,20 @@ export const fetchMonthlyIncomeExpenseSummary = async (year, month) => {
     : `${REPORT_ENDPOINT}/monthly-summary`;
 
   return fetchData(endpoint);
+};
+
+// Get Sankey diagram data
+export const fetchSankeyReportData = async (startDate, endDate) => {
+  const params = new URLSearchParams();
+  // Format dates as YYYY-MM-DD strings if they are Date objects
+  if (startDate instanceof Date) {
+    params.append('startDate', startDate.toISOString().split('T')[0]);
+  }
+  if (endDate instanceof Date) {
+    params.append('endDate', endDate.toISOString().split('T')[0]);
+  }
+
+  const queryString = params.toString();
+  const endpoint = `${REPORT_ENDPOINT}/sankey?${queryString}`;
+  return fetchData(endpoint);
 }; 

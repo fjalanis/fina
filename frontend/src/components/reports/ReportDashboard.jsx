@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import AccountBalanceReport from './AccountBalanceReport';
 import MonthlyIncomeExpenseSummary from './MonthlyIncomeExpenseSummary';
+import SankeyDiagramReport from './SankeyDiagramReport';
 
 const ReportDashboard = () => {
-  const [activeReport, setActiveReport] = useState('monthly-summary');
+  const [activeReport, setActiveReport] = useState('sankey-diagram');
 
   const reportTypes = [
+    { id: 'sankey-diagram', name: 'Sankey Diagram' },
     { id: 'monthly-summary', name: 'Monthly Income/Expense Summary' },
     { id: 'account-balance', name: 'Account Balance Report' }
   ];
 
   const renderReport = () => {
     switch (activeReport) {
+      case 'sankey-diagram':
+        return <SankeyDiagramReport />;
       case 'account-balance':
         return <AccountBalanceReport />;
       case 'monthly-summary':

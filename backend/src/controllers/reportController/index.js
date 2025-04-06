@@ -18,6 +18,10 @@ const {
   getCashflowForecast
 } = require('./cashflowReports');
 
+const { 
+  getSankeyReport 
+} = require('./sankeyReport');
+
 // Re-export all the report functions
 module.exports = {
   getAccountBalanceReport,
@@ -27,5 +31,6 @@ module.exports = {
   getAnnualIncomeExpenseSummary,
   getTransactionSummary,
   getCashflowReport,
-  getCashflowForecast
+  getCashflowForecast,
+  getSankeyReport
 }; 
