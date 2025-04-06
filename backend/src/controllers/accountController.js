@@ -1,5 +1,6 @@
 const Account = require('../models/Account');
 const logger = require('../config/logger');
+const Transaction = require('../models/Transaction');
 
 // @desc    Get all accounts
 // @route   GET /api/accounts
@@ -258,13 +259,15 @@ exports.deleteAccount = async (req, res) => {
 // @access  Public
 exports.getAccountHierarchy = async (req, res) => {
   try {
+    const { startDate, endDate } = req.query;
+
     // Get top-level accounts (no parent)
     const accounts = await Account.find({ parent: null }).lean();
     
-    // For each root account, populate its children and calculate transaction counts
+    // For each root account, populate its children and calculate transaction sums
     const processedAccounts = [];
     for (const rootAccount of accounts) {
-      const accountWithDetails = await getAccountWithChildren(rootAccount._id);
+      const accountWithDetails = await getAccountWithChildren(rootAccount._id, startDate, endDate); 
       processedAccounts.push(accountWithDetails);
     }
     
@@ -282,8 +285,8 @@ exports.getAccountHierarchy = async (req, res) => {
   }
 };
 
-// Recursively get an account with its children and transaction counts
-async function getAccountWithChildren(accountId) {
+// Recursively get an account with its children, transaction counts, and debit/credit sums within a date range
+async function getAccountWithChildren(accountId, startDate, endDate) { 
   // Use .lean() for efficiency, we build the plain object manually
   const account = await Account.findById(accountId).lean();
 
@@ -291,10 +294,61 @@ async function getAccountWithChildren(accountId) {
     // Handle case where account might not be found
     return null; 
   }
+
+  // --- Calculate Debits and Credits for the current account within the date range ---
+  let directDebits = 0;
+  let directCredits = 0;
+
+  // Build the date match condition if dates are provided
+  const dateMatch = {};
+  if (startDate) dateMatch.$gte = new Date(startDate);
+  if (endDate) dateMatch.$lte = new Date(endDate);
+
+  // Match criteria only includes date if provided
+  const transactionMatchCriteria = { 
+    ...(Object.keys(dateMatch).length > 0 && { date: dateMatch })
+  };
   
-  // Get direct transaction count
-  const directTransactionCount = await Account.model('Transaction').countDocuments({
-    'entries.accountId': accountId
+  try {
+    const aggregationResult = await Transaction.aggregate([
+      // Match transactions within the date range (if specified)
+      ...(Object.keys(transactionMatchCriteria).length > 0 ? [{ $match: transactionMatchCriteria }] : []), 
+      { $unwind: '$entries' },
+      // Match specific entries for the current accountId
+      { $match: { 'entries.accountId': accountId } }, 
+      {
+        $group: {
+          _id: null, // Group all matched entries for this account
+          debits: { 
+            $sum: { 
+              // Sum amount only if type is 'debit'
+              $cond: [ { $eq: ['$entries.type', 'debit'] }, '$entries.amount', 0 ] 
+            } 
+          },
+          credits: { 
+            $sum: { 
+              // Sum amount only if type is 'credit'
+              $cond: [ { $eq: ['$entries.type', 'credit'] }, '$entries.amount', 0 ] 
+            } 
+          }
+        }
+      }
+    ]);
+
+    if (aggregationResult.length > 0) {
+      directDebits = aggregationResult[0].debits || 0;
+      directCredits = aggregationResult[0].credits || 0;
+    }
+  } catch (aggError) {
+    logger.error(`Aggregation error for account ${accountId}: ${aggError.message}`);
+    // Decide how to handle aggregation errors, e.g., return 0s or throw
+  }
+  // --- End Debit/Credit Calculation ---
+
+  // Get direct transaction count (consider if this count should also be date-filtered)
+  const directTransactionCount = await Transaction.countDocuments({
+    'entries.accountId': accountId 
+    // Potentially add date filtering here too if count should match debits/credits period
   });
   
   // Get children (lean)
@@ -302,21 +356,30 @@ async function getAccountWithChildren(accountId) {
   
   const processedChildren = [];
   let childrenTransactionCount = 0;
+  let childrenDebits = 0;
+  let childrenCredits = 0;
   
   for (const child of children) {
-    // Recursive call returns a plain object with calculated counts, or null
-    const processedChild = await getAccountWithChildren(child._id); 
+    // Recursive call returns a plain object with calculated sums/counts, or null
+    // Pass dates down recursively
+    const processedChild = await getAccountWithChildren(child._id, startDate, endDate); 
     if (processedChild) {
-      // Access the count property directly from the returned plain object
+      // Access the calculated properties directly from the returned plain object
       childrenTransactionCount += processedChild.totalTransactionCount || 0; 
+      childrenDebits += processedChild.totalDebits || 0;
+      childrenCredits += processedChild.totalCredits || 0;
       processedChildren.push(processedChild);
     } 
   }
   
-  // Add calculated counts and children to the plain object
+  // Add calculated sums and counts to the plain object
   account.children = processedChildren;
-  account.transactionCount = directTransactionCount;
-  account.totalTransactionCount = directTransactionCount + childrenTransactionCount;
+  account.transactionCount = directTransactionCount; // Direct count (consider date filtering?)
+  account.totalTransactionCount = directTransactionCount + childrenTransactionCount; // Total count (recursive)
+  account.debits = directDebits; // Direct debits for this account in range
+  account.credits = directCredits; // Direct credits for this account in range
+  account.totalDebits = directDebits + childrenDebits; // Total debits (recursive) in range
+  account.totalCredits = directCredits + childrenCredits; // Total credits (recursive) in range
   
   return account; // Return the augmented plain object
 } 

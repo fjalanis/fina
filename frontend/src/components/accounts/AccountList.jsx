@@ -5,6 +5,7 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import AccountForm from './AccountForm';
 import { toast } from 'react-toastify';
+import { formatNumber } from '../../utils/formatters';
 
 const AccountList = () => {
   const [accounts, setAccounts] = useState([]);
@@ -13,15 +14,17 @@ const AccountList = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editAccount, setEditAccount] = useState(null);
   const [deleteAccountData, setDeleteAccountData] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [startDate, endDate]);
 
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      const response = await fetchAccountHierarchy();
+      const response = await fetchAccountHierarchy(startDate, endDate);
       setAccounts(response.data);
       setError(null);
     } catch (err) {
@@ -88,15 +91,13 @@ const AccountList = () => {
       console.log('Showing success toast for account update');
       toast.success('Account updated successfully');
     } else {
-      // Format the saved account to ensure parent is null if it's an empty object or undefined
       const formattedAccount = {
         ...savedAccount,
         parent: savedAccount.parent || null,
-        children: [] // Initialize empty children array
+        children: []
       };
       console.log('Formatted account before adding:', formattedAccount);
 
-      // Create a new array with the updated hierarchy
       const updateAccountsHierarchy = (accounts) => {
         return accounts.map(account => {
           if (formattedAccount.parent && account._id === formattedAccount.parent) {
@@ -158,8 +159,18 @@ const AccountList = () => {
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-center">
-            <span className="text-sm text-gray-600" title="Includes transactions from all child accounts">
-              {typeof account.totalTransactionCount === 'object' ? 0 : (account.totalTransactionCount || 0)}
+            <span className="text-sm text-gray-600" title="Includes transactions from all child accounts within the selected date range">
+              {Number(account.totalTransactionCount) || 0}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap text-right">
+            <span className="text-sm text-red-600" title="Total debits including children within the selected date range">
+              {formatNumber(account.totalDebits || 0)}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap text-right">
+            <span className="text-sm text-green-600" title="Total credits including children within the selected date range">
+              {formatNumber(account.totalCredits || 0)}
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
@@ -192,12 +203,34 @@ const AccountList = () => {
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Accounts</h2>
-        <button 
-          onClick={handleCreateAccount}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-        >
-          Add Account
-        </button>
+        <div className="flex items-center space-x-4">
+          <div>
+            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mr-2">Start Date:</label>
+            <input 
+              type="date"
+              id="startDate"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mr-2">End Date:</label>
+            <input 
+              type="date"
+              id="endDate"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            />
+          </div>
+          <button 
+            onClick={handleCreateAccount}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
+            Add Account
+          </button>
+        </div>
       </div>
 
       {accounts.length === 0 ? (
@@ -213,7 +246,13 @@ const AccountList = () => {
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
                 <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span title="Total transactions including all child accounts">Total Transactions</span>
+                  <span title="Total transactions including all child accounts within the selected date range">Txns</span>
+                </th>
+                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <span title="Total debits including children within the selected date range">Debits</span>
+                </th>
+                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <span title="Total credits including children within the selected date range">Credits</span>
                 </th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -225,7 +264,6 @@ const AccountList = () => {
         </div>
       )}
 
-      {/* Create Account Modal */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -238,7 +276,6 @@ const AccountList = () => {
         />
       </Modal>
 
-      {/* Edit Account Modal */}
       <Modal
         isOpen={Boolean(editAccount)}
         onClose={() => setEditAccount(null)}
@@ -252,13 +289,12 @@ const AccountList = () => {
         />
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={Boolean(deleteAccountData)}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
         title="Delete Account"
-        message={`Are you sure you want to delete "${deleteAccountData?.name}"? This account has ${deleteAccountData?.totalTransactionCount || 0} transactions.`}
+        message={`Are you sure you want to delete "${deleteAccountData?.name}"? This account has ${Number(deleteAccountData?.totalTransactionCount) || 0} transactions in the selected period.`}
       />
     </div>
   );

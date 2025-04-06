@@ -34,6 +34,19 @@ export const deleteAccount = async (accountId) => {
   });
 };
 
-export const fetchAccountHierarchy = async () => {
-  return fetchData(`${ACCOUNT_ENDPOINT}/hierarchy`);
+export const fetchAccountHierarchy = async (startDate, endDate) => {
+  let url = `${ACCOUNT_ENDPOINT}/hierarchy`;
+  const params = new URLSearchParams();
+  if (startDate) {
+    params.append('startDate', startDate);
+  }
+  if (endDate) {
+    params.append('endDate', endDate);
+  }
+
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+
+  return fetchData(url); // Pass the updated URL with query parameters
 }; 
