@@ -308,4 +308,69 @@ describe('Balance Transactions API', () => {
       expect(tx.isBalanced).toBe(false);
     });
   });
+
+  // *** NEW TEST SUITE FOR SAME ACCOUNT VALIDATION ***
+  describe('POST /api/transactions/balance - Same Account Validation', () => {
+    it('should return 400 when merging would result in opposing same-account entries', async () => {
+        // --- Create data for this specific test ---
+        const checkingAccount = await Account.create({ name: 'Test Checking - Invalid Merge', type: 'asset' });
+        const checkingAccountId = checkingAccount._id;
+        const invalidDebitTx = await Transaction.create({
+          date: new Date(),
+          description: 'Invalid Debit for Balance Test',
+          entries: [{ accountId: checkingAccountId, amount: 55.55, type: 'debit', unit: 'USD' }]
+        });
+        const invalidCreditTx = await Transaction.create({
+          date: new Date(),
+          description: 'Invalid Credit for Balance Test',
+          entries: [{ accountId: checkingAccountId, amount: 55.55, type: 'credit', unit: 'USD' }]
+        });
+        const invalidDebitTxId = invalidDebitTx._id.toString();
+        const invalidCreditTxId = invalidCreditTx._id.toString();
+        // --- End data creation ---
+
+        const res = await request(app)
+            .post('/api/transactions/balance')
+            .send({
+                sourceTransactionId: invalidDebitTxId,
+                targetTransactionId: invalidCreditTxId
+            });
+
+        expect(res.statusCode).toEqual(400);
+        expect(res.body.success).toBe(false);
+        expect(res.body.error).toMatch(/merging these transactions would create an invalid state/i);
+    });
+    
+    it('should return 200 when merging a valid pair of transactions', async () => {
+        // --- Create data for this specific test ---
+        const checkingAccount = await Account.create({ name: 'Test Checking - Valid Merge', type: 'asset' });
+        const savingsAccount = await Account.create({ name: 'Test Savings - Valid Merge', type: 'asset' });
+        const checkingAccountId = checkingAccount._id;
+        const savingsAccountId = savingsAccount._id;
+        const validDebitTx = await Transaction.create({
+          date: new Date(),
+          description: 'Valid Debit for Balance Test',
+          entries: [{ accountId: checkingAccountId, amount: 77.77, type: 'debit', unit: 'USD' }]
+        });
+        const validCreditTx = await Transaction.create({
+          date: new Date(),
+          description: 'Valid Credit for Balance Test',
+          entries: [{ accountId: savingsAccountId, amount: 77.77, type: 'credit', unit: 'USD' }]
+        });
+        const validDebitTxId = validDebitTx._id.toString();
+        const validCreditTxId = validCreditTx._id.toString();
+        // --- End data creation ---
+
+        const res = await request(app)
+             .post('/api/transactions/balance')
+             .send({
+                 sourceTransactionId: validDebitTxId,
+                 targetTransactionId: validCreditTxId
+             });
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.success).toBe(true);
+    });
+  });
+  // *** END NEW TEST SUITE ***
 }); 

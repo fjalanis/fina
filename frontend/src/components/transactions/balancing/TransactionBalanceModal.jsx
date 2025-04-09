@@ -260,9 +260,9 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                 )}
               </div>
               
-              {/* Complementary Transactions Section */}
-              {!balanceData.isBalanced && complementaryTransactions.length > 0 && (
-                <div className="mt-3">
+              {/* Complementary Transactions */}
+              {!balanceData.isBalanced && !showManualSearch && (
+                <div className="mt-6">
                   <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
                     <h3 className="font-medium mb-2 text-blue-800">Complementary Transactions</h3>
                     <p className="text-sm text-blue-600 mb-4">
@@ -274,6 +274,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionBa
                       pagination={transactionPagination}
                       onPageChange={handleTransactionPageChange}
                       onMoveTransaction={handleMoveComplementaryTransaction}
+                      sourceTransaction={balanceData.transaction}
                     />
                   </div>
                 </div>

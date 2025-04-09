@@ -132,6 +132,33 @@ TransactionSchema.pre('save', function(next) {
     next(new Error('All entry amounts must be positive'));
     return;
   }
+
+  // *** NEW VALIDATION: Check for opposing entries to the same account ***
+  const debitAccountIds = new Set();
+  const creditAccountIds = new Set();
+
+  this.entries.forEach(entry => {
+    if (entry.type === 'debit') {
+      debitAccountIds.add(entry.accountId.toString());
+    } else {
+      creditAccountIds.add(entry.accountId.toString());
+    }
+  });
+
+  let hasSameAccountOpposing = false;
+  for (const debitId of debitAccountIds) {
+    if (creditAccountIds.has(debitId)) {
+      hasSameAccountOpposing = true;
+      break;
+    }
+  }
+
+  if (hasSameAccountOpposing) {
+    console.error('Transaction cannot have debit and credit entries to the same account', this);
+    next(new Error('A transaction cannot debit and credit the same account.'));
+    return;
+  }
+  // *** END NEW VALIDATION ***
   
   next();
 });

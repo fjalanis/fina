@@ -8,12 +8,24 @@ setupDB();
 
 describe('Transaction Model', () => {
   let account;
+  let otherAccount;
+  let thirdAccount;
   
   beforeEach(async () => {
     // Create test account for use in entries
     account = await Account.create({
       name: 'Test Account',
       type: 'asset'
+    });
+    // Create a second account
+    otherAccount = await Account.create({
+      name: 'Other Test Account',
+      type: 'income' // Or any other appropriate type
+    });
+    // Create a third account
+    thirdAccount = await Account.create({
+      name: 'Third Test Account',
+      type: 'expense'
     });
   });
   
@@ -29,7 +41,7 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: 100,
           type: 'credit',
           unit: 'USD'
@@ -56,7 +68,7 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: 100,
           type: 'credit',
           unit: 'USD'
@@ -173,7 +185,7 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: 10.25,
           type: 'credit',
           unit: 'USD'
@@ -196,13 +208,13 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: 0.2,
           type: 'debit',
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: thirdAccount._id,
           amount: 0.3,
           type: 'credit',
           unit: 'USD'
@@ -226,7 +238,7 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: 100,
           type: 'credit',
           unit: 'USD'
@@ -246,7 +258,7 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: 50,
           type: 'credit',
           unit: 'USD'
@@ -276,7 +288,7 @@ describe('Transaction Model', () => {
           unit: 'USD'
         },
         {
-          accountId: account._id,
+          accountId: otherAccount._id,
           amount: '50.75',
           type: 'credit',
           unit: 'USD'
@@ -288,4 +300,79 @@ describe('Transaction Model', () => {
     expect(transaction.entries[0].amount).toBe(50.75);
     expect(transaction.entries[1].amount).toBe(50.75);
   });
-}); 
+});
+
+// *** NEW TEST SUITE FOR SAME ACCOUNT VALIDATION ***
+describe('Transaction Model - Same Account Validation', () => {
+  let testAccountId;
+
+  beforeAll(() => {
+    testAccountId = new mongoose.Types.ObjectId();
+  });
+
+  it('should FAIL to save a transaction with opposing debit/credit entries to the same account', async () => {
+    const invalidTransactionData = {
+      date: new Date(),
+      description: 'Invalid Same Account Test',
+      entries: [
+        { accountId: testAccountId, amount: 100, type: 'debit', unit: 'USD' },
+        { accountId: testAccountId, amount: 100, type: 'credit', unit: 'USD' } 
+      ]
+    };
+    
+    const transaction = new Transaction(invalidTransactionData);
+    
+    await expect(transaction.save()).rejects.toThrow(
+      'A transaction cannot debit and credit the same account.'
+    );
+  });
+
+  it('should SUCCEED saving a transaction with entries to different accounts', async () => {
+    const otherAccountId = new mongoose.Types.ObjectId();
+    const validTransactionData = {
+      date: new Date(),
+      description: 'Valid Different Accounts Test',
+      entries: [
+        { accountId: testAccountId, amount: 100, type: 'debit', unit: 'USD' },
+        { accountId: otherAccountId, amount: 100, type: 'credit', unit: 'USD' }
+      ]
+    };
+    const transaction = new Transaction(validTransactionData);
+    await expect(transaction.save()).resolves.toBeDefined();
+  });
+
+  it('should SUCCEED saving a transaction with multiple debits/credits to different accounts', async () => {
+    const accountId1 = new mongoose.Types.ObjectId();
+    const accountId2 = new mongoose.Types.ObjectId();
+    const accountId3 = new mongoose.Types.ObjectId();
+    const validTransactionData = {
+      date: new Date(),
+      description: 'Valid Complex Test',
+      entries: [
+        { accountId: accountId1, amount: 100, type: 'debit', unit: 'USD' },
+        { accountId: accountId2, amount: 50, type: 'credit', unit: 'USD' },
+        { accountId: accountId3, amount: 50, type: 'credit', unit: 'USD' }
+      ]
+    };
+    const transaction = new Transaction(validTransactionData);
+    await expect(transaction.save()).resolves.toBeDefined();
+  });
+
+  it('should SUCCEED saving a transaction with multiple debits/credits including one same-sided same-account entry', async () => {
+    const accountId1 = new mongoose.Types.ObjectId();
+    const accountId2 = new mongoose.Types.ObjectId();
+    const validTransactionData = {
+      date: new Date(),
+      description: 'Valid Same Side Same Account Test',
+      entries: [
+        { accountId: accountId1, amount: 100, type: 'debit', unit: 'USD' }, // Debit 1
+        { accountId: accountId1, amount: 25, type: 'debit', unit: 'USD' },  // Debit 1 again (OK)
+        { accountId: accountId2, amount: 125, type: 'credit', unit: 'USD' } // Credit 2
+      ]
+    };
+    const transaction = new Transaction(validTransactionData);
+    await expect(transaction.save()).resolves.toBeDefined();
+  });
+
+});
+// *** END NEW TEST SUITE *** 

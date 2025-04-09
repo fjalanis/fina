@@ -7,7 +7,8 @@ const SearchResultsTable = ({
   searchResults, 
   pagination, 
   onPageChange, 
-  onEntrySelect 
+  onEntrySelect,
+  sourceTransaction
 }) => {
   if (isLoading && searchResults.length === 0) {
     return (
@@ -43,39 +44,66 @@ const SearchResultsTable = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {searchResults.map(entry => (
-                <tr key={entry._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900 max-w-[250px]">
-                    <div className="truncate" title={entry.transaction?.description}>{entry.transaction?.description || 'N/A'}</div>
-                    <span className="text-xs text-gray-500 block">
-                      {entry.transaction?.date ? formatDate(entry.transaction.date) : 'N/A'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {entry.account?.name || 'Unknown Account'}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      entry.type === 'debit' 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {entry.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                    {formatCurrency(entry.amount)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <button
-                      onClick={() => onEntrySelect(entry)}
-                      className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                    >
-                      Move
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {searchResults.map(entry => {
+                let isMoveInvalid = false;
+                let invalidMoveReason = '';
+
+                if (sourceTransaction) {
+                  const sourceAccountIds = new Set(sourceTransaction.entries.map(e => e.accountId.toString()));
+                  const sourceTypes = new Set(sourceTransaction.entries.map(e => e.type));
+                  
+                  const targetAccountId = entry.accountId.toString();
+                  const targetType = entry.type;
+
+                  if (sourceAccountIds.has(targetAccountId)) {
+                    if ((targetType === 'debit' && sourceTypes.has('credit')) ||
+                        (targetType === 'credit' && sourceTypes.has('debit'))) {
+                      isMoveInvalid = true;
+                      invalidMoveReason = 'Moving this entry would create opposing entries to the same account.';
+                    }
+                  }
+                }
+
+                return (
+                  <tr key={entry._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-[250px]">
+                      <div className="truncate" title={entry.transaction?.description}>{entry.transaction?.description || 'N/A'}</div>
+                      <span className="text-xs text-gray-500 block">
+                        {entry.transaction?.date ? formatDate(entry.transaction.date) : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      {entry.account?.name || 'Unknown Account'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        entry.type === 'debit' 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {entry.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                      {formatCurrency(entry.amount)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <button
+                        onClick={() => onEntrySelect(entry)}
+                        className={`px-3 py-1 text-white text-xs rounded ${ 
+                          isMoveInvalid 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-green-500 hover:bg-green-600'
+                        }`}
+                        disabled={isMoveInvalid}
+                        title={invalidMoveReason || 'Move this entry to balance transaction'}
+                      >
+                        Move
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

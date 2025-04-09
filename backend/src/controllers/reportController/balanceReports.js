@@ -57,7 +57,16 @@ exports.getAccountBalanceReport = async (req, res) => {
           };
         }
         
-        const amount = entry.type === 'debit' ? entry.amount : -entry.amount;
+        // Calculate amount based on account type and entry type
+        let amount;
+        if (['asset', 'expense'].includes(accountBalances[accountIdStr].accountType)) {
+          // For assets and expenses: debits increase balance, credits decrease
+          amount = entry.type === 'debit' ? entry.amount : -entry.amount;
+        } else {
+          // For liabilities, income, and equity: credits increase balance, debits decrease
+          amount = entry.type === 'credit' ? entry.amount : -entry.amount;
+        }
+        
         accountBalances[accountIdStr].balance += amount;
         // Add minimal entry info for the report
         accountBalances[accountIdStr].entries.push({
@@ -122,10 +131,13 @@ exports.getAccountBalance = async (req, res) => {
           };
         }
         
-        if (entry.type === 'debit') {
-          balances[accountIdStr].balance += entry.amount;
+        // Calculate amount based on account type and entry type
+        if (['asset', 'expense'].includes(balances[accountIdStr].accountType)) {
+          // For assets and expenses: debits increase balance, credits decrease
+          balances[accountIdStr].balance += entry.type === 'debit' ? entry.amount : -entry.amount;
         } else {
-          balances[accountIdStr].balance -= entry.amount;
+          // For liabilities, income, and equity: credits increase balance, debits decrease
+          balances[accountIdStr].balance += entry.type === 'credit' ? entry.amount : -entry.amount;
         }
       }
     }
@@ -192,17 +204,23 @@ exports.getNetWorthReport = async (req, res) => {
       const accountBalances = {};
       
       transactions.forEach(txn => {
-        txn.entries.forEach(entry => {
+        txn.entries.forEach(async entry => {
           const accountIdStr = entry.accountId.toString();
           if (!accountBalances[accountIdStr]) {
             accountBalances[accountIdStr] = 0;
           }
           
-          // Update balance based on debit/credit
-          if (entry.type === 'debit') {
-            accountBalances[accountIdStr] += entry.amount;
+          // Get account type to determine how to calculate balance
+          const account = await Account.findById(entry.accountId).lean();
+          const accountType = account ? account.type : 'unknown';
+          
+          // Update balance based on account type and debit/credit
+          if (['asset', 'expense'].includes(accountType)) {
+            // For assets and expenses: debits increase balance, credits decrease
+            accountBalances[accountIdStr] += entry.type === 'debit' ? entry.amount : -entry.amount;
           } else {
-            accountBalances[accountIdStr] -= entry.amount;
+            // For liabilities, income, and equity: credits increase balance, debits decrease
+            accountBalances[accountIdStr] += entry.type === 'credit' ? entry.amount : -entry.amount;
           }
         });
       });

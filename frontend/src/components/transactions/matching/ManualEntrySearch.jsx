@@ -83,6 +83,7 @@ const ManualEntrySearch = ({
           pagination={pagination}
           onPageChange={handlePageChange}
           onEntrySelect={onEntrySelect}
+          sourceTransaction={targetTransaction}
         />
       </div>
     </div>

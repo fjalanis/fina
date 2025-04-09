@@ -192,24 +192,49 @@ exports.getCashFlowForecast = async (req, res) => {
     const inflows = [];
     const outflows = [];
     
+    // Get account types
+    const accounts = await Account.find({ _id: { $in: accountIds } });
+    
     historicalTransactions.forEach(transaction => {
       transaction.entries.forEach(entry => {
         const isAccountOfInterest = accountIds.some(id => 
           entry.accountId.toString() === id.toString());
         
         if (isAccountOfInterest) {
-          if (entry.type === 'debit') {
-            inflows.push({
-              date: transaction.date,
-              amount: entry.amount,
-              description: transaction.description
-            });
+          // Get account type to determine if debit/credit is inflow or outflow
+          const account = accounts.find(a => a._id.toString() === entry.accountId.toString());
+          const accountType = account.type;
+          
+          // For assets and expenses: debits are inflows, credits are outflows
+          // For liabilities, income, and equity: credits are inflows, debits are outflows
+          if (['asset', 'expense'].includes(accountType)) {
+            if (entry.type === 'debit') {
+              inflows.push({
+                date: transaction.date,
+                amount: entry.amount,
+                description: transaction.description
+              });
+            } else {
+              outflows.push({
+                date: transaction.date,
+                amount: entry.amount,
+                description: transaction.description
+              });
+            }
           } else {
-            outflows.push({
-              date: transaction.date,
-              amount: entry.amount,
-              description: transaction.description
-            });
+            if (entry.type === 'credit') {
+              inflows.push({
+                date: transaction.date,
+                amount: entry.amount,
+                description: transaction.description
+              });
+            } else {
+              outflows.push({
+                date: transaction.date,
+                amount: entry.amount,
+                description: transaction.description
+              });
+            }
           }
         }
       });
@@ -233,10 +258,13 @@ exports.getCashFlowForecast = async (req, res) => {
       transactions.forEach(transaction => {
         transaction.entries.forEach(entry => {
           if (entry.accountId.toString() === id.toString()) {
-            if (entry.type === 'debit') {
-              balance += entry.amount;
+            // Calculate balance based on account type and entry type
+            if (['asset', 'expense'].includes(account.type)) {
+              // For assets and expenses: debits increase balance, credits decrease
+              balance += entry.type === 'debit' ? entry.amount : -entry.amount;
             } else {
-              balance -= entry.amount;
+              // For liabilities, income, and equity: credits increase balance, debits decrease
+              balance += entry.type === 'credit' ? entry.amount : -entry.amount;
             }
           }
         });

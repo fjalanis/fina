@@ -7,7 +7,8 @@ const ComplementaryTransactionsTable = ({
   transactions, 
   pagination,
   onPageChange,
-  onMoveTransaction
+  onMoveTransaction,
+  sourceTransaction
 }) => {
   if (isLoading) {
     return (
@@ -39,34 +40,62 @@ const ComplementaryTransactionsTable = ({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {transactions.map(transaction => (
-            <tr key={transaction._id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm text-gray-900 max-w-[250px] truncate">
-                {transaction.description}
-              </td>
-              <td className="px-4 py-3 text-sm text-center text-gray-500">
-                {formatDate(transaction.date)}
-              </td>
-              <td className="px-4 py-3 text-sm text-center">
-                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                  {transaction.entries?.length || 0} entries
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm text-right font-medium">
-                <span className={parseFloat(transaction.imbalance) > 0 ? 'text-red-600' : 'text-green-600'}>
-                  {formatCurrency(Math.abs(parseFloat(transaction.imbalance)))}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm text-right">
-                <button
-                  onClick={() => onMoveTransaction(transaction)}
-                  className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                >
-                  Merge
-                </button>
-              </td>
-            </tr>
-          ))}
+          {transactions.map(transaction => {
+            let isMergeInvalid = false;
+            let invalidMergeReason = '';
+
+            if (sourceTransaction && transaction.entries?.length === 1) {
+              const sourceAccountIds = new Set(sourceTransaction.entries.map(e => e.accountId.toString()));
+              const sourceTypes = new Set(sourceTransaction.entries.map(e => e.type));
+              
+              const targetEntry = transaction.entries[0];
+              const targetAccountId = targetEntry.accountId.toString();
+              const targetType = targetEntry.type;
+
+              if (sourceAccountIds.has(targetAccountId)) {
+                if ((targetType === 'debit' && sourceTypes.has('credit')) ||
+                    (targetType === 'credit' && sourceTypes.has('debit'))) {
+                  isMergeInvalid = true;
+                  invalidMergeReason = 'Merging would create opposing entries to the same account.';
+                }
+              }
+            }
+
+            return (
+              <tr key={transaction._id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm text-gray-900 max-w-[250px] truncate">
+                  {transaction.description}
+                </td>
+                <td className="px-4 py-3 text-sm text-center text-gray-500">
+                  {formatDate(transaction.date)}
+                </td>
+                <td className="px-4 py-3 text-sm text-center">
+                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                    {transaction.entries?.length || 0} entries
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-right font-medium">
+                  <span className={parseFloat(transaction.imbalance) > 0 ? 'text-red-600' : 'text-green-600'}>
+                    {formatCurrency(Math.abs(parseFloat(transaction.imbalance)))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-right">
+                  <button
+                    onClick={() => onMoveTransaction(transaction)}
+                    className={`px-3 py-1 text-white text-xs rounded ${ 
+                      isMergeInvalid 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-green-500 hover:bg-green-600'
+                    }`}
+                    disabled={isMergeInvalid}
+                    title={invalidMergeReason || 'Merge this transaction'}
+                  >
+                    Merge
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       

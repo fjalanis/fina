@@ -564,4 +564,58 @@ describe('Transaction Routes', () => {
       expect(fetchedTx.isBalanced).toBe(true);
     });
   });
+
+  // *** NEW TEST FOR SAME ACCOUNT VALIDATION ***
+  describe('POST /api/transactions - Same Account Validation', () => {
+    it('should return 400 when creating a transaction with opposing same-account entries', async () => {
+      // Create account specifically for this test
+      const checkingAccount = await Account.create({ name: 'Test Checking For Routes - Invalid', type: 'asset'});
+      const checkingAccountId = checkingAccount._id.toString();
+
+      const invalidTransactionData = {
+        date: new Date().toISOString().split('T')[0],
+        description: 'API Invalid Same Account Test',
+        entries: [
+          { account: checkingAccountId, amount: 50, type: 'debit' }, 
+          { account: checkingAccountId, amount: 50, type: 'credit' }
+        ]
+      };
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .send(invalidTransactionData);
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toMatch(/cannot debit and credit the same account/i);
+    });
+
+    it('should return 201 when creating a valid transaction', async () => {
+      // Create accounts specifically for this test
+      const checkingAccount = await Account.create({ name: 'Test Checking For Routes - Valid', type: 'asset'});
+      const savingsAccount = await Account.create({ name: 'Test Savings For Routes - Valid', type: 'asset'});
+      const checkingAccountId = checkingAccount._id.toString();
+      const savingsAccountId = savingsAccount._id.toString();
+
+      const validTransactionData = {
+        date: new Date().toISOString().split('T')[0],
+        description: 'API Valid Transaction Test',
+        entries: [
+          { account: checkingAccountId, amount: 75, type: 'debit' },
+          { account: savingsAccountId, amount: 75, type: 'credit' }
+        ]
+      };
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .send(validTransactionData);
+
+      expect(res.statusCode).toEqual(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('_id');
+      // Clean up created transaction if necessary
+      await Transaction.findByIdAndDelete(res.body.data._id);
+    });
+  });
+   // *** END NEW TEST ***
 }); 

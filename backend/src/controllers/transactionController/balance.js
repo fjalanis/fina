@@ -76,6 +76,7 @@ exports.balanceTransactions = async (req, res) => {
     // Get necessary info from target and source
     const amount = Math.abs(targetTransaction.entries[0].amount);
     const targetAccountId = targetTransaction.entries[0].accountId;
+    const targetAccountStr = targetAccountId.toString(); // For comparison
     // Assume source transaction entries have consistent units, get from first entry
     const sourceUnit = sourceTransaction.entries[0]?.unit;
     
@@ -104,6 +105,37 @@ exports.balanceTransactions = async (req, res) => {
       });
     }
     
+    // *** NEW VALIDATION: Check for opposing entries to the same account ***
+    const debitAccountIds = new Set();
+    const creditAccountIds = new Set();
+
+    sourceTransaction.entries.forEach(entry => {
+      if (!entry.accountId) return; // Skip if accountId is missing
+      const accountIdStr = entry.accountId.toString();
+      if (entry.type === 'debit') {
+        debitAccountIds.add(accountIdStr);
+      } else {
+        creditAccountIds.add(accountIdStr);
+      }
+    });
+
+    let hasSameAccountOpposing = false;
+    for (const debitId of debitAccountIds) {
+      if (creditAccountIds.has(debitId)) {
+        hasSameAccountOpposing = true;
+        break;
+      }
+    }
+
+    if (hasSameAccountOpposing) {
+      // Don't save, return an error
+      return res.status(400).json({
+        success: false,
+        error: 'Merging these transactions would create an invalid state (debit and credit to the same account).'
+      });
+    }
+    // *** END NEW VALIDATION ***
+
     // Save the updated source transaction
     await sourceTransaction.save();
     

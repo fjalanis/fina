@@ -260,7 +260,34 @@ const generateTestData = async () => {
     
     // Create unbalanced transactions with specific patterns for rule testing
     await utils.createPatternsForRuleTesting(accounts);
-    
+
+    // *** ADD INVALID PAIRING FOR TESTING ***
+    logger.info('Creating intentionally invalid transaction pair for validation testing...');
+    // Create a debit from Checking (that needs a credit)
+    await Transaction.create({
+      date: new Date(2025, 2, 28), // March 28
+      description: '[INVALID-DEBIT] Debit from Checking - should not merge with credit to Checking',
+      entries: [{
+        accountId: accounts.checkingAccount._id,
+        amount: 55.55,
+        type: 'debit',
+        unit: 'USD'
+      }]
+    });
+    // Create a credit to Checking (that needs a debit)
+    await Transaction.create({
+      date: new Date(2025, 2, 29), // March 29
+      description: '[INVALID-CREDIT] Credit to Checking - should not merge with debit from Checking',
+      entries: [{
+        accountId: accounts.checkingAccount._id,
+        amount: 55.55,
+        type: 'credit',
+        unit: 'USD'
+      }]
+    });
+    logger.info('Invalid transaction pair created.');
+    // *** END INVALID PAIRING ***
+
     // Create sample rules (disabled by default)
     await ruleGenerator.createSampleRules(accounts);
 
