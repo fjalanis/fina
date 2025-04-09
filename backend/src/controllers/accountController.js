@@ -70,8 +70,8 @@ exports.getAccount = async (req, res) => {
 exports.createAccount = async (req, res) => {
   try {
     // Destructure allowed fields to prevent unwanted fields from being saved
-    const { name, type, subtype, institution, isHidden, parent, description, unit } = req.body;
-    const accountData = { name, type, subtype, institution, isHidden, parent, description, unit };
+    const { name, type, subtype, institution, isHidden, parent, description, unit, isActive } = req.body;
+    const accountData = { name, type, subtype, institution, isHidden, parent, description, unit, isActive };
 
     // Remove parent if it's an empty string or null to avoid CastError
     if (accountData.parent === '' || accountData.parent === null) {
@@ -127,8 +127,8 @@ exports.createAccount = async (req, res) => {
 exports.updateAccount = async (req, res) => {
   try {
     // Destructure allowed fields for update
-    const { name, type, subtype, institution, isHidden, parent, description, unit } = req.body;
-    const updateData = { name, type, subtype, institution, isHidden, parent, description, unit };
+    const { name, type, subtype, institution, isHidden, parent, description, unit, isActive } = req.body;
+    const updateData = { name, type, subtype, institution, isHidden, parent, description, unit, isActive };
 
     // Remove fields that are explicitly set to null or undefined to avoid overwriting with null
     Object.keys(updateData).forEach(key => (updateData[key] === undefined || updateData[key] === null) && delete updateData[key]);

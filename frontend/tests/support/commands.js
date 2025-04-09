@@ -96,47 +96,21 @@ Cypress.Commands.add('createRule', (name, pattern, accountName) => {
 });
 
 Cypress.Commands.add('resetDatabase', () => {
-  cy.log('Starting database reset...');
-  // Use absolute path to ensure script is found regardless of Cypress working directory
-  cy.exec('node /home/falanis/code/trakr/fina/scripts/clearTestDB.js', { failOnNonZeroExit: false })
-    .then((result) => {
-      cy.log('Database reset command output:', result.stdout);
-      if (result.stderr) {
-        cy.log('Database reset errors:', result.stderr);
-      }
-      if (result.code !== 0) {
-        cy.log('Database reset failed with exit code:', result.code);
-      }
-      
-      // Verify the database was actually cleared
-      cy.request('GET', 'http://localhost:5000/api/transactions')
-        .then((response) => {
-          if (response.body.data && response.body.data.length > 0) {
-            cy.log('Warning: Database still contains transactions after reset');
-          }
-        });
-      
-      cy.request('GET', 'http://localhost:5000/api/accounts')
-        .then((response) => {
-          if (response.body.data && response.body.data.length > 0) {
-            cy.log('Warning: Database still contains accounts after reset');
-          }
-        });
-      
-      cy.request('GET', 'http://localhost:5000/api/rules')
-        .then((response) => {
-          if (response.body.data && response.body.data.length > 0) {
-            cy.log('Warning: Database still contains rules after reset');
-          }
-        });
-      
-      cy.request('GET', 'http://localhost:5000/api/exchange-rates')
-        .then((response) => {
-          if (response.body.data && response.body.data.length > 0) {
-            cy.log('Warning: Database still contains exchange rates after reset');
-          }
-        });
-    });
+  cy.request('POST', '/api/reset-db').then((response) => {
+    if (response.body.data.assetPrices && response.body.data.assetPrices.length > 0) {
+      cy.log('Warning: Database still contains asset prices after reset');
+    }
+  });
+});
+
+Cypress.Commands.add('getAssetPrices', () => {
+  cy.request('GET', '/api/asset-prices').then((response) => {
+    cy.log('Current asset prices in database:', response.body.data.length);
+    if (response.body.data.length > 0) {
+      cy.log('First asset price:', response.body.data[0]);
+    }
+    return response.body.data;
+  });
 });
 
 Cypress.Commands.add('checkDatabaseState', () => {
@@ -164,11 +138,11 @@ Cypress.Commands.add('checkDatabaseState', () => {
       }
     });
     
-  cy.request('GET', 'http://localhost:5000/api/exchange-rates')
+  cy.request('GET', 'http://localhost:5000/api/asset-prices')
     .then((response) => {
-      cy.log('Current exchange rates in database:', response.body.data.length);
+      cy.log('Current asset prices in database:', response.body.data.length);
       if (response.body.data.length > 0) {
-        cy.log('First exchange rate:', response.body.data[0]);
+        cy.log('First asset price:', response.body.data[0]);
       }
     });
 });

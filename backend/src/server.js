@@ -19,7 +19,7 @@ app.use('/api/accounts', require('./routes/accountRoutes'));
 app.use('/api/transactions', require('./routes/transactionRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/rules', require('./routes/ruleRoutes'));
-app.use('/api/exchange-rates', require('./routes/exchangeRateRoutes'));
+app.use('/api/asset-prices', require('./routes/assetPriceRoutes'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

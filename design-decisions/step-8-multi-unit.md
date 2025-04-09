@@ -15,10 +15,10 @@ This document summarizes the agreed-upon design for implementing Step 8 of the H
 2.  **`Transaction.isBalanced` Virtual Property:**
     *   If all entries in a transaction share the *same* `unit`: Balanced if `sum(debits) == sum(credits)` for that unit (within tolerance).
     *   If entries have *different* `units`: Considered **implicitly balanced** by definition (representing an exchange).
-3.  **New `ExchangeRate` Model:**
-    *   Purpose: Store historical exchange rates **for reporting purposes only** (e.g., asset valuation over time). **Not used** for transaction balancing logic in Step 8.
-    *   Schema: `{ unitFrom: String, unitTo: String, rate: Number, date: Date }`.
-    *   Implement basic CRUD API endpoints (`/api/exchange-rates`).
+3.  **New `AssetPrice` Model:**
+    *   Purpose: Store historical asset prices **for reporting purposes only** (e.g., asset valuation over time). **Not used** for transaction balancing logic in Step 8.
+    *   Fields: baseCurrency, targetCurrency, rate, date
+    *   Implement basic CRUD API endpoints (`/api/asset-prices`).
 4.  **Cost Basis:**
     *   **No backend tracking** of cost basis or sold status for individual asset lots in Step 8.
     *   Users are **manually responsible** for adding separate entries within transactions to account for capital gains or losses when selling non-USD assets.

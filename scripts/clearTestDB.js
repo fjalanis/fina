@@ -1,7 +1,9 @@
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 const Account = require('../backend/src/models/Account');
 const Transaction = require('../backend/src/models/Transaction');
 const Rule = require('../backend/src/models/Rule');
-const ExchangeRate = require('../backend/src/models/ExchangeRate');
+const AssetPrice = require('../backend/src/models/AssetPrice');
 const connectDB = require('../backend/src/config/database');
 const logger = require('../backend/src/config/logger');
 
@@ -11,7 +13,7 @@ const clearAllData = async () => {
   await Transaction.deleteMany({});
   await Account.deleteMany({});
   await Rule.deleteMany({});
-  await ExchangeRate.deleteMany({});
+  await AssetPrice.deleteMany({});
   logger.info('All data cleared');
 };
 

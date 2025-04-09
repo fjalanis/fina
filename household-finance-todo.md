@@ -75,7 +75,7 @@
 1. Extend account and transaction schemas for unit (e.g. currency, stock) information
 2. Implement unit conversion utilities
 3. Update transaction forms to handle multiple units
-4. Create API for unit prices and exchange rates (manual entry initially)
+4. Create API for asset prices (manual entry initially)
 5. **Test**: Create transactions in different currencies
 6. **Test**: Verify conversion calculations work correctly
 

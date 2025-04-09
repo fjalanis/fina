@@ -18,8 +18,9 @@ import ReportDashboard from './components/reports/ReportDashboard';
 import RuleList from './components/rules/RuleList';
 import RuleTest from './components/rules/RuleTest';
 
-// Exchange Rate Components
-import ExchangeRateList from './components/exchange/ExchangeRateList';
+// Asset Price Components
+import AssetPriceList from './components/asset-price/AssetPriceList';
+import AssetPriceForm from './components/asset-price/AssetPriceForm';
 
 // Wrapper component to apply container styles
 const MainContent = ({ children }) => {
@@ -48,7 +49,7 @@ function App() {
                   <Link to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Transactions </Link>
                   <Link to="/rules"        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Rules </Link>
                   <Link to="/reports"      className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Reports </Link>
-                  <Link to="/exchange-rates" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Exchange Rates </Link>
+                  <Link to="/asset-prices" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Asset Prices </Link>
                 </div>
               </div>
             </div>
@@ -65,7 +66,7 @@ function App() {
               <Route path="/reports" element={<ReportDashboard />} />
               <Route path="/rules" element={<RuleList />} />
               <Route path="/rules/test/:id" element={<RuleTest />} />
-              <Route path="/exchange-rates" element={<ExchangeRateList />} />
+              <Route path="/asset-prices" element={<AssetPriceList />} />
             </Routes>
           </MainContent>
         </main>

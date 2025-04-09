@@ -29,6 +29,10 @@ const AccountSchema = new mongoose.Schema({
     default: 'USD',
     maxlength: [20, 'Unit cannot exceed 20 characters']
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

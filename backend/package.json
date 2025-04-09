@@ -12,7 +12,7 @@
     "test:dateUtils": "jest tests/unit/dateUtils.test.js --forceExit --no-cache",
     "test:transactionSearch": "jest tests/integration/transactionSearch.test.js --forceExit --no-cache",
     "test:basic": "jest tests/integration/basicTest.test.js --forceExit --no-cache --verbose",
-    "generate-data": "node src/scripts/generateTestData.js"
+    "generate-data": "node ../scripts/generateTestData.js"
   },
   "keywords": [
     "finance",

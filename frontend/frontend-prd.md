@@ -164,9 +164,9 @@ The Household Finance App frontend provides an intuitive interface for personal 
 
 #### 5.1 Currency Support
 - Multiple currency handling in UI
-- Exchange rate display
+- Asset price display
 - Conversion between currencies for reporting
-- Historical exchange rate charts
+- Historical asset price charts
 - Base currency selection
 
 #### 5.2 Asset Valuation
@@ -174,6 +174,8 @@ The Household Finance App frontend provides an intuitive interface for personal 
 - Historical valuation data visualization
 - Gain/loss calculation with visual indicators
 - Performance metrics dashboard
+- Asset price display
+- Historical asset price charts
 
 ### 6. Reporting
 
