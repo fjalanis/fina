@@ -149,6 +149,18 @@ const AccountList = () => {
   const renderAccountRow = (account, level = 0) => {
     const hasChildren = account.children && account.children.length > 0;
     
+    // Calculate balance based on account type
+    let balance = 0;
+    const debits = account.totalDebits || 0;
+    const credits = account.totalCredits || 0;
+
+    // Standard accounting: Assets/Expenses increase with debits, others with credits
+    if (['asset', 'expense'].includes(account.type)) {
+      balance = debits - credits;
+    } else { // liability, income, equity
+      balance = credits - debits;
+    }
+    
     return (
       <React.Fragment key={account._id}>
         <tr className="hover:bg-gray-50">
@@ -182,6 +194,11 @@ const AccountList = () => {
           <td className="py-4 px-4 whitespace-nowrap text-right">
             <span className="text-sm text-green-600" title="Total credits including children within the selected date range">
               {formatNumber(account.totalCredits || 0)}
+            </span>
+          </td>
+          <td className="py-4 px-4 whitespace-nowrap text-right">
+            <span className={`text-sm font-medium ${balance >= 0 ? 'text-gray-900' : 'text-red-600'}`} title="Calculated balance based on account type (Assets/Expenses: Debits-Credits; Others: Credits-Debits)">
+              {formatNumber(balance)}
             </span>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
@@ -245,6 +262,7 @@ const AccountList = () => {
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <span title="Total credits including children within the selected date range">Credits</span>
                 </th>
+                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>

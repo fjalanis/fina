@@ -97,9 +97,9 @@ function App() {
                 <div className="ml-6 flex space-x-8">
                   <NavLink to="/accounts"     className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Accounts </NavLink>
                   <NavLink to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Transactions </NavLink>
-                  <Link to="/rules"        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Rules </Link>
                   <NavLink to="/reports"      className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Reports </NavLink>
                   <NavLink to="/prices"       className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Prices </NavLink>
+                  <Link to="/rules"        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Rules </Link>
                 </div>
               </div>
               <div className="flex items-center">

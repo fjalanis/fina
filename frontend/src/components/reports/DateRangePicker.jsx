@@ -1,7 +1,58 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { format, subDays, isValid, parseISO, startOfDay } from 'date-fns';
-import { DateRangePicker as ReactDateRange } from 'react-date-range';
+import { 
+  format, subDays, isValid, parseISO, startOfDay, 
+  startOfQuarter, endOfQuarter, subMonths, startOfYear, endOfYear,
+  endOfDay,
+  startOfWeek, endOfWeek, startOfMonth, endOfMonth
+} from 'date-fns';
+import { DateRangePicker as ReactDateRange, createStaticRanges } from 'react-date-range';
+
+// Define custom static ranges
+const staticRanges = createStaticRanges([
+  {
+    label: 'Today',
+    range: () => ({
+      startDate: startOfDay(new Date()),
+      endDate: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: 'This Week',
+    range: () => ({
+      startDate: startOfWeek(new Date()),
+      endDate: endOfWeek(new Date()),
+    }),
+  },
+  {
+    label: 'This Month',
+    range: () => ({
+      startDate: startOfMonth(new Date()),
+      endDate: endOfMonth(new Date()),
+    }),
+  },
+  {
+    label: 'This Quarter',
+    range: () => ({
+      startDate: startOfQuarter(new Date()),
+      endDate: endOfQuarter(new Date())
+    })
+  },
+  {
+    label: 'Last 6 Months',
+    range: () => ({
+      startDate: startOfDay(subMonths(new Date(), 6)),
+      endDate: endOfDay(new Date()) // Use endOfDay for inclusivity if needed
+    })
+  },
+  {
+    label: 'This Year',
+    range: () => ({
+      startDate: startOfYear(new Date()),
+      endDate: endOfYear(new Date())
+    })
+  }
+]);
 
 /**
  * A reusable date range picker component using react-date-range 
@@ -153,16 +204,18 @@ const DateRangePicker = () => {
       </button>
 
       {showPicker && (
-        <div className="absolute right-0 mt-2 z-50">
+        <div className="absolute right-0 mt-2 z-50 flex">
           <ReactDateRange
             editableDateInputs={true}
             onChange={handleSelect}
             moveRangeOnFirstSelection={false}
-            ranges={[dateRange]} // Pass state as array
-            months={2}           // Show two months
-            direction="horizontal" // Horizontal layout
-            showDateDisplay={false} // Hide the top input display row
-            maxDate={new Date()} // Prevent selecting future dates
+            ranges={[dateRange]}
+            months={2}
+            direction="horizontal"
+            showDateDisplay={false}
+            maxDate={new Date()}
+            staticRanges={staticRanges}
+            inputRanges={[]}
           />
         </div>
       )}
