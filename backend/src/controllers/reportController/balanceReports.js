@@ -203,8 +203,9 @@ exports.getNetWorthReport = async (req, res) => {
       
       const accountBalances = {};
       
-      transactions.forEach(txn => {
-        txn.entries.forEach(async entry => {
+      // Process all transactions
+      for (const txn of transactions) {
+        for (const entry of txn.entries) {
           const accountIdStr = entry.accountId.toString();
           if (!accountBalances[accountIdStr]) {
             accountBalances[accountIdStr] = 0;
@@ -222,17 +223,17 @@ exports.getNetWorthReport = async (req, res) => {
             // For liabilities, income, and equity: credits increase balance, debits decrease
             accountBalances[accountIdStr] += entry.type === 'credit' ? entry.amount : -entry.amount;
           }
-        });
-      });
+        }
+      }
       
       // Sum up assets and liabilities
-      assetIds.forEach(id => {
+      for (const id of assetIds) {
         assets += accountBalances[id.toString()] || 0;
-      });
+      }
       
-      liabilityIds.forEach(id => {
+      for (const id of liabilityIds) {
         liabilities += accountBalances[id.toString()] || 0;
-      });
+      }
       
       return {
         date: periodEnd,
@@ -242,9 +243,17 @@ exports.getNetWorthReport = async (req, res) => {
       };
     }));
     
+    // Get the latest period for the summary
+    const latestPeriod = netWorthData[netWorthData.length - 1];
+    
     res.json({
       success: true,
-      data: netWorthData
+      data: {
+        assets: latestPeriod.assets,
+        liabilities: latestPeriod.liabilities,
+        netWorth: latestPeriod.netWorth,
+        trend: netWorthData
+      }
     });
   } catch (error) {
     handleError(res, error, 'Error generating net worth report');

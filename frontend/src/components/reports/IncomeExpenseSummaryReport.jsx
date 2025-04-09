@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { fetchIncomeExpenseSummary } from '../../services/reportService';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -6,49 +6,43 @@ import { formatNumber } from '../../utils/formatters'; // Assuming you have a nu
 
 const IncomeExpenseSummaryReport = () => {
   const [reportData, setReportData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchParams] = useSearchParams();
 
-  const loadReportData = useCallback(async () => {
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
 
-    if (!startDate || !endDate) {
-      // Don't fetch yet if dates are missing from URL.
-      // Wait for DateRangePicker to set them via URL update.
-      // Keep loading state true (or don't set it to false prematurely).
-      console.log('IncomeExpenseSummaryReport: Dates missing, waiting for URL update.');
-      // Set loading true here initially, it will be set false in finally block
-      // only if a fetch attempt is actually made.
-      setIsLoading(true); 
-      setError(null); // Clear any previous errors
-      setReportData(null); // Clear previous data
+  const loadReportData = async (start, end) => {
+    if (!start || !end) {
+      setReportData(null);
+      console.log("IncomeExpenseSummaryReport: Start or end date missing from URL params.");
       return;
     }
-
-    // Only set loading true when we are actually fetching with dates
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetchIncomeExpenseSummary(startDate, endDate);
-      if (response.success && response.data) {
+      const response = await fetchIncomeExpenseSummary(start, end);
+      if (response && response.success && response.data) {
         setReportData(response.data);
+      } else if (response && response.message) {
+        setError(response.message);
+        setReportData(null);
       } else {
-        throw new Error(response.error || 'Failed to fetch income/expense summary');
+        setError('Invalid response format from server');
+        setReportData(null);
       }
     } catch (err) {
-      console.error("Error fetching income/expense summary:", err);
-      setError(err.message || 'An unexpected error occurred');
+      setError(err.message || 'Failed to load income/expense summary');
       setReportData(null);
     } finally {
       setIsLoading(false);
     }
-  }, [searchParams]);
+  };
 
   useEffect(() => {
-    loadReportData();
-  }, [loadReportData]);
+    loadReportData(startDate, endDate);
+  }, [startDate, endDate]);
 
   // Helper to render account list for income/expense
   const renderAccountList = (accounts, title, colorClass) => (
@@ -57,9 +51,9 @@ const IncomeExpenseSummaryReport = () => {
       {accounts && accounts.length > 0 ? (
         <ul className="space-y-1">
           {accounts.map((acc) => (
-            <li key={acc.accountId} className="flex justify-between">
-              <span>{acc.accountName || 'Unknown'}</span>
-              <span>{formatNumber(acc.totalAmount)}</span>
+            <li key={acc.id} className="flex justify-between">
+              <span>{acc.name || 'Unknown'}</span>
+              <span>{formatNumber(acc.amount)}</span>
             </li>
           ))}
         </ul>
@@ -69,9 +63,22 @@ const IncomeExpenseSummaryReport = () => {
     </div>
   );
 
-  const totalIncome = reportData?.incomeTotal || 0;
-  const totalExpenses = reportData?.expenseTotal || 0;
-  const netResult = totalIncome - totalExpenses;
+  // Get totals from the correct data structure
+  const totalIncome = reportData?.income?.total || 0;
+  const totalExpenses = reportData?.expense?.total || 0;
+  const netResult = reportData?.netIncome || 0;
+
+  if (isLoading) {
+    return <div className="text-center py-8">Loading report...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-8 text-red-600">Error: {error}</div>;
+  }
+
+  if (!startDate || !endDate) {
+    return <div className="text-center py-8 text-gray-500">Please select a date range in the header.</div>;
+  }
 
   return (
     <div>
@@ -94,8 +101,8 @@ const IncomeExpenseSummaryReport = () => {
         <div className="space-y-6">
           {/* Income and Expense Sections Side-by-Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {renderAccountList(reportData.incomeAccounts, 'Income', 'bg-green-50 text-green-800 border border-green-200')}
-            {renderAccountList(reportData.expenseAccounts, 'Expenses', 'bg-red-50 text-red-800 border border-red-200')}
+            {renderAccountList(reportData.income?.accounts || [], 'Income', 'bg-green-50 text-green-800 border border-green-200')}
+            {renderAccountList(reportData.expense?.accounts || [], 'Expenses', 'bg-red-50 text-red-800 border border-red-200')}
           </div>
 
           {/* Summary Section */}

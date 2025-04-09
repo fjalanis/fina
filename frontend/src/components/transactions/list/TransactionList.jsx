@@ -140,6 +140,43 @@ const TransactionList = () => {
     return name.length > maxLength ? name.substring(0, maxLength - 1) + '…' : name;
   };
 
+  // Calculate the difference between debits and credits
+  const calculateDifference = (debitAmount, creditAmount) => {
+    return debitAmount - creditAmount;
+  };
+
+  // Format amount with deficit/surplus indicator
+  const formatAmountWithBalance = (amount, difference, isDebit) => {
+    if (amount === 0) {
+      return isDebit ? '0.00 (needs +' + formatNumber(Math.abs(difference)) + ')' : '0.00 (needs +' + formatNumber(Math.abs(difference)) + ')';
+    }
+    
+    if (difference === 0) {
+      return formatNumber(amount);
+    }
+    
+    // For debit column
+    if (isDebit) {
+      if (difference > 0) {
+        // Debit is higher, show the amount
+        return formatNumber(amount);
+      } else {
+        // Credit is higher, show deficit
+        return `${formatNumber(amount)} (needs +${formatNumber(Math.abs(difference))})`;
+      }
+    } 
+    // For credit column
+    else {
+      if (difference < 0) {
+        // Credit is higher, show the amount
+        return formatNumber(amount);
+      } else {
+        // Debit is higher, show deficit
+        return `${formatNumber(amount)} (needs +${formatNumber(Math.abs(difference))})`;
+      }
+    }
+  };
+
   // Refactored to show the 'other side' account for simple transactions
   const processEntries = (entries, columnType) => {
     const columnEntries = entries.filter(entry => entry.type === columnType);
@@ -165,7 +202,11 @@ const TransactionList = () => {
     // Case 2: Multiple entries on this side - show count
     } else if (columnEntries.length > 1) {
       const countPrefix = columnType === 'debit' ? 'From ' : 'To ';
-      detail = `${countPrefix}${columnEntries.length} accounts`;
+      detail = {
+        prefix: countPrefix,
+        name: `${columnEntries.length} accounts`,
+        colorClass: '' // No color class needed for count
+      };
     // Case 3: Single entry on this side, but multiple on the other (or unbalanced) - show this side's account
     } else if (columnEntries.length === 1) {
        const account = columnEntries[0].account;
@@ -179,7 +220,7 @@ const TransactionList = () => {
        };
     // Case 4: No entries on this side
     } else {
-        detail = '-'; 
+        detail = null; 
     }
 
     // --- DEBUG LOG: Log processed entry info ---
@@ -269,7 +310,6 @@ const TransactionList = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> Date </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> Debits </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> Credits </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"> Status </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> Description </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"> Actions </th>
               </tr>
@@ -284,16 +324,26 @@ const TransactionList = () => {
                 const debitInfo = processEntries(transaction.entries || [], 'debit');
                 const creditInfo = processEntries(transaction.entries || [], 'credit');
                 
+                // Calculate if there's an imbalance
+                const difference = calculateDifference(debitInfo.amount, creditInfo.amount);
+                const isBalanced = Math.abs(difference) < 0.01; // Using small epsilon for float comparison
+                
+                // Determine background color based on balance status
+                const debitBgClass = isBalanced ? '' : 'bg-red-50';
+                const creditBgClass = isBalanced ? '' : 'bg-red-50';
+                
                 return (
                   <tr key={transaction._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(transaction.date)}
                     </td>
                     {/* Debit Column */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm text-red-600">{formatNumber(debitInfo.amount)}</div>
+                    <td className={`px-6 py-4 whitespace-nowrap text-right ${debitBgClass}`}>
+                      <div className="text-sm text-red-600">
+                        {formatAmountWithBalance(debitInfo.amount, difference, true)}
+                      </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {typeof debitInfo.detail === 'object' ? (
+                        {debitInfo.detail ? (
                           <>
                             {debitInfo.detail.prefix}
                             <span className={`ml-1 px-2 py-0.5 rounded-full ${debitInfo.detail.colorClass}`}>
@@ -301,15 +351,17 @@ const TransactionList = () => {
                             </span>
                           </>
                         ) : (
-                          debitInfo.detail // Display string like 'From N accounts' or '-'
+                          '' // Leave blank if detail is null
                         )}
                       </div>
                     </td>
                     {/* Credit Column */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm text-green-600">{formatNumber(creditInfo.amount)}</div>
+                    <td className={`px-6 py-4 whitespace-nowrap text-right ${creditBgClass}`}>
+                      <div className="text-sm text-green-600">
+                        {formatAmountWithBalance(creditInfo.amount, difference, false)}
+                      </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {typeof creditInfo.detail === 'object' ? (
+                        {creditInfo.detail ? (
                           <>
                             {creditInfo.detail.prefix}
                             <span className={`ml-1 px-2 py-0.5 rounded-full ${creditInfo.detail.colorClass}`}>
@@ -317,19 +369,9 @@ const TransactionList = () => {
                             </span>
                           </>
                         ) : (
-                          creditInfo.detail // Display string like 'To N accounts' or '-'
+                          '' // Leave blank if detail is null
                         )}
                       </div>
-                    </td>
-                     {/* Status Column */}
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        transaction.isBalanced 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {transaction.isBalanced ? 'Balanced' : 'Unbalanced'}
-                      </span>
                     </td>
                     {/* Description Column (kept for context) */}
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={transaction.description}>
@@ -344,7 +386,7 @@ const TransactionList = () => {
                       >
                         View
                       </button>
-                      {!transaction.isBalanced && (
+                      {!isBalanced && (
                         <button
                           onClick={() => handleOpenBalanceModal(transaction)}
                           className="text-orange-600 hover:text-orange-900"

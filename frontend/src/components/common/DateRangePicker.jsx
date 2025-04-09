@@ -2,27 +2,33 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   format, subDays, isValid, parseISO, startOfDay, 
-  startOfQuarter, endOfQuarter, subMonths, startOfYear, endOfYear,
-  endOfDay,
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth
+  subMonths, subYears, startOfYear, endOfYear,
+  endOfDay, startOfMonth, endOfMonth
 } from 'date-fns';
 import { DateRangePicker as ReactDateRange, createStaticRanges } from 'react-date-range';
 
 // Define custom static ranges
 const staticRanges = createStaticRanges([
   {
-    label: 'Today',
-    range: () => ({
-      startDate: startOfDay(new Date()),
-      endDate: endOfDay(new Date()),
-    }),
-  },
-  {
-    label: 'This Week',
-    range: () => ({
-      startDate: startOfWeek(new Date()),
-      endDate: endOfWeek(new Date()),
-    }),
+    label: 'This Paycheck Period',
+    range: () => {
+      const today = new Date();
+      const day = today.getDate();
+      
+      // First half of month (1st to 15th)
+      if (day <= 15) {
+        return {
+          startDate: startOfDay(new Date(today.getFullYear(), today.getMonth(), 1)),
+          endDate: endOfDay(new Date(today.getFullYear(), today.getMonth(), 15))
+        };
+      }
+      
+      // Second half of month (16th to end)
+      return {
+        startDate: startOfDay(new Date(today.getFullYear(), today.getMonth(), 16)),
+        endDate: endOfDay(new Date(today.getFullYear(), today.getMonth() + 1, 0))
+      };
+    },
   },
   {
     label: 'This Month',
@@ -32,10 +38,24 @@ const staticRanges = createStaticRanges([
     }),
   },
   {
-    label: 'This Quarter',
+    label: 'This Year',
     range: () => ({
-      startDate: startOfQuarter(new Date()),
-      endDate: endOfQuarter(new Date())
+      startDate: startOfYear(new Date()),
+      endDate: endOfYear(new Date())
+    })
+  },
+  {
+    label: 'Last Month',
+    range: () => ({
+      startDate: startOfDay(subMonths(new Date(), 1)),
+      endDate: endOfDay(new Date())
+    })
+  },
+  {
+    label: 'Last 3 Months',
+    range: () => ({
+      startDate: startOfDay(subMonths(new Date(), 3)),
+      endDate: endOfDay(new Date())
     })
   },
   {
@@ -46,13 +66,13 @@ const staticRanges = createStaticRanges([
     })
   },
   {
-    label: 'This Year',
+    label: 'Last 12 Months',
     range: () => ({
-      startDate: startOfYear(new Date()),
-      endDate: endOfYear(new Date())
+      startDate: startOfDay(subYears(new Date(), 1)),
+      endDate: endOfDay(new Date()) // Use endOfDay for inclusivity if needed
     })
-  }
-]);
+  },
+ ]);
 
 /**
  * A reusable date range picker component using react-date-range 

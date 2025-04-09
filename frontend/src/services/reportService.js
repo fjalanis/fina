@@ -13,6 +13,13 @@ export const fetchAccountBalanceReport = async (startDate, endDate, accountId = 
   return fetchData(endpoint);
 };
 
+// Get net worth report
+export const fetchNetWorthReport = async (startDate, endDate) => {
+  const params = new URLSearchParams({ startDate, endDate });
+  const endpoint = `${REPORT_ENDPOINT}/net-worth?${params.toString()}`;
+  return fetchData(endpoint);
+};
+
 // Rename and update function for date-range based income/expense summary
 export const fetchIncomeExpenseSummary = async (startDate, endDate) => {
   const params = new URLSearchParams();
@@ -41,16 +48,8 @@ export const fetchIncomeExpenseSummary = async (startDate, endDate) => {
 
 // Get Sankey diagram data
 export const fetchSankeyReportData = async (startDate, endDate) => {
-  const params = new URLSearchParams();
-  // Format dates as YYYY-MM-DD strings if they are Date objects
-  if (startDate instanceof Date) {
-    params.append('startDate', startDate.toISOString().split('T')[0]);
-  }
-  if (endDate instanceof Date) {
-    params.append('endDate', endDate.toISOString().split('T')[0]);
-  }
-
-  const queryString = params.toString();
-  const endpoint = `${REPORT_ENDPOINT}/sankey?${queryString}`;
+  // Directly create params assuming startDate and endDate are strings
+  const params = new URLSearchParams({ startDate, endDate });
+  const endpoint = `${REPORT_ENDPOINT}/sankey?${params.toString()}`;
   return fetchData(endpoint);
 }; 

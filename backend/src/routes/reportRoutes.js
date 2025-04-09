@@ -3,13 +3,17 @@ const {
   getAccountBalanceReport,
   getIncomeExpenseSummary,
   getTransactionSummary,
-  getSankeyReport
+  getSankeyReport,
+  getNetWorthReport
 } = require('../controllers/reportController');
 
 const router = express.Router();
 
 // Account balance report route
 router.get('/account-balance', getAccountBalanceReport);
+
+// Net worth report route
+router.get('/net-worth', getNetWorthReport);
 
 // Income/expense summary route for a date range
 router.get('/income-expense-summary', getIncomeExpenseSummary);

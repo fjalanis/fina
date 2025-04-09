@@ -16,7 +16,7 @@ import { TransactionList } from './components/transactions';
 
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
-import DateRangePicker from './components/reports/DateRangePicker';
+import DateRangePicker from './components/common/DateRangePicker';
 
 // Rule Components
 import RuleList from './components/rules/RuleList';
