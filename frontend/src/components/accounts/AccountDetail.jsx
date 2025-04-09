@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { fetchAccountById, deleteAccount } from '../../services/accountService';
+import { fetchAccountById, deleteAccount, fetchDescendantIds } from '../../services/accountService';
+import { fetchTransactions } from '../../services/transactionService';
 import Modal from '../common/Modal';
 import AccountForm from './AccountForm';
+import TransactionListDisplay from '../transactions/list/TransactionListDisplay';
+import TransactionDetailModal from '../transactions/detail/TransactionDetailModal';
+import TransactionBalanceModal from '../transactions/balancing/TransactionBalanceModal';
+import { toast } from 'react-toastify';
 
 const AccountDetail = () => {
   const { id } = useParams();
@@ -12,25 +17,85 @@ const AccountDetail = () => {
   const [error, setError] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const fetchAccount = async () => {
+  const [accountTransactions, setAccountTransactions] = useState([]);
+  const [allAccountIds, setAllAccountIds] = useState([]);
+
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingTransaction, setViewingTransaction] = useState(null);
+
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [balancingTransaction, setBalancingTransaction] = useState(null);
+
+  const fetchAccountDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetchAccountById(id);
-      setAccount(response.data);
       setError(null);
+      setAccount(null);
+      setAllAccountIds([]);
+      setAccountTransactions([]);
+
+      const response = await Promise.all([fetchAccountById(id), fetchDescendantIds(id)]);
+      setAccount(response[0].data);
+      setAllAccountIds(Array.isArray(response[1].data) ? response[1].data : []);
     } catch (err) {
-      setError('Failed to load account details. Please try again later.');
+      setError(err.message || 'Failed to load account details.');
       console.error('Error fetching account:', err);
-    } finally {
-      setLoading(false);
+      setAccount(null);
+    }
+  };
+
+  const getDescendantIds = async () => {
+    try {
+      const response = await fetchDescendantIds(id);
+      setAllAccountIds(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      setError(err.message || 'Failed to load descendant accounts.');
+      console.error('Error fetching descendant IDs:', err);
+      setAllAccountIds([]);
+    }
+  };
+
+  const fetchAccountTransactions = async () => {
+    try {
+      if (allAccountIds.length === 0) {
+        console.warn('Attempted to fetch transactions before descendant IDs were loaded.');
+        setAccountTransactions([]);
+        return;
+      }
+
+      const response = await fetchTransactions({ accountIds: allAccountIds });
+
+      setAccountTransactions(Array.isArray(response.data) ? response.data : []);
+      if (error) setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to load transactions for this account hierarchy.');
+      console.error('Error fetching account transactions:', err);
+      setAccountTransactions([]);
     }
   };
 
   useEffect(() => {
     if (id) {
-      fetchAccount();
+      const loadData = async () => {
+        setLoading(true);
+        setError(null);
+        setAccount(null);
+        setAllAccountIds([]);
+        setAccountTransactions([]);
+
+        await Promise.all([fetchAccountDetails(), getDescendantIds()]);
+
+        setLoading(false);
+      };
+      loadData();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!loading && allAccountIds.length > 0) {
+      fetchAccountTransactions();
+    }
+  }, [allAccountIds, loading]);
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this account?')) {
@@ -52,7 +117,41 @@ const AccountDetail = () => {
     setIsEditModalOpen(false);
   };
 
-  if (loading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
+  const handleOpenViewModal = (transaction) => {
+    setViewingTransaction(transaction);
+    setIsViewModalOpen(true);
+  };
+
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setViewingTransaction(null);
+  };
+
+  const handleOpenBalanceModal = (transaction) => {
+    setBalancingTransaction(transaction);
+    setIsBalanceModalOpen(true);
+  };
+
+  const handleCloseBalanceModal = () => {
+    setIsBalanceModalOpen(false);
+    setBalancingTransaction(null);
+  };
+
+  const handleTransactionUpdated = async () => {
+    handleCloseViewModal();
+    toast.success('Transaction updated successfully!');
+    await fetchAccountTransactions();
+  };
+
+  const handleTransactionBalanced = async () => {
+    handleCloseBalanceModal();
+    toast.success('Transaction balanced successfully! Refreshing list...');
+    await fetchAccountTransactions();
+  };
+
+  const initialLoading = loading;
+
+  if (initialLoading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
 
   if (error) return <div className="text-red-500 p-4 text-center">{error}</div>;
 
@@ -171,6 +270,17 @@ const AccountDetail = () => {
         </div>
       </div>
 
+      {/* Transaction List Section */}
+      <div className="mt-8">
+        <h3 className="text-lg font-medium mb-4">Related Transactions</h3>
+
+        <TransactionListDisplay
+          transactions={accountTransactions}
+          onViewTransaction={handleOpenViewModal}
+          onBalanceTransaction={handleOpenBalanceModal}
+        />
+      </div>
+
       {/* Edit Account Modal */}
       <Modal
         isOpen={isEditModalOpen}
@@ -184,6 +294,26 @@ const AccountDetail = () => {
           onCancel={() => setIsEditModalOpen(false)}
         />
       </Modal>
+
+      {/* Transaction View/Detail Modal */}
+      {viewingTransaction && (
+        <TransactionDetailModal
+          isOpen={isViewModalOpen}
+          onClose={handleCloseViewModal}
+          transaction={viewingTransaction}
+          onUpdate={handleTransactionUpdated}
+        />
+      )}
+
+      {/* Transaction Balance Modal */}
+      {balancingTransaction && (
+        <TransactionBalanceModal
+          isOpen={isBalanceModalOpen}
+          onClose={handleCloseBalanceModal}
+          transaction={balancingTransaction}
+          onTransactionBalanced={handleTransactionBalanced}
+        />
+      )}
     </div>
   );
 };

@@ -32,7 +32,7 @@ exports.getAccount = async (req, res) => {
     const account = await Account.findById(req.params.id)
       .populate({
         path: 'children',
-        select: 'name type'
+        select: 'name type _id'
       });
     
     if (!account) {
@@ -387,3 +387,54 @@ async function getAccountWithChildren(accountId, startDate, endDate) {
   
   return account; // Return the augmented plain object
 } 
+
+// Helper function to recursively get all descendant IDs
+async function getAllDescendantIds(accountId) {
+    let descendantIds = [];
+    // Find direct children
+    const children = await Account.find({ parent: accountId }).select('_id').lean();
+
+    for (const child of children) {
+        descendantIds.push(child._id);
+        // Recursively get IDs of grandchildren, etc.
+        const furtherDescendants = await getAllDescendantIds(child._id);
+        descendantIds = descendantIds.concat(furtherDescendants);
+    }
+    return descendantIds;
+}
+
+// @desc    Get IDs of an account and all its descendants
+// @route   GET /api/accounts/:id/descendants
+// @access  Public 
+exports.getAccountDescendants = async (req, res) => {
+    try {
+        const accountId = req.params.id;
+
+        // Validate the main account ID
+        const account = await Account.findById(accountId).select('_id').lean();
+        if (!account) {
+            return res.status(404).json({ success: false, error: 'Account not found' });
+        }
+
+        // Start with the account itself
+        let allIds = [accountId];
+        
+        // Get all descendant IDs recursively
+        const descendantIds = await getAllDescendantIds(accountId);
+        
+        allIds = allIds.concat(descendantIds);
+        
+        res.status(200).json({
+            success: true,
+            data: allIds // Return flat array of IDs
+        });
+
+    } catch (error) {
+        logger.error(`Error getting account descendants: ${error.message}`);
+        // Check for CastError
+        if (error.name === 'CastError') {
+             return res.status(400).json({ success: false, error: 'Invalid account ID format' });
+        }
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+}; 

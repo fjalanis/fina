@@ -563,6 +563,55 @@ describe('Transaction Routes', () => {
       expect(usdEntry.unit).toBe('USD');
       expect(fetchedTx.isBalanced).toBe(true);
     });
+
+    // Add test case for filtering by accountId
+    it('should filter transactions by accountId', async () => {
+        // Create two transactions, one involving account1, one involving account2
+        const account1 = await Account.create({ name: 'Test Account 1', type: 'asset' });
+        const account2 = await Account.create({ name: 'Test Account 2', type: 'asset' });
+        const account3 = await Account.create({ name: 'Cash', type: 'asset' }); // Common account
+
+        const transaction1 = await Transaction.create({
+            date: new Date(),
+            description: 'Transaction for Account 1',
+            entries: [
+                { accountId: account1._id, amount: 100, type: 'debit', unit: account1.unit || 'USD' },
+                { accountId: account3._id, amount: 100, type: 'credit', unit: account3.unit || 'USD' },
+            ],
+        });
+
+        const transaction2 = await Transaction.create({
+            date: new Date(),
+            description: 'Transaction for Account 2',
+            entries: [
+                { accountId: account2._id, amount: 50, type: 'debit', unit: account2.unit || 'USD' },
+                { accountId: account3._id, amount: 50, type: 'credit', unit: account3.unit || 'USD' },
+            ],
+        });
+
+        // Fetch transactions filtering by account1._id
+        const res = await request(app).get(`/api/transactions?accountId=${account1._id}`);
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toBeInstanceOf(Array);
+        expect(res.body.data.length).toBe(1); // Should only find transaction1
+        expect(res.body.data[0]._id).toBe(transaction1._id.toString());
+        expect(res.body.data[0].description).toBe('Transaction for Account 1');
+
+        // Verify entries are populated correctly (optional but good)
+        expect(res.body.data[0].entries[0].account.name).toBe('Test Account 1');
+    });
+
+    // Test case for invalid transaction ID
+    it('should return 404 for non-existent transaction ID', async () => {
+      const res = await request(app)
+        .get('/api/transactions/nonexistentid')
+        .expect(404);
+
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain('Transaction not found');
+    });
   });
 
   // *** NEW TEST FOR SAME ACCOUNT VALIDATION ***

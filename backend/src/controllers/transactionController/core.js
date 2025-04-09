@@ -1,6 +1,7 @@
 const Transaction = require('../../models/Transaction');
 const Account = require('../../models/Account');
 const { applyRulesToTransaction } = require('../../services/ruleApplicationService');
+const mongoose = require('mongoose');
 
 // Helper function to enrich entries with units
 async function enrichEntriesWithUnits(entriesData) {
@@ -107,7 +108,7 @@ exports.getTransactions = async (req, res) => {
   try {
     console.log('getTransactions called with query:', req.query);
     
-    const { startDate, endDate, accountId } = req.query;
+    const { startDate, endDate, accountId, accountIds } = req.query;
     const query = {};
     
     if (startDate && endDate) {
@@ -117,8 +118,17 @@ exports.getTransactions = async (req, res) => {
       };
     }
     
-    if (accountId) {
-      query['entries.accountId'] = accountId;
+    if (accountIds) {
+      // If accountIds is a string (e.g., "id1,id2"), split it. If it's already an array, use it.
+      const idsArray = Array.isArray(accountIds) ? accountIds : accountIds.split(',').map(id => id.trim()).filter(id => !!id);
+      if (idsArray.length > 0) {
+        // TODO: Validate these are actual ObjectIds?
+        query['entries.accountId'] = { $in: idsArray };
+      }
+    } else if (accountId) {
+      // Fallback to single accountId if accountIds is not provided
+      // TODO: Validate this is an actual ObjectId?
+      query['entries.accountId'] = accountId; 
     }
     
     console.log('MongoDB query:', JSON.stringify(query));
@@ -168,6 +178,14 @@ exports.getTransactions = async (req, res) => {
 // @access  Private
 exports.getTransaction = async (req, res) => {
   try {
+    // Check if ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).json({
+            success: false,
+            error: 'Transaction not found (Invalid ID format)'
+        });
+    }
+    
     const transaction = await Transaction.findById(req.params.id)
       .populate({
         path: 'entries.account',

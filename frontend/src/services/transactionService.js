@@ -6,14 +6,20 @@ const TRANSACTION_ENDPOINT = '/transactions';
 export const fetchTransactions = async (params = {}) => {
   const queryParams = new URLSearchParams();
 
+  // Handle accountIds array or single accountId
+  if (params.accountIds && Array.isArray(params.accountIds) && params.accountIds.length > 0) {
+    // Join array into comma-separated string for query param
+    queryParams.append('accountIds', params.accountIds.join(','));
+  } else if (params.accountId) {
+    // Fallback to single accountId if accountIds is not provided or invalid
+    queryParams.append('accountId', params.accountId);
+  }
+
   if (params.startDate) {
     queryParams.append('startDate', params.startDate);
   }
   if (params.endDate) {
     queryParams.append('endDate', params.endDate);
-  }
-  if (params.accountId) {
-    queryParams.append('accountId', params.accountId);
   }
 
   const queryString = queryParams.toString();

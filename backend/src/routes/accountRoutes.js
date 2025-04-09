@@ -1,20 +1,36 @@
 const express = require('express');
+const {
+    getAccounts,
+    getAccount,
+    createAccount,
+    updateAccount,
+    deleteAccount,
+    getAccountHierarchy,
+    getAccountDescendants
+} = require('../controllers/accountController');
+
+// Include other resource routers if needed
+// Example: const transactionRouter = require('./transactions');
+
 const router = express.Router();
-const accountController = require('../controllers/accountController');
 
-// Routes for /api/accounts
-router.route('/')
-  .get(accountController.getAccounts)
-  .post(accountController.createAccount);
+// Re-route into other resource routers
+// Example: router.use('/:accountId/transactions', transactionRouter);
 
-// Route for account hierarchy
 router.route('/hierarchy')
-  .get(accountController.getAccountHierarchy);
+    .get(getAccountHierarchy);
 
-// Routes for /api/accounts/:id
+router.route('/')
+    .get(getAccounts)
+    .post(createAccount);
+
 router.route('/:id')
-  .get(accountController.getAccount)
-  .put(accountController.updateAccount)
-  .delete(accountController.deleteAccount);
+    .get(getAccount)
+    .put(updateAccount)
+    .delete(deleteAccount);
+
+// New route for getting descendant IDs
+router.route('/:id/descendants')
+    .get(getAccountDescendants);
 
 module.exports = router; 

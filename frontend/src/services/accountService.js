@@ -49,4 +49,12 @@ export const fetchAccountHierarchy = async (startDate, endDate) => {
   }
 
   return fetchData(url); // Pass the updated URL with query parameters
+};
+
+// Fetch IDs of an account and all its descendants
+export const fetchDescendantIds = async (accountId) => {
+  if (!accountId) {
+    throw new Error('Account ID is required to fetch descendants.');
+  }
+  return fetchData(`${ACCOUNT_ENDPOINT}/${accountId}/descendants`);
 }; 
