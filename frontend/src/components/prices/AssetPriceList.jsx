@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { fetchAssetPrices, deleteAssetPrice } from '../../services/assetPriceService';
 import AssetPriceForm from './AssetPriceForm';
 import { useSearchParams } from 'react-router-dom';
+import Modal from '../common/Modal';
 
 const AssetPriceList = () => {
   const [assetPrices, setAssetPrices] = useState([]);
@@ -54,8 +55,16 @@ const AssetPriceList = () => {
     setEditingPrice(null);
   };
 
-  const handleFormSave = () => {
-    loadAssetPrices();
+  const handleFormSave = (savedPrice) => {
+    if (editingPrice) {
+      setAssetPrices(prevPrices => 
+        prevPrices.map(p => p._id === savedPrice._id ? savedPrice : p)
+      );
+    } else {
+      setAssetPrices(prevPrices => 
+        [savedPrice, ...prevPrices].sort((a, b) => new Date(b.date) - new Date(a.date))
+      );
+    }
     handleFormClose();
   };
 
@@ -75,16 +84,6 @@ const AssetPriceList = () => {
         </button>
       </div>
 
-      {showForm && (
-        <div className="mb-8 bg-white p-6 rounded-lg shadow">
-          <AssetPriceForm
-            assetPrice={editingPrice}
-            onSave={handleFormSave}
-            onCancel={handleFormClose}
-          />
-        </div>
-      )}
-
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
           {assetPrices.map((price) => (
@@ -92,10 +91,10 @@ const AssetPriceList = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-900">
-                    {price.baseCurrency} → {price.targetCurrency}
+                    Unit: {price.unit}
                   </p>
                   <p className="text-sm text-gray-500">
-                    Price: {price.rate} (as of {new Date(price.date).toLocaleDateString()})
+                    Price (USD): {price.rate} (as of {new Date(price.date).toLocaleString()})
                   </p>
                 </div>
                 <div className="flex space-x-3">
@@ -117,6 +116,19 @@ const AssetPriceList = () => {
           ))}
         </ul>
       </div>
+
+      <Modal
+        isOpen={showForm}
+        onClose={handleFormClose}
+        title={editingPrice ? 'Edit Asset Price' : 'Add Asset Price'}
+        size="md"
+      >
+        <AssetPriceForm
+          assetPrice={editingPrice}
+          onSave={handleFormSave}
+          onCancel={handleFormClose}
+        />
+      </Modal>
     </div>
   );
 };

@@ -1,17 +1,11 @@
 const mongoose = require('mongoose');
 
 const AssetPriceSchema = new mongoose.Schema({
-  baseCurrency: {
+  unit: {
     type: String,
-    required: [true, 'Base currency is required'],
+    required: [true, 'Unit is required'],
     trim: true,
-    maxlength: [50, 'Base currency cannot be more than 50 characters']
-  },
-  targetCurrency: {
-    type: String,
-    required: [true, 'Target currency is required'],
-    trim: true,
-    maxlength: [50, 'Target currency cannot be more than 50 characters']
+    maxlength: [50, 'Unit cannot be more than 50 characters']
   },
   rate: {
     type: Number,
@@ -27,7 +21,8 @@ const AssetPriceSchema = new mongoose.Schema({
   timestamps: true // Add createdAt and updatedAt timestamps
 });
 
-// Create a compound index for baseCurrency, targetCurrency, and date
-AssetPriceSchema.index({ baseCurrency: 1, targetCurrency: 1, date: 1 }, { unique: true });
+// REMOVED: Unique index on unit + date. Timestamps should be unique enough in practice,
+// and enforcing it could cause issues. Handle potential display duplicates on frontend if needed.
+// AssetPriceSchema.index({ unit: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model('AssetPrice', AssetPriceSchema); 

@@ -14,18 +14,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/accounts', require('./routes/accountRoutes'));
-app.use('/api/transactions', require('./routes/transactionRoutes'));
-app.use('/api/reports', require('./routes/reportRoutes'));
-app.use('/api/rules', require('./routes/ruleRoutes'));
-app.use('/api/asset-prices', require('./routes/assetPriceRoutes'));
+// Route files
+const accountRoutes = require('./routes/accountRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const assetPriceRoutes = require('./routes/assetPriceRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const ruleRoutes = require('./routes/ruleRoutes');
+
+// Mount routers
+app.use('/api/accounts', accountRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/asset-prices', assetPriceRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/rules', ruleRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something broke!' });
 });
+
+// Export the app instance *before* the server start logic
+module.exports = app;
 
 // Only start the server if this file is run directly (not required as a module)
 if (require.main === module) {
@@ -44,6 +54,4 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
-}
-
-module.exports = app; 
+} 

@@ -69,6 +69,10 @@ exports.getAssetPrice = async (req, res) => {
     });
   } catch (error) {
     console.error(`Error getting asset price by ID ${req.params.id}:`, error);
+    // Specifically check for CastError (invalid ID format)
+    if (error.name === 'CastError') {
+      return res.status(400).json({ success: false, error: 'Invalid ID format' });
+    }
     res.status(500).json({
       success: false,
       error: 'Server Error'
@@ -81,7 +85,11 @@ exports.getAssetPrice = async (req, res) => {
 // @access  Public
 exports.updateAssetPrice = async (req, res) => {
   try {
-    const price = await AssetPrice.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    // Prevent unit from being updated
+    delete updateData.unit;
+
+    const price = await AssetPrice.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true
     });

@@ -438,3 +438,28 @@ exports.getAccountDescendants = async (req, res) => {
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 }; 
+
+// @desc    Get unique non-USD units from all accounts
+// @route   GET /api/accounts/units
+// @access  Public
+exports.getUniqueAccountUnits = async (req, res) => {
+  try {
+    // Use distinct to get unique unit values directly from the database
+    const units = await Account.distinct('unit');
+
+    // Filter out 'USD'
+    const nonUsdUnits = units.filter(unit => unit !== 'USD');
+
+    res.status(200).json({
+      success: true,
+      count: nonUsdUnits.length,
+      data: nonUsdUnits
+    });
+  } catch (error) {
+    console.error("Error fetching unique account units:", error);
+    res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+}; 

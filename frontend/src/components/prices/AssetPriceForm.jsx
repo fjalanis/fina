@@ -1,26 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { createAssetPrice, updateAssetPrice } from '../../services/assetPriceService';
+import { createAssetPrice, updateAssetPrice, fetchAccountUnits } from '../../services/assetPriceService';
 import { toast } from 'react-toastify';
 
 const AssetPriceForm = ({ assetPrice = null, onSave, onCancel }) => {
   const isEditing = Boolean(assetPrice);
+
+  // Helper function to format Date to datetime-local compatible string (YYYY-MM-DDTHH:mm:ss)
+  const formatDateTimeLocal = (date) => {
+    const d = new Date(date);
+    // Adjust for timezone offset to get local time correctly
+    const offset = d.getTimezoneOffset();
+    const adjustedDate = new Date(d.getTime() - (offset * 60 * 1000));
+    // Return ISO string sliced to seconds precision
+    return adjustedDate.toISOString().slice(0, 19);
+  };
+
   const [formData, setFormData] = useState({
-    baseCurrency: '',
-    targetCurrency: '',
+    unit: '',
     rate: '',
-    date: new Date().toISOString().split('T')[0]
+    date: formatDateTimeLocal(new Date()) // Use helper for initial state
   });
+  const [availableUnits, setAvailableUnits] = useState([]);
+  const [loadingUnits, setLoadingUnits] = useState(true);
+
+  useEffect(() => {
+    const loadUnits = async () => {
+      try {
+        setLoadingUnits(true);
+        const units = await fetchAccountUnits();
+        setAvailableUnits(units);
+      } catch (err) {
+        toast.error('Failed to load available units for pricing.');
+        console.error('Error loading units:', err);
+        setAvailableUnits([]);
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
+    loadUnits();
+  }, []);
 
   useEffect(() => {
     if (isEditing && assetPrice) {
       setFormData({
-        baseCurrency: assetPrice.baseCurrency,
-        targetCurrency: assetPrice.targetCurrency,
+        unit: assetPrice.unit,
         rate: assetPrice.rate,
-        date: new Date(assetPrice.date).toISOString().split('T')[0]
+        date: formatDateTimeLocal(assetPrice.date) // Use helper when editing
       });
+      if (availableUnits.length > 0 && !availableUnits.includes(assetPrice.unit)) {
+        setAvailableUnits(prev => [assetPrice.unit, ...prev].sort());
+      }
     }
-  }, [assetPrice, isEditing]);
+  }, [assetPrice, isEditing, availableUnits]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,14 +70,23 @@ const AssetPriceForm = ({ assetPrice = null, onSave, onCancel }) => {
     }
 
     try {
+      // Convert the local datetime string to a full UTC ISO string before sending
+      const submissionData = {
+        ...formData,
+        date: new Date(formData.date).toISOString()
+      };
+
       if (isEditing) {
-        await updateAssetPrice(assetPrice._id, formData);
+        const updatedPrice = await updateAssetPrice(assetPrice._id, submissionData);
         toast.success('Asset price updated successfully!');
+        // Pass the saved data back to the parent
+        onSave(updatedPrice.data);
       } else {
-        await createAssetPrice(formData);
+        const newPrice = await createAssetPrice(submissionData);
         toast.success('Asset price created successfully!');
+        // Pass the saved data back to the parent
+        onSave(newPrice.data);
       }
-      onSave();
     } catch (err) {
       toast.error('Failed to save asset price. Please try again.');
       console.error('Error saving asset price:', err);
@@ -56,38 +96,29 @@ const AssetPriceForm = ({ assetPrice = null, onSave, onCancel }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="baseCurrency" className="block text-sm font-medium text-gray-700">
-          Base Currency *
+        <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
+          Unit *
         </label>
-        <input
-          type="text"
-          id="baseCurrency"
-          name="baseCurrency"
-          value={formData.baseCurrency}
+        <select
+          id="unit"
+          name="unit"
+          value={formData.unit}
           onChange={handleChange}
           required
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="targetCurrency" className="block text-sm font-medium text-gray-700">
-          Target Currency *
-        </label>
-        <input
-          type="text"
-          id="targetCurrency"
-          name="targetCurrency"
-          value={formData.targetCurrency}
-          onChange={handleChange}
-          required
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        />
+          disabled={loadingUnits || isEditing}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed px-3 py-2"
+        >
+          <option value="" disabled>{loadingUnits ? 'Loading units...' : 'Select Unit'}</option>
+          {availableUnits.map(unit => (
+            <option key={unit} value={unit}>{unit}</option>
+          ))}
+        </select>
+        {isEditing && <p className="mt-1 text-xs text-gray-500">Unit cannot be changed during edit.</p>}
       </div>
 
       <div>
         <label htmlFor="rate" className="block text-sm font-medium text-gray-700">
-          Asset Price *
+          Asset Price (USD) *
         </label>
         <input
           type="number"
@@ -98,22 +129,22 @@ const AssetPriceForm = ({ assetPrice = null, onSave, onCancel }) => {
           required
           min="0"
           step="0.000001"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
         />
       </div>
 
       <div>
         <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-          Date *
+          Date & Time *
         </label>
         <input
-          type="date"
+          type="datetime-local"
           id="date"
           name="date"
           value={formData.date}
           onChange={handleChange}
           required
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
         />
       </div>
 

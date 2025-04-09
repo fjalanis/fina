@@ -280,4 +280,55 @@ describe('Account API Endpoints', () => {
       expect(res.body.error).toContain('Account cannot be its own parent');
     });
   });
+
+  // --- Test Suite for Unique Units Endpoint ---
+  describe('GET /api/accounts/units', () => {
+    beforeEach(async () => {
+      // Clear accounts and add some with various units
+      await Account.deleteMany({});
+      await Account.create({ name: 'Checking', type: 'asset', unit: 'USD' });
+      await Account.create({ name: 'Savings CAD', type: 'asset', unit: 'CAD' });
+      await Account.create({ name: 'Euro Wallet', type: 'asset', unit: 'EUR' });
+      await Account.create({ name: 'Investment CAD', type: 'asset', unit: 'CAD' }); // Duplicate CAD
+      await Account.create({ name: 'USD Liability', type: 'liability', unit: 'USD' }); // Another USD
+      await Account.create({ name: 'JPY Asset', type: 'asset', unit: 'JPY' });
+    });
+
+    it('should return a list of unique non-USD units', async () => {
+      const res = await request(app).get('/api/accounts/units');
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data).toContain('CAD');
+      expect(res.body.data).toContain('EUR');
+      expect(res.body.data).toContain('JPY');
+      expect(res.body.data).not.toContain('USD');
+      // Check for uniqueness - length should match the number of distinct non-USD units
+      expect(res.body.data.length).toBe(3);
+    });
+
+    it('should return an empty list if only USD accounts exist', async () => {
+      await Account.deleteMany({});
+      await Account.create({ name: 'Only USD 1', type: 'asset', unit: 'USD' });
+      await Account.create({ name: 'Only USD 2', type: 'asset', unit: 'USD' });
+
+      const res = await request(app).get('/api/accounts/units');
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual([]);
+      expect(res.body.count).toBe(0);
+    });
+
+    it('should return an empty list if no accounts exist', async () => {
+      await Account.deleteMany({});
+      const res = await request(app).get('/api/accounts/units');
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual([]);
+      expect(res.body.count).toBe(0);
+    });
+  });
 }); 

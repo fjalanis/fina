@@ -92,16 +92,17 @@ const DateRangePicker = () => {
   };
 
   const formatDateForParam = (date) => {
+    // Always format URL params as full UTC ISO strings
     if (!date || !isValid(date)) return '';
-    return format(date, 'yyyy-MM-dd');
+    return date.toISOString(); 
   };
 
   const parseDateFromParam = (param) => {
     const dateStr = searchParams.get(param);
     if (!dateStr) return null;
     try {
-      // Ensure we parse YYYY-MM-DD correctly, handling potential timezones
-      const parsed = parseISO(dateStr + 'T00:00:00'); 
+      // Parse the full ISO string
+      const parsed = parseISO(dateStr); 
       return isValid(parsed) ? parsed : null;
     } catch (e) {
       console.error("Error parsing date from param:", param, dateStr, e);
@@ -130,17 +131,20 @@ const DateRangePicker = () => {
 
   // --- URL Update Logic ---
   const updateUrlParams = useCallback((newStartDate, newEndDate) => {
+    // Expects Date objects already converted to desired UTC boundaries
     if (!isValid(newStartDate) || !isValid(newEndDate)) return;
     
     const startStr = formatDateForParam(newStartDate);
     const endStr = formatDateForParam(newEndDate);
 
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set('startDate', startStr);
-    newSearchParams.set('endDate', endStr);
+    const currentStartStr = searchParams.get('startDate');
+    const currentEndStr = searchParams.get('endDate');
 
-    // Only navigate if params actually changed to avoid loops
-    if (searchParams.get('startDate') !== startStr || searchParams.get('endDate') !== endStr) {
+    // Only navigate if params actually changed
+    if (currentStartStr !== startStr || currentEndStr !== endStr) {
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.set('startDate', startStr);
+      newSearchParams.set('endDate', endStr);
       console.log('DateRangePicker: Updating URL params', { startStr, endStr });
       navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
     }
@@ -200,11 +204,30 @@ const DateRangePicker = () => {
   // --- Handlers ---
   const handleSelect = (ranges) => {
     const { selection } = ranges;
-    setDateRange(selection);
-    updateUrlParams(selection.startDate, selection.endDate);
-    // Close picker after selection - DO NOT close here for range selection
-    // The "click outside" handler will close it.
-    // setShowPicker(false); 
+    const localStartDate = selection.startDate;
+    const localEndDate = selection.endDate;
+
+    if (!isValid(localStartDate) || !isValid(localEndDate)) return;
+
+    // Convert selected local dates to UTC start/end of day boundaries
+    const utcStart = new Date(Date.UTC(
+      localStartDate.getFullYear(),
+      localStartDate.getMonth(),
+      localStartDate.getDate(),
+      0, 0, 0, 0 // Start of day UTC
+    ));
+    const utcEnd = new Date(Date.UTC(
+      localEndDate.getFullYear(),
+      localEndDate.getMonth(),
+      localEndDate.getDate(),
+      23, 59, 59, 999 // End of day UTC
+    ));
+
+    // Update local state for the picker display (uses local times)
+    setDateRange(selection); 
+    
+    // Update URL params with the calculated UTC boundaries
+    updateUrlParams(utcStart, utcEnd);
   };
 
   const togglePicker = () => setShowPicker(!showPicker);
