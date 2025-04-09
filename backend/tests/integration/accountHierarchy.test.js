@@ -222,6 +222,116 @@ describe('Account Hierarchy API', () => {
       expect(child2.totalTransactionCount).toBe(1);
     });
 
+    it('should handle accounts with transaction counts unfiltered by date', async () => {
+      // Use the accounts created in beforeEach
+      await Transaction.create({ date: new Date('2023-01-15'), description: 'T1', entries: [{ accountId: rootAccount1._id, amount: 100, type: 'debit', unit: 'USD' }] });
+      await Transaction.create({ date: new Date('2023-02-15'), description: 'T2', entries: [{ accountId: childAccount1._id, amount: 50, type: 'debit', unit: 'USD' }] });
+      await Transaction.create({ date: new Date('2023-03-15'), description: 'T3', entries: [{ accountId: childAccount2._id, amount: 25, type: 'debit', unit: 'USD' }] });
+
+      // Request without date filters
+      const response = await request(app)
+        .get('/api/accounts/hierarchy') // No date params
+        .expect(200);
+
+      const account = response.body.data.find(a => a._id.toString() === rootAccount1._id.toString());
+      expect(account).toBeDefined();
+      // Expect all 3 transactions to be counted
+      expect(account.totalTransactionCount).toBe(3);
+      expect(account.transactionCount).toBe(1); // Direct count for root
+
+      const child1 = account.children.find(c => c._id.toString() === childAccount1._id.toString());
+      expect(child1).toBeDefined();
+      expect(child1.totalTransactionCount).toBe(1);
+      expect(child1.transactionCount).toBe(1); // Direct count for child1
+
+      const child2 = account.children.find(c => c._id.toString() === childAccount2._id.toString());
+      expect(child2).toBeDefined();
+      expect(child2.totalTransactionCount).toBe(1);
+      expect(child2.transactionCount).toBe(1); // Direct count for child2
+    });
+
+    it('should correctly filter transaction counts by date range', async () => {
+      // Use the accounts created in beforeEach
+      await Transaction.create({ date: new Date('2023-01-15'), description: 'T1-out', entries: [{ accountId: rootAccount1._id, amount: 10, type: 'debit', unit: 'USD' }] });
+      await Transaction.create({ date: new Date('2023-02-10'), description: 'T2-in', entries: [{ accountId: rootAccount1._id, amount: 100, type: 'debit', unit: 'USD' }] });
+      await Transaction.create({ date: new Date('2023-02-15'), description: 'T3-in', entries: [{ accountId: childAccount1._id, amount: 50, type: 'debit', unit: 'USD' }] });
+      await Transaction.create({ date: new Date('2023-03-15'), description: 'T4-out', entries: [{ accountId: childAccount2._id, amount: 25, type: 'debit', unit: 'USD' }] });
+
+      const startDate = '2023-02-01';
+      const endDate = '2023-02-28';
+
+      // Request WITH date filters
+      const response = await request(app)
+        .get(`/api/accounts/hierarchy?startDate=${startDate}&endDate=${endDate}`)
+        .expect(200);
+
+      const account = response.body.data.find(a => a._id.toString() === rootAccount1._id.toString());
+      expect(account).toBeDefined();
+      // Only T2-in and T3-in should be counted
+      expect(account.totalTransactionCount).toBe(2);
+      expect(account.transactionCount).toBe(1); // Direct count for root (T2-in)
+
+      const child1 = account.children.find(c => c._id.toString() === childAccount1._id.toString());
+      expect(child1).toBeDefined();
+      expect(child1.totalTransactionCount).toBe(1);
+      expect(child1.transactionCount).toBe(1); // Direct count for child1 (T3-in)
+
+      const child2 = account.children.find(c => c._id.toString() === childAccount2._id.toString());
+      expect(child2).toBeDefined();
+      // T4-out is outside the date range
+      expect(child2.totalTransactionCount).toBe(0);
+      expect(child2.transactionCount).toBe(0); // Direct count for child2
+    });
+
+    it('should correctly calculate debits and credits within date range', async () => {
+      // Create transactions in and out of range
+      await Transaction.create({ date: new Date('2023-01-05'), description: 'Outside range', entries: [
+        { accountId: childAccount1._id, amount: 1000, type: 'debit', unit: 'USD' },
+      ] });
+      await Transaction.create({ date: new Date('2023-02-05'), description: 'Inside range 1', entries: [
+        { accountId: rootAccount1._id, amount: 100, type: 'debit', unit: 'USD' },
+        { accountId: childAccount1._id, amount: 50, type: 'credit', unit: 'USD' },
+      ] });
+      await Transaction.create({ date: new Date('2023-02-15'), description: 'Inside range 2', entries: [
+        { accountId: childAccount1._id, amount: 200, type: 'debit', unit: 'USD' },
+        { accountId: grandchildAccount1._id, amount: 75, type: 'credit', unit: 'USD' },
+      ] });
+      await Transaction.create({ date: new Date('2023-03-05'), description: 'Outside range 2', entries: [
+        { accountId: rootAccount1._id, amount: 500, type: 'credit', unit: 'USD' },
+      ] });
+
+      const startDate = '2023-02-01';
+      const endDate = '2023-02-28';
+
+      const response = await request(app)
+        .get(`/api/accounts/hierarchy?startDate=${startDate}&endDate=${endDate}`)
+        .expect(200);
+
+      // Root 1 checks
+      const root1 = response.body.data.find(a => a._id.toString() === rootAccount1._id.toString());
+      expect(root1).toBeDefined();
+      expect(root1.debits).toBe(100); // Direct debit from Inside range 1
+      expect(root1.credits).toBe(0);   // No direct credits in range
+      expect(root1.totalDebits).toBe(100 + 200); // root1 debit + child1 debit
+      expect(root1.totalCredits).toBe(50 + 75); // child1 credit + grandchild1 credit
+
+      // Child 1 checks
+      const child1 = root1.children.find(c => c._id.toString() === childAccount1._id.toString());
+      expect(child1).toBeDefined();
+      expect(child1.debits).toBe(200);   // Direct debit from Inside range 2
+      expect(child1.credits).toBe(50);  // Direct credit from Inside range 1
+      expect(child1.totalDebits).toBe(200); // child1 debit + grandchild debits (0)
+      expect(child1.totalCredits).toBe(50 + 75); // child1 credit + grandchild1 credit
+
+      // Grandchild 1 checks
+      const grandChild1 = child1.children.find(gc => gc._id.toString() === grandchildAccount1._id.toString());
+      expect(grandChild1).toBeDefined();
+      expect(grandChild1.debits).toBe(0);   // No direct debits in range
+      expect(grandChild1.credits).toBe(75);  // Direct credit from Inside range 2
+      expect(grandChild1.totalDebits).toBe(0);
+      expect(grandChild1.totalCredits).toBe(75);
+    });
+
     it('should handle circular references gracefully', async () => {
       // Create two accounts that reference each other
       const account1 = await Account.create({

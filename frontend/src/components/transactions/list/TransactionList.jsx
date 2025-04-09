@@ -5,6 +5,7 @@ import Modal from '../../common/Modal';
 import { TransactionForm, SingleEntryForm } from '../form';
 import TransactionBalanceModal from '../balancing/TransactionBalanceModal';
 import TransactionDetailModal from '../detail/TransactionDetailModal';
+import { useSearchParams } from 'react-router-dom';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
@@ -17,10 +18,15 @@ const TransactionList = () => {
   const [unbalancedCount, setUnbalancedCount] = useState(0);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingTransaction, setViewingTransaction] = useState(null);
+  // Use URLSearchParams to get date range
+  const [searchParams] = useSearchParams();
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
 
+  // Fetch transactions when component mounts or date range changes
   useEffect(() => {
     getTransactions();
-  }, []);
+  }, [startDate, endDate]);
 
   // Update unbalanced count when transactions change
   useEffect(() => {
@@ -31,7 +37,8 @@ const TransactionList = () => {
   const getTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetchTransactions();
+      // Pass startDate and endDate from URL params to the API call
+      const response = await fetchTransactions({ startDate, endDate });
       setTransactions(response.data);
     } catch (err) {
       toast.error('Failed to load transactions. Please try again.');
@@ -83,7 +90,7 @@ const TransactionList = () => {
       const wasLoading = loading;
       if (!wasLoading) {
         // We're not setting loading to true here to avoid flicker
-        const response = await fetchTransactions();
+        const response = await fetchTransactions({ startDate, endDate });
         setTransactions(response.data);
       } else {
         // We're already loading, just do the normal fetch
@@ -95,6 +102,7 @@ const TransactionList = () => {
       toast.error('Failed to refresh transaction list after balancing.');
       // Don't show error for background refreshes
     }
+    handleCloseBalanceModal();
     await getTransactions();
   };
 

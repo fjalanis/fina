@@ -13,16 +13,28 @@ export const fetchAccountBalanceReport = async (startDate, endDate, accountId = 
   return fetchData(endpoint);
 };
 
-// Get monthly income/expense summary
-export const fetchMonthlyIncomeExpenseSummary = async (year, month) => {
+// Rename and update function for date-range based income/expense summary
+export const fetchIncomeExpenseSummary = async (startDate, endDate) => {
   const params = new URLSearchParams();
-  if (year) params.append('year', year);
-  if (month) params.append('month', month);
+  // Format dates as YYYY-MM-DD strings if they are Date objects or strings
+  const formatQueryDate = (date) => {
+    if (!date) return '';
+    if (date instanceof Date) {
+      return date.toISOString().split('T')[0];
+    } 
+    // Assume it's already a YYYY-MM-DD string if not a Date object
+    return date;
+  };
+  
+  const formattedStartDate = formatQueryDate(startDate);
+  const formattedEndDate = formatQueryDate(endDate);
+  
+  if (formattedStartDate) params.append('startDate', formattedStartDate);
+  if (formattedEndDate) params.append('endDate', formattedEndDate);
 
   const queryString = params.toString();
-  const endpoint = queryString
-    ? `${REPORT_ENDPOINT}/monthly-summary?${queryString}`
-    : `${REPORT_ENDPOINT}/monthly-summary`;
+  // Use the correct backend endpoint
+  const endpoint = `${REPORT_ENDPOINT}/income-expense-summary?${queryString}`;
 
   return fetchData(endpoint);
 };

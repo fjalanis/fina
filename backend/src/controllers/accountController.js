@@ -345,11 +345,15 @@ async function getAccountWithChildren(accountId, startDate, endDate) {
   }
   // --- End Debit/Credit Calculation ---
 
-  // Get direct transaction count (consider if this count should also be date-filtered)
-  const directTransactionCount = await Transaction.countDocuments({
-    'entries.accountId': accountId 
-    // Potentially add date filtering here too if count should match debits/credits period
-  });
+  // Get direct transaction count, filtered by date range
+  const countMatchCriteria = { 'entries.accountId': accountId };
+  if (startDate && endDate) {
+    countMatchCriteria.date = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+  }
+  const directTransactionCount = await Transaction.countDocuments(countMatchCriteria);
   
   // Get children (lean)
   const children = await Account.find({ parent: accountId }).sort({ name: 1 }).lean();

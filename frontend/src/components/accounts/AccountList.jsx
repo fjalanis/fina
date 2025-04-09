@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAccountHierarchy, deleteAccount } from '../../services/accountService';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import AccountForm from './AccountForm';
@@ -14,14 +14,25 @@ const AccountList = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editAccount, setEditAccount] = useState(null);
   const [deleteAccountData, setDeleteAccountData] = useState(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [searchParams] = useSearchParams();
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
 
   useEffect(() => {
     fetchAccounts();
   }, [startDate, endDate]);
 
   const fetchAccounts = async () => {
+    // Ensure dates are present before fetching
+    if (!startDate || !endDate) {
+      console.log('AccountList: Dates missing, waiting for URL update.');
+      // Keep loading state until dates are available
+      setLoading(true);
+      setError(null);
+      setAccounts([]); // Clear previous data
+      return; 
+    }
+    
     try {
       setLoading(true);
       const response = await fetchAccountHierarchy(startDate, endDate);
@@ -204,26 +215,6 @@ const AccountList = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Accounts</h2>
         <div className="flex items-center space-x-4">
-          <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mr-2">Start Date:</label>
-            <input 
-              type="date"
-              id="startDate"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mr-2">End Date:</label>
-            <input 
-              type="date"
-              id="endDate"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
           <button 
             onClick={handleCreateAccount}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"

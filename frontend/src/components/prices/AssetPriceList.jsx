@@ -2,17 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { fetchAssetPrices, deleteAssetPrice } from '../../services/assetPriceService';
 import AssetPriceForm from './AssetPriceForm';
+import { useSearchParams } from 'react-router-dom';
 
 const AssetPriceList = () => {
   const [assetPrices, setAssetPrices] = useState([]);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingPrice, setEditingPrice] = useState(null);
+  const [searchParams] = useSearchParams();
 
   const loadAssetPrices = async () => {
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    
     try {
-      const response = await fetchAssetPrices();
+      const response = await fetchAssetPrices({ startDate, endDate });
       setAssetPrices(response.data);
+      setError(null);
     } catch (err) {
       setError('Failed to load asset prices. Please try again.');
       console.error('Error loading asset prices:', err);
@@ -21,7 +27,7 @@ const AssetPriceList = () => {
 
   useEffect(() => {
     loadAssetPrices();
-  }, []);
+  }, [searchParams]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this asset price?')) {

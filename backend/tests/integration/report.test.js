@@ -145,67 +145,70 @@ describe('Report API Tests', () => {
     });
   });
   
-  describe('GET /api/reports/monthly-summary', () => {
+  describe('GET /api/reports/income-expense-summary', () => {
     let incomeAccount, expenseAccount;
 
     beforeEach(async () => {
-      // Create income and expense accounts specifically for this test
+      // Clear transactions specifically
+      await Transaction.deleteMany({});
+      
+      // Use existing accounts or create new ones if needed
       incomeAccount = await Account.create({
-        name: 'Test Income Account',
-        type: 'income'
+        name: 'Income Source',
+        type: 'income',
+        unit: 'USD'
       });
       
       expenseAccount = await Account.create({
-        name: 'Test Expense Account',
-        type: 'expense'
+        name: 'Expense Category',
+        type: 'expense',
+        unit: 'USD'
       });
       
-      // Create transactions for a specific month (March 2023)
+      // Create transactions within and outside a date range
       await Transaction.create({
-        date: new Date('2023-03-15'),
-        description: 'Income Transaction',
+        date: new Date('2023-03-15'), // Inside range
+        description: 'Income 1',
         entries: [
-          {
-            accountId: incomeAccount._id,
-            amount: 1000,
-            type: 'credit', // Credit to income account increases income
-            unit: 'USD'
-          },
-          {
-            accountId: testAccount1._id,
-            amount: 1000,
-            type: 'debit',
-            unit: 'USD'
-          }
+          { accountId: incomeAccount._id, amount: 1000, type: 'credit', unit: 'USD' },
+          { accountId: testAccount1._id, amount: 1000, type: 'debit', unit: 'USD' }
         ]
       });
-      
       await Transaction.create({
-        date: new Date('2023-03-20'),
-        description: 'Expense Transaction',
+        date: new Date('2023-04-05'), // Inside range
+        description: 'Expense 1',
         entries: [
-          {
-            accountId: expenseAccount._id,
-            amount: 500,
-            type: 'debit', // Debit to expense account increases expenses
-            unit: 'USD'
-          },
-          {
-            accountId: testAccount1._id,
-            amount: 500,
-            type: 'credit',
-            unit: 'USD'
-          }
+          { accountId: expenseAccount._id, amount: 500, type: 'debit', unit: 'USD' },
+          { accountId: testAccount1._id, amount: 500, type: 'credit', unit: 'USD' }
+        ]
+      });
+       await Transaction.create({
+        date: new Date('2023-04-20'), // Inside range
+        description: 'Income 2',
+        entries: [
+          { accountId: incomeAccount._id, amount: 200, type: 'credit', unit: 'USD' },
+          { accountId: testAccount1._id, amount: 200, type: 'debit', unit: 'USD' }
+        ]
+      });
+      await Transaction.create({
+        date: new Date('2023-05-10'), // Outside range
+        description: 'Expense 2',
+        entries: [
+          { accountId: expenseAccount._id, amount: 100, type: 'debit', unit: 'USD' },
+          { accountId: testAccount1._id, amount: 100, type: 'credit', unit: 'USD' }
         ]
       });
     });
     
-    it('should return monthly income/expense summary for the specified month', async () => {
+    it('should return income/expense summary for the specified date range', async () => {
+      const startDate = '2023-03-01';
+      const endDate = '2023-04-30';
+
       const res = await request(app)
-        .get('/api/reports/monthly-summary')
+        .get('/api/reports/income-expense-summary')
         .query({ 
-          year: 2023,
-          month: 3
+          startDate: startDate,
+          endDate: endDate
         });
       
       expect(res.status).toBe(200);
@@ -214,131 +217,90 @@ describe('Report API Tests', () => {
       
       const { data } = res.body;
       
-      // Check period info
-      expect(data.period).toMatchObject({
-        year: 2023,
-        month: 3
-      });
+      // Check period info reflects requested range
+      expect(data.period).toEqual({ startDate, endDate });
       
-      // Check income accounts
+      // Check income accounts and total (Income 1 + Income 2)
       expect(data.income).toBeDefined();
-      expect(data.income.accounts).toHaveLength(1);
-      expect(data.income.accounts[0].name).toBe('Test Income Account');
-      expect(data.income.accounts[0].amount).toBe(1000);
-      expect(data.income.total).toBe(1000);
+      expect(data.income.accounts).toHaveLength(1); // Only one income account used
+      expect(data.income.accounts[0].name).toBe('Income Source');
+      // Check the total amount summed for this account in the range
+      expect(data.income.accounts[0].amount).toBeCloseTo(1000 + 200); 
+      expect(data.income.total).toBeCloseTo(1200);
       
-      // Check expense accounts
+      // Check expense accounts and total (Expense 1 only)
       expect(data.expense).toBeDefined();
-      expect(data.expense.accounts).toHaveLength(1);
-      expect(data.expense.accounts[0].name).toBe('Test Expense Account');
-      expect(data.expense.accounts[0].amount).toBe(500);
-      expect(data.expense.total).toBe(500);
+      expect(data.expense.accounts).toHaveLength(1); // Only one expense account used
+      expect(data.expense.accounts[0].name).toBe('Expense Category');
+      expect(data.expense.accounts[0].amount).toBeCloseTo(500);
+      expect(data.expense.total).toBeCloseTo(500);
       
       // Check net income
-      expect(data.netIncome).toBe(500); // 1000 income - 500 expense
+      expect(data.netIncome).toBeCloseTo(1200 - 500); // 700
     });
     
-    it('should return 400 if month is invalid', async () => {
+    it('should return 400 if startDate is missing', async () => {
       const res = await request(app)
-        .get('/api/reports/monthly-summary')
+        .get('/api/reports/income-expense-summary')
         .query({ 
-          year: 2023,
-          month: 13 // Invalid month
+          endDate: '2023-04-30'
         });
       
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('success', false);
-      expect(res.body).toHaveProperty('error', 'Month must be between 1 and 12');
+      expect(res.body.error).toContain('Start date and end date parameters are required');
     });
-    
-    it('should use default current month and year if not specified', async () => {
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const currentMonth = currentDate.getMonth() + 1;
-      
+
+    it('should return 400 if endDate is missing', async () => {
       const res = await request(app)
-        .get('/api/reports/monthly-summary');
-      
-      expect(res.status).toBe(200);
-      expect(res.body.data.period.year).toBe(currentYear);
-      expect(res.body.data.period.month).toBe(currentMonth);
-    });
-    
-    it('should return empty account arrays and zero totals when no data for period', async () => {
-      const res = await request(app)
-        .get('/api/reports/monthly-summary')
+        .get('/api/reports/income-expense-summary')
         .query({ 
-          year: 2025, // Future year with no data
-          month: 4
+          startDate: '2023-03-01'
+        });
+      
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('success', false);
+      expect(res.body.error).toContain('Start date and end date parameters are required');
+    });
+
+     it('should return 400 if startDate is after endDate', async () => {
+       const res = await request(app)
+        .get('/api/reports/income-expense-summary')
+        .query({ 
+          startDate: '2023-05-01',
+          endDate: '2023-04-30'
+        });
+      
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('success', false);
+      expect(res.body.error).toContain('Start date cannot be after end date');
+    });
+
+     it('should return empty summary if no transactions match date range', async () => {
+       const res = await request(app)
+        .get('/api/reports/income-expense-summary')
+        .query({ 
+          startDate: '2024-01-01',
+          endDate: '2024-01-31'
         });
       
       expect(res.status).toBe(200);
-      expect(res.body.data.income.accounts).toHaveLength(0);
-      expect(res.body.data.income.total).toBe(0);
-      expect(res.body.data.expense.accounts).toHaveLength(0);
-      expect(res.body.data.expense.total).toBe(0);
-      expect(res.body.data.netIncome).toBe(0);
+      expect(res.body.success).toBe(true);
+      const { data } = res.body;
+      expect(data.income.accounts).toEqual([]);
+      expect(data.income.total).toBe(0);
+      expect(data.expense.accounts).toEqual([]);
+      expect(data.expense.total).toBe(0);
+      expect(data.netIncome).toBe(0);
     });
-    
-    it('should correctly report data for April 2025 when transactions exist', async () => {
-      // Create specific transactions for April 2025
-      await Transaction.create({
-        date: new Date('2025-04-10'),
-        description: 'April 2025 Income',
-        entries: [
-          {
-            accountId: incomeAccount._id,
-            amount: 2000,
-            type: 'credit',
-            unit: 'USD'
-          },
-          {
-            accountId: testAccount1._id,
-            amount: 2000,
-            type: 'debit',
-            unit: 'USD'
-          }
-        ]
-      });
-      
-      await Transaction.create({
-        date: new Date('2025-04-15'),
-        description: 'April 2025 Expense',
-        entries: [
-          {
-            accountId: expenseAccount._id,
-            amount: 800,
-            type: 'debit',
-            unit: 'USD'
-          },
-          {
-            accountId: testAccount1._id,
-            amount: 800,
-            type: 'credit',
-            unit: 'USD'
-          }
-        ]
-      });
-      
-      const res = await request(app)
-        .get('/api/reports/monthly-summary')
-        .query({ 
-          year: 2025,
-          month: 4
-        });
-      
-      expect(res.status).toBe(200);
-      expect(res.body.data.income.accounts).toHaveLength(1);
-      expect(res.body.data.income.accounts[0].name).toBe('Test Income Account');
-      expect(res.body.data.income.accounts[0].amount).toBe(2000);
-      expect(res.body.data.income.total).toBe(2000);
-      
-      expect(res.body.data.expense.accounts).toHaveLength(1);
-      expect(res.body.data.expense.accounts[0].name).toBe('Test Expense Account');
-      expect(res.body.data.expense.accounts[0].amount).toBe(800);
-      expect(res.body.data.expense.total).toBe(800);
-      
-      expect(res.body.data.netIncome).toBe(1200); // 2000 income - 800 expense
-    });
+
+  });
+
+  // Remove or comment out tests for /api/reports/annual-summary if they exist
+  /* describe('GET /api/reports/annual-summary', () => { ... }); */
+
+  // Add tests for other report endpoints if needed...
+  describe('GET /api/reports/sankey', () => {
+// ... existing tests for sankey ...
   });
 }); 

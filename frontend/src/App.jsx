@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useSearchParams } from 'react-router-dom';
 import './App.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -13,6 +13,7 @@ import { TransactionList } from './components/transactions';
 
 // Report Components
 import ReportDashboard from './components/reports/ReportDashboard';
+import DateRangePicker from './components/reports/DateRangePicker';
 
 // Rule Components
 import RuleList from './components/rules/RuleList';
@@ -30,6 +31,53 @@ const MainContent = ({ children }) => {
   );
 };
 
+// Component to conditionally render the DateRangePicker based on the route
+const HeaderDateRangePicker = () => {
+  const location = useLocation();
+  const showDatePickerRoutes = ['/accounts', '/transactions', '/reports', '/prices'];
+
+  // Show picker only on specific list/dashboard routes
+  if (showDatePickerRoutes.includes(location.pathname)) {
+    return <DateRangePicker />;
+  }
+
+  return null; // Don't render the picker on other routes
+};
+
+// Component for Navigation Links that preserves search parameters
+const NavLink = ({ to, children, className }) => {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  // Get current startDate and endDate if they exist
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
+
+  // Build the target search string
+  const targetSearchParams = new URLSearchParams();
+  if (startDate) targetSearchParams.set('startDate', startDate);
+  if (endDate) targetSearchParams.set('endDate', endDate);
+  const searchString = targetSearchParams.toString();
+
+  // Append search string to the base path
+  const targetPath = `${to}${searchString ? `?${searchString}` : ''}`;
+  
+  // Check if the current route matches the base path of the link
+  const isActive = location.pathname === to;
+
+  // Add active styles if needed (example uses border)
+  const activeClassName = isActive ? 'border-indigo-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300';
+
+  return (
+    <Link 
+      to={targetPath} 
+      className={`${className} ${activeClassName}`}
+    >
+      {children}
+    </Link>
+  );
+};
+
 function App() {
   return (
     <Router>
@@ -44,12 +92,15 @@ function App() {
                   </Link>
                 </div>
                 <div className="ml-6 flex space-x-8">
-                  <Link to="/accounts"     className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Accounts </Link>
-                  <Link to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Transactions </Link>
+                  <NavLink to="/accounts"     className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Accounts </NavLink>
+                  <NavLink to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Transactions </NavLink>
                   <Link to="/rules"        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Rules </Link>
-                  <Link to="/reports"      className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Reports </Link>
-                  <Link to="/prices"       className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Prices </Link>
+                  <NavLink to="/reports"      className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Reports </NavLink>
+                  <NavLink to="/prices"       className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"> Prices </NavLink>
                 </div>
+              </div>
+              <div className="flex items-center">
+                <HeaderDateRangePicker />
               </div>
             </div>
           </div>

@@ -34,11 +34,18 @@ router
   .get(getTransactions)
   .post(createTransaction);
 
-// Special routes that might conflict with dynamic parameters should come first
+// --- SPECIAL ROUTES FIRST ---
 // Add route for manual entry search
 router
   .route('/search-entries')
   .get(searchEntries);
+
+// Search routes (Define before /:id)
+router.route('/search/entries')
+  .post(searchEntries);
+
+router.route('/search')
+  .get(searchTransactions);
 
 // Transaction balancing routes
 router
@@ -80,10 +87,10 @@ router.route('/move-entry')
   .post(moveEntry);
 
 // Search routes
-router.route('/search/entries')
-  .post(searchEntries);
+// router.route('/search/entries') // Moved above
+//  .post(searchEntries);
 
-router.route('/search/transactions')
-  .post(searchTransactions);
+// router.route('/search/transactions') // Moved above
+//  .post(searchTransactions);
 
 module.exports = router; 

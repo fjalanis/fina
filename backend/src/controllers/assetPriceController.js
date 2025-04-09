@@ -24,7 +24,22 @@ exports.createAssetPrice = async (req, res) => {
 // @access  Public
 exports.getAssetPrices = async (req, res) => {
   try {
-    const prices = await AssetPrice.find().sort({ date: -1 });
+    const { startDate, endDate } = req.query;
+    const query = {};
+
+    // Add date range filtering if parameters are provided
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    } else if (startDate) {
+      query.date = { $gte: new Date(startDate) };
+    } else if (endDate) {
+      query.date = { $lte: new Date(endDate) };
+    }
+
+    const prices = await AssetPrice.find(query).sort({ date: -1 });
     res.status(200).json({
       success: true,
       count: prices.length,

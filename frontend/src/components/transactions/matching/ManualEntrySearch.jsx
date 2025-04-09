@@ -20,7 +20,11 @@ const ManualEntrySearch = ({
     handleSearch,
     handlePageChange,
     handleReset,
-  } = useManualEntrySearch(targetTransaction?._id, suggestedFix);
+  } = useManualEntrySearch(
+       targetTransaction?._id, 
+       targetTransaction?.date,
+       suggestedFix
+    );
 
   // Effect to trigger initial search if form is pre-filled
   // This might be better handled within the hook itself, 

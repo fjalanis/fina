@@ -11,7 +11,7 @@ const initialSearchForm = {
   dateRange: '15'
 };
 
-export const useManualEntrySearch = (targetTransactionId, suggestedFix) => {
+export const useManualEntrySearch = (targetTransactionId, targetTransactionDate, suggestedFix) => {
   const [searchForm, setSearchForm] = useState(initialSearchForm);
   const [searchResults, setSearchResults] = useState([]);
   const [pagination, setPagination] = useState({
@@ -38,8 +38,11 @@ export const useManualEntrySearch = (targetTransactionId, suggestedFix) => {
 
       const filters = {
         ...searchForm,
+        referenceDate: targetTransactionDate,
         excludeTransactionId: targetTransactionId
       };
+
+      console.log('Searching entries with filters:', filters);
 
       const response = await searchEntries(filters, page, pagination.limit);
 

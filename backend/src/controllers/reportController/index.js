@@ -5,8 +5,7 @@ const {
 } = require('./balanceReports');
 
 const {
-  getMonthlyIncomeExpenseSummary,
-  getAnnualIncomeExpenseSummary
+  getIncomeExpenseSummary
 } = require('./incomeReports');
 
 const {
@@ -27,8 +26,7 @@ module.exports = {
   getAccountBalanceReport,
   getAccountBalance,
   getNetWorthReport,
-  getMonthlyIncomeExpenseSummary,
-  getAnnualIncomeExpenseSummary,
+  getIncomeExpenseSummary,
   getTransactionSummary,
   getCashflowReport,
   getCashflowForecast,

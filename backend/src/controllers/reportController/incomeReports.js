@@ -2,25 +2,38 @@ const Transaction = require('../../models/Transaction');
 const Account = require('../../models/Account');
 const { handleError } = require('../../utils/validation');
 
-// @desc    Get monthly income/expense summary
-// @route   GET /api/reports/monthly-summary
+// @desc    Get income/expense summary for a specific date range
+// @route   GET /api/reports/income-expense-summary
 // @access  Public
-exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
+exports.getIncomeExpenseSummary = async (req, res) => {
   try {
-    const { year, month } = req.query;
+    const { startDate: startDateParam, endDate: endDateParam } = req.query;
     
-    // Default to current year and month if not specified
-    const targetYear = parseInt(year) || new Date().getFullYear();
-    const targetMonth = parseInt(month) || new Date().getMonth() + 1; // JS months are 0-indexed
-    
-    // Validate input
-    if (targetMonth < 1 || targetMonth > 12) {
-      return res.status(400).json({ success: false, error: 'Month must be between 1 and 12' });
+    // Validate date parameters
+    if (!startDateParam || !endDateParam) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Start date and end date parameters are required' 
+      });
     }
-    
-    // Create date range for the month
-    const startDate = new Date(targetYear, targetMonth - 1, 1);
-    const endDate = new Date(targetYear, targetMonth, 0); // Last day of month
+
+    const startDate = new Date(startDateParam);
+    const endDate = new Date(endDateParam);
+    // Set end date to end of day for inclusive range
+    endDate.setHours(23, 59, 59, 999); 
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid date format' 
+      });
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Start date cannot be after end date' 
+      });
+    }
     
     // Get all accounts of type income and expense
     const accounts = await Account.find({
@@ -29,13 +42,13 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
     
     const accountIds = accounts.map(account => account._id);
     
-    // Aggregate transactions for the accounts during the specified month
+    // Aggregate transactions for the accounts during the specified date range
     const entrySummary = await Transaction.aggregate([
       {
         $match: {
           date: {
-            $gte: startDate,
-            $lte: endDate
+            $gte: startDate, // Use the provided start date
+            $lte: endDate    // Use the provided end date
           }
         }
       },
@@ -65,13 +78,28 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
             accountType: '$accountData.type'
           },
           accountName: { $first: '$accountData.name' },
+          // Sum amounts based on entry type relative to account type
+          // Income: credits increase income (should be positive), debits decrease (should be negative)
+          // Expense: debits increase expense (should be positive), credits decrease (should be negative)
           totalAmount: {
             $sum: {
-              $cond: [
-                { $eq: ['$entries.type', 'debit'] },
-                '$entries.amount',
-                { $multiply: ['$entries.amount', -1] } // Negate credit amounts
-              ]
+              $cond: {
+                if: { $eq: ['$accountData.type', 'income'] },
+                then: { // For Income accounts
+                  $cond: { 
+                    if: { $eq: ['$entries.type', 'credit'] }, 
+                    then: '$entries.amount', // Credit to income = positive
+                    else: { $multiply: ['$entries.amount', -1] } // Debit to income = negative
+                  }
+                },
+                else: { // For Expense accounts (and others, though filtered out)
+                  $cond: { 
+                    if: { $eq: ['$entries.type', 'debit'] }, 
+                    then: '$entries.amount', // Debit to expense = positive
+                    else: { $multiply: ['$entries.amount', -1] } // Credit to expense = negative
+                  }
+                }
+              }
             }
           }
         }
@@ -92,29 +120,24 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
         total: 0
       },
       period: {
-        year: targetYear,
-        month: targetMonth,
-        startDate,
-        endDate
+        startDate: startDateParam,
+        endDate: endDateParam
       }
     };
     
     entrySummary.forEach(entry => {
       const type = entry._id.accountType;
       if (type === 'income' || type === 'expense') {
-        // Aggregation already handles the sign correctly. 
-        // Credits to income are summed as negative, debits to expense as positive.
-        // We want positive values for both income and expense totals in the summary.
-        const amount = type === 'income' ? -entry.totalAmount : entry.totalAmount;
+        const amount = entry.totalAmount; // Use the calculated amount directly
         
+        // Add to the correct list (income/expense)
         summary[type].accounts.push({
           id: entry._id.accountId,
           name: entry.accountName,
-          // Ensure the amount pushed is positive for display/summary purposes
-          amount: Math.abs(entry.totalAmount) 
+          amount: amount // Amount already has the correct sign relative to the account type
         });
         
-        // Use the correctly signed amount based on type for total calculation
+        // Add to the total for the type
         summary[type].total += amount; 
       }
     });
@@ -127,126 +150,7 @@ exports.getMonthlyIncomeExpenseSummary = async (req, res) => {
       data: summary
     });
   } catch (err) {
-    handleError(res, err, 'Error generating monthly summary report');
-  }
-};
-
-// @desc    Get annual income/expense summary
-// @route   GET /api/reports/annual-summary
-// @access  Public
-exports.getAnnualIncomeExpenseSummary = async (req, res) => {
-  try {
-    const { year } = req.query;
-    
-    // Default to current year if not specified
-    const targetYear = parseInt(year) || new Date().getFullYear();
-    
-    // Create date range for the year
-    const startDate = new Date(targetYear, 0, 1); // Jan 1
-    const endDate = new Date(targetYear, 11, 31); // Dec 31
-    
-    // Get all accounts of type income and expense
-    const accounts = await Account.find({
-      type: { $in: ['income', 'expense'] }
-    }, '_id name type');
-    
-    const accountIds = accounts.map(account => account._id);
-    
-    // Aggregate transactions by month
-    const monthlyData = await Transaction.aggregate([
-      {
-        $match: {
-          date: {
-            $gte: startDate,
-            $lte: endDate
-          }
-        }
-      },
-      {
-        $unwind: '$entries'
-      },
-      {
-        $match: {
-          'entries.accountId': { $in: accountIds }
-        }
-      },
-      {
-        $lookup: {
-          from: 'accounts',
-          localField: 'entries.accountId',
-          foreignField: '_id',
-          as: 'accountData'
-        }
-      },
-      {
-        $unwind: '$accountData'
-      },
-      {
-        $group: {
-          _id: {
-            month: { $month: '$date' },
-            accountType: '$accountData.type'
-          },
-          totalAmount: {
-            $sum: {
-              $cond: [
-                { $eq: ['$entries.type', 'debit'] },
-                '$entries.amount',
-                { $multiply: ['$entries.amount', -1] } // Negate credit amounts
-              ]
-            }
-          }
-        }
-      },
-      {
-        $sort: { '_id.month': 1 }
-      }
-    ]);
-    
-    // Format the data for monthly comparison
-    const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    const summary = {
-      year: targetYear,
-      months: months.map(month => {
-        const incomeEntry = monthlyData.find(
-          entry => entry._id.month === month && entry._id.accountType === 'income'
-        );
-        
-        const expenseEntry = monthlyData.find(
-          entry => entry._id.month === month && entry._id.accountType === 'expense'
-        );
-        
-        const income = incomeEntry ? -incomeEntry.totalAmount : 0;
-        const expense = expenseEntry ? expenseEntry.totalAmount : 0;
-        
-        return {
-          month,
-          income,
-          expense,
-          netIncome: income - expense
-        };
-      }),
-      totals: {
-        income: 0,
-        expense: 0,
-        netIncome: 0
-      }
-    };
-    
-    // Calculate annual totals
-    summary.months.forEach(month => {
-      summary.totals.income += month.income;
-      summary.totals.expense += month.expense;
-    });
-    
-    summary.totals.netIncome = summary.totals.income - summary.totals.expense;
-    
-    res.status(200).json({
-      success: true,
-      data: summary
-    });
-  } catch (err) {
-    handleError(res, err, 'Error generating annual summary report');
+    handleError(res, err, 'Error generating income/expense summary report');
   }
 };
 
