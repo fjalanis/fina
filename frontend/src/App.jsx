@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation, useSearchPar
 import './App.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+// Import react-date-range styles
+import 'react-date-range/dist/styles.css'; // main style file
+import 'react-date-range/dist/theme/default.css'; // theme css file
 
 // Account Components
 import AccountList from './components/accounts/AccountList';

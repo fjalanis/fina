@@ -1,19 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { format, subDays, isValid, parseISO } from 'date-fns';
+import { format, subDays, isValid, parseISO, startOfDay } from 'date-fns';
+import { DateRangePicker as ReactDateRange } from 'react-date-range';
 
 /**
- * A reusable date range picker component that uses URL search parameters.
- * Allows selection of a start and end date with validation.
+ * A reusable date range picker component using react-date-range 
+ * that syncs with URL search parameters.
  */
 const DateRangePicker = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [error, setError] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef(null);
 
   // --- Helper Functions ---
-  const formatDateForInput = (date) => {
+  const formatDateForDisplay = (date) => {
+    if (!date || !isValid(date)) return '';
+    return format(date, 'MM/dd/yyyy');
+  };
+
+  const formatDateForParam = (date) => {
     if (!date || !isValid(date)) return '';
     return format(date, 'yyyy-MM-dd');
   };
@@ -21,129 +28,143 @@ const DateRangePicker = () => {
   const parseDateFromParam = (param) => {
     const dateStr = searchParams.get(param);
     if (!dateStr) return null;
-    const parsed = parseISO(dateStr);
-    return isValid(parsed) ? parsed : null;
+    try {
+      // Ensure we parse YYYY-MM-DD correctly, handling potential timezones
+      const parsed = parseISO(dateStr + 'T00:00:00'); 
+      return isValid(parsed) ? parsed : null;
+    } catch (e) {
+      console.error("Error parsing date from param:", param, dateStr, e);
+      return null;
+    }
   };
 
   // --- State Initialization ---
   // Get dates from URL or set defaults (last 30 days)
-  const initialEndDate = parseDateFromParam('endDate') || new Date();
-  const initialStartDate = parseDateFromParam('startDate') || subDays(initialEndDate, 30);
+  const getInitialDates = () => {
+    let endDate = parseDateFromParam('endDate') || startOfDay(new Date());
+    let startDate = parseDateFromParam('startDate') || startOfDay(subDays(endDate, 30));
+    
+    // Ensure dates are valid Date objects
+    if (!isValid(endDate)) endDate = startOfDay(new Date());
+    if (!isValid(startDate)) startDate = startOfDay(subDays(endDate, 30));
+    
+    return {
+      startDate,
+      endDate,
+      key: 'selection' // Required by react-date-range
+    };
+  };
 
-  // Local state for input values to allow intermediate invalid states
-  const [startDateInput, setStartDateInput] = useState(formatDateForInput(initialStartDate));
-  const [endDateInput, setEndDateInput] = useState(formatDateForInput(initialEndDate));
+  const [dateRange, setDateRange] = useState(getInitialDates());
 
-  // Format today's date as YYYY-MM-DD for max date attribute
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // --- URL Update Logic ---
+  const updateUrlParams = useCallback((newStartDate, newEndDate) => {
+    if (!isValid(newStartDate) || !isValid(newEndDate)) return;
+    
+    const startStr = formatDateForParam(newStartDate);
+    const endStr = formatDateForParam(newEndDate);
 
-  // --- Effect to update URL search parameters ---
-  useEffect(() => {
-    // Update local state if URL params change externally
-    const urlStartDate = formatDateForInput(parseDateFromParam('startDate') || subDays(parseDateFromParam('endDate') || new Date(), 30));
-    const urlEndDate = formatDateForInput(parseDateFromParam('endDate') || new Date());
-    if (startDateInput !== urlStartDate) {
-      setStartDateInput(urlStartDate);
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('startDate', startStr);
+    newSearchParams.set('endDate', endStr);
+
+    // Only navigate if params actually changed to avoid loops
+    if (searchParams.get('startDate') !== startStr || searchParams.get('endDate') !== endStr) {
+      console.log('DateRangePicker: Updating URL params', { startStr, endStr });
+      navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
     }
-    if (endDateInput !== urlEndDate) {
-      setEndDateInput(urlEndDate);
-    }
-  }, [searchParams]); // Rerun only when searchParams change
+  }, [navigate, location.pathname, searchParams]);
 
+  // --- Effects ---
   // Effect to set default dates in URL on initial mount if missing
   useEffect(() => {
     const urlStartDate = searchParams.get('startDate');
     const urlEndDate = searchParams.get('endDate');
 
     if (!urlStartDate || !urlEndDate) {
-      // Calculate defaults (same logic as initial state)
-      const defaultEndDate = new Date();
-      const defaultStartDate = subDays(defaultEndDate, 30);
-      const startStr = formatDateForInput(defaultStartDate);
-      const endStr = formatDateForInput(defaultEndDate);
-      
-      console.log('DateRangePicker: Setting default URL params:', { startStr, endStr });
-      // Update URL without triggering re-render loops if possible
-      // updateUrlParams uses navigate which should be safe
-      updateUrlParams(startStr, endStr); 
+      const { startDate: defaultStartDate, endDate: defaultEndDate } = getInitialDates();
+      updateUrlParams(defaultStartDate, defaultEndDate);
     }
-  }, []); // Empty dependency array ensures this runs only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
+  // Effect to update local state if URL params change externally
+  useEffect(() => {
+    const urlStartDate = parseDateFromParam('startDate');
+    const urlEndDate = parseDateFromParam('endDate');
+    
+    if (urlStartDate && urlEndDate && isValid(urlStartDate) && isValid(urlEndDate)) {
+      // Only update if the dates are different from current state to prevent loops
+      if (
+        formatDateForParam(urlStartDate) !== formatDateForParam(dateRange.startDate) ||
+        formatDateForParam(urlEndDate) !== formatDateForParam(dateRange.endDate)
+      ) {
+        console.log('DateRangePicker: Syncing state from URL params');
+        setDateRange({
+          startDate: urlStartDate,
+          endDate: urlEndDate,
+          key: 'selection'
+        });
+      }
+    } else if (!urlStartDate && !urlEndDate) {
+      // If params are removed, reset to defaults
+      setDateRange(getInitialDates());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); // Rerun only when searchParams change
+
+  // Effect to handle clicks outside the picker to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [pickerRef]);
 
   // --- Handlers ---
-  const updateUrlParams = (startStr, endStr) => {
-    const start = parseISO(startStr);
-    const end = parseISO(endStr);
-
-    if (!isValid(start) || !isValid(end)) {
-      setError('Invalid date format');
-      return;
-    }
-
-    if (start > end) {
-      setError('Start date must be before end date');
-      return; // Don't update URL if dates are invalid
-    }
-
-    setError(''); // Clear error on valid update
-
-    // Preserve existing search params
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set('startDate', startStr);
-    newSearchParams.set('endDate', endStr);
-
-    // Use navigate to update URL without full page reload
-    // Replace ensures back button works as expected
-    navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
+  const handleSelect = (ranges) => {
+    const { selection } = ranges;
+    setDateRange(selection);
+    updateUrlParams(selection.startDate, selection.endDate);
+    // Close picker after selection - DO NOT close here for range selection
+    // The "click outside" handler will close it.
+    // setShowPicker(false); 
   };
 
-  const handleStartDateChange = (e) => {
-    const newStartDateStr = e.target.value;
-    setStartDateInput(newStartDateStr);
-    // Update URL only if both dates are present and potentially valid
-    if (newStartDateStr && endDateInput) {
-       updateUrlParams(newStartDateStr, endDateInput);
-    }
-  };
-
-  const handleEndDateChange = (e) => {
-    const newEndDateStr = e.target.value;
-    setEndDateInput(newEndDateStr);
-    // Update URL only if both dates are present and potentially valid
-    if (startDateInput && newEndDateStr) {
-       updateUrlParams(startDateInput, newEndDateStr);
-    }
-  };
+  const togglePicker = () => setShowPicker(!showPicker);
 
   // --- Render Logic ---
   return (
-    <div className="flex items-center space-x-4">
-      <div className="flex items-center space-x-2">
-        <label htmlFor="startDate" className="text-sm font-medium text-gray-700">Start:</label>
-        <input
-          id="startDate"
-          type="date"
-          value={startDateInput}
-          onChange={handleStartDateChange}
-          max={endDateInput || today} // Prevent start date after end date
-          className="w-full px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          required
-        />
-      </div>
-      <div className="flex items-center space-x-2">
-         <label htmlFor="endDate" className="text-sm font-medium text-gray-700">End:</label>
-        <input
-          id="endDate"
-          type="date"
-          value={endDateInput}
-          onChange={handleEndDateChange}
-          min={startDateInput} // Prevent end date before start date
-          max={today}          // Prevent future dates
-          className="w-full px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          required
-        />
-      </div>
-      {error && (
-        <p className="ml-2 text-xs text-red-600">{error}</p>
+    <div className="relative" ref={pickerRef}>
+      <button 
+        onClick={togglePicker} 
+        className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+      >
+        <svg className="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span>
+          {`${formatDateForDisplay(dateRange.startDate)} - ${formatDateForDisplay(dateRange.endDate)}`}
+        </span>
+        <svg className="w-5 h-5 ml-2 -mr-1 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
+      </button>
+
+      {showPicker && (
+        <div className="absolute right-0 mt-2 z-50">
+          <ReactDateRange
+            editableDateInputs={true}
+            onChange={handleSelect}
+            moveRangeOnFirstSelection={false}
+            ranges={[dateRange]} // Pass state as array
+            months={2}           // Show two months
+            direction="horizontal" // Horizontal layout
+            showDateDisplay={false} // Hide the top input display row
+            maxDate={new Date()} // Prevent selecting future dates
+          />
+        </div>
       )}
     </div>
   );

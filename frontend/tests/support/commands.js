@@ -32,8 +32,17 @@ Cypress.Commands.add('createAccount', (nameOrData, type, unit) => {
     type: type || 'asset',
     unit: unit || 'USD'
   };
+  // Ensure description/parent are copied if passed as object
+  if (typeof nameOrData === 'object' && nameOrData.description) {
+      accountData.description = nameOrData.description;
+  }
+  if (typeof nameOrData === 'object' && nameOrData.parent) {
+      accountData.parent = nameOrData.parent;
+  }
 
-  // Save current URL
+  // --- Intercept the API call ---
+  cy.intercept('POST', '/api/accounts').as('accountCreated');
+
   cy.location('pathname').then(currentPath => {
     // Navigate to accounts page if not already there
     if (currentPath !== '/accounts') {
@@ -57,13 +66,25 @@ Cypress.Commands.add('createAccount', (nameOrData, type, unit) => {
     // Submit the form
     cy.get('button[type="submit"]').click();
     
-    // Wait for the account to be created and verify it exists in the list
-    cy.contains(accountData.name).should('exist');
+    // --- Wait for the intercepted call and yield the ID ---
+    cy.wait('@accountCreated').then((interception) => {
+      expect(interception.response.statusCode).to.equal(201); // Verify success
+      // Adjust .data if your API response structure is different
+      const createdAccount = interception.response.body.data; 
+      
+      // Verify the account is in the list visually *after* confirming API success
+      cy.contains(accountData.name).should('exist');
 
-    // Return to original page if different from accounts
-    if (currentPath !== '/accounts') {
-      cy.visit(`/${currentPath}`);
-    }
+      // Return to original page if needed *before* yielding
+      // Make sure currentPath is not just '/' before navigating back
+      if (currentPath !== '/accounts' && currentPath !== '/') { 
+          cy.visit(currentPath); // Use original path directly
+      }
+      
+      // --- Yield the created account object --- 
+      // The .then() in the test will receive this value
+      cy.wrap(createdAccount); 
+    });
   });
 });
 
