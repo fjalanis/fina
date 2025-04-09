@@ -104,7 +104,7 @@ const RuleList = () => {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800">Rules</h2>
+        <h2 className="text-xl font-semibold text-gray-800">Balancing Rules</h2>
         <div className="space-x-2">
           <button 
             onClick={handleApplyAllRules}

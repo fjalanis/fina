@@ -19,8 +19,7 @@ import RuleList from './components/rules/RuleList';
 import RuleTest from './components/rules/RuleTest';
 
 // Asset Price Components
-import AssetPriceList from './components/asset-price/AssetPriceList';
-import AssetPriceForm from './components/asset-price/AssetPriceForm';
+import AssetPriceList from './components/prices/AssetPriceList';
 
 // Wrapper component to apply container styles
 const MainContent = ({ children }) => {
@@ -49,7 +48,7 @@ function App() {
                   <Link to="/transactions" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Transactions </Link>
                   <Link to="/rules"        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Rules </Link>
                   <Link to="/reports"      className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Reports </Link>
-                  <Link to="/asset-prices" className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Asset Prices </Link>
+                  <Link to="/prices"       className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"> Prices </Link>
                 </div>
               </div>
             </div>
@@ -66,7 +65,7 @@ function App() {
               <Route path="/reports" element={<ReportDashboard />} />
               <Route path="/rules" element={<RuleList />} />
               <Route path="/rules/test/:id" element={<RuleTest />} />
-              <Route path="/asset-prices" element={<AssetPriceList />} />
+              <Route path="/prices" element={<AssetPriceList />} />
             </Routes>
           </MainContent>
         </main>

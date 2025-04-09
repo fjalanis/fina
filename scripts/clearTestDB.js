@@ -1,5 +1,3 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
 const Account = require('../backend/src/models/Account');
 const Transaction = require('../backend/src/models/Transaction');
 const Rule = require('../backend/src/models/Rule');
