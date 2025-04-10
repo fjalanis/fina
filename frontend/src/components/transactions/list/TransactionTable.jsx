@@ -162,12 +162,10 @@ const TransactionTable = memo(({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> Date </th>
-                {/* Always show Debit/Credit columns */}
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> Debits </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> Credits </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> Description </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"> Actions </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> Date </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-full"> Description </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> Debits </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> Credits </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -176,14 +174,21 @@ const TransactionTable = memo(({
                 const unbalancedBgClass = !transaction.isBalanced ? 'bg-red-50' : '';
                 
                 return (
-                  <tr key={transaction._id} className="hover:bg-gray-50">
+                  <tr 
+                    key={transaction._id} 
+                    className={`hover:bg-gray-50 ${onViewTransaction ? 'cursor-pointer' : ''}`}
+                    onClick={() => onViewTransaction && onViewTransaction(transaction)}
+                  >
                     {/* Date Column */}
                     <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${unbalancedBgClass}`}>
                       {formatDate(transaction.date)}
                     </td>
 
-                    {/* Columns based on displayMode */}
-                    {/* Always render Debit/Credit columns */}
+                    {/* Description Column */}
+                    <td className={`px-6 py-4 text-sm text-gray-500 ${unbalancedBgClass}`} title={transaction.description}>
+                      {transaction.description || '-'} 
+                    </td>
+
                     {/* Debit Column (Default View) */}
                     <td className={`px-6 py-4 whitespace-nowrap text-right ${unbalancedBgClass}`}>
                       <div className="text-sm text-red-600 font-medium">
@@ -215,44 +220,6 @@ const TransactionTable = memo(({
                           </>
                         ) : ''}
                       </div>
-                    </td>
-                    
-                    {/* Description Column */}
-                    <td className={`px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate ${unbalancedBgClass}`} title={transaction.description}>
-                      {transaction.description || '-'} 
-                    </td>
-
-                    {/* Actions Column */}
-                    <td className={`px-6 py-4 whitespace-nowrap text-center text-sm font-medium ${unbalancedBgClass}`}>
-                      {/* View Button */}
-                      <button 
-                        onClick={() => onViewTransaction && onViewTransaction(transaction)} 
-                        className="text-blue-600 hover:text-blue-900 mr-3" // Adjusted margin
-                        title="View Details"
-                        disabled={!onViewTransaction}
-                      >
-                        View
-                      </button>
-                      {/* Edit Button - NEW */}
-                      <button 
-                        onClick={() => onEditTransaction && onEditTransaction(transaction)} 
-                        className="text-indigo-600 hover:text-indigo-900 mr-3" // Adjusted margin
-                        title="Edit Transaction"
-                        disabled={!onEditTransaction}
-                      >
-                        Edit
-                      </button>
-                      {/* Balance Button */} 
-                      {!transaction.isBalanced && (
-                        <button
-                          onClick={() => onBalanceTransaction && onBalanceTransaction(transaction)}
-                          className="text-orange-600 hover:text-orange-900"
-                          title="Balance Transaction"
-                          disabled={!onBalanceTransaction}
-                        >
-                          Balance
-                        </button>
-                      )}
                     </td>
                   </tr>
                 );
