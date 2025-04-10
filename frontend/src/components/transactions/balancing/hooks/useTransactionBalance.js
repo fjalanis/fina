@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTransactionById, deleteTransaction, fetchTransactions, updateTransaction } from '../../../../services/transactionService';
+import { fetchTransactionById, deleteTransaction, fetchTransactions, updateTransaction, createTransaction } from '../../../../services/transactionService';
 import { fetchAccounts } from '../../../../services/accountService';
 import { formatCurrency } from '../../../../utils/formatters';
-
 
 // Determine suggested fix based on transaction imbalance
 export const getSuggestedFix = (totalDebits, totalCredits) => {
@@ -40,8 +39,16 @@ export const analyzeTransactionBalance = (transaction) => {
   // Get entries array from either entries (new schema) 
   const entries = transaction.entries || [];
   
+  // Handle transactions with no entries as balanced
   if (entries.length === 0) {
-    return null;
+    return {
+      transaction,
+      totalDebits: 0,
+      totalCredits: 0,
+      netBalance: 0,
+      isBalanced: true, // Empty is considered balanced
+      suggestedFix: { action: 'none', message: '' } // No fix needed
+    };
   }
 
   let totalDebits = 0;
@@ -73,14 +80,73 @@ export const analyzeTransactionBalance = (transaction) => {
   };
 }; 
 
-/**
- * Custom hook for managing transaction balance data
- */
-export const useTransactionBalance = (transactionId, isOpen, toast) => {
+// --- Default empty transaction structure for create mode ---
+const defaultTransactionStructure = {
+  _id: null, // Indicate it's new
+  date: new Date(), // Default to today
+  description: '',
+  reference: '',
+  notes: '',
+  entries: [],
+};
+
+const defaultBalanceData = {
+  transaction: defaultTransactionStructure,
+  totalDebits: 0,
+  totalCredits: 0,
+  netBalance: 0,
+  isBalanced: true, // Empty is balanced
+  suggestedFix: { action: 'none', message: '' }
+};
+// --- End Defaults ---
+
+// Pass mode and initial data to hook
+export const useTransactionBalance = (initialTransaction, isOpen, mode, toast) => {
   const [loading, setLoading] = useState(false);
-  const [balanceData, setBalanceData] = useState(null);
+  // Initialize with analyzed initial data if available, default if creating, otherwise null
+  const [balanceData, setBalanceData] = useState(() => {
+    if (mode === 'create') return defaultBalanceData;
+    if (initialTransaction) {
+        // Analyze only if entries exist, otherwise return basic structure
+        if (initialTransaction.entries && initialTransaction.entries.length > 0) {
+            return analyzeTransactionBalance(initialTransaction);
+        } else {
+            // Return structure matching analyzeTransactionBalance but with empty/default values
+             return {
+                transaction: initialTransaction,
+                totalDebits: 0,
+                totalCredits: 0,
+                netBalance: 0,
+                isBalanced: true, // Empty is balanced
+                suggestedFix: { action: 'none', message: '' }
+            };
+        }
+    }
+    return null; // Default case if no initial data and not creating
+  });
   const [accounts, setAccounts] = useState([]);
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState([]); // Still needed for AssetTable
+
+  // Effect to synchronize balanceData with initialTransaction prop changes
+  useEffect(() => {
+    // Only run if modal is open, not in create mode, and initialTransaction is provided
+    if (isOpen && mode !== 'create' && initialTransaction) {
+      const analysis = (initialTransaction.entries && initialTransaction.entries.length > 0) 
+                        ? analyzeTransactionBalance(initialTransaction) 
+                        : {
+                            transaction: initialTransaction,
+                            totalDebits: 0, totalCredits: 0, netBalance: 0, isBalanced: true,
+                            suggestedFix: { action: 'none', message: '' }
+                           };
+      setBalanceData(analysis);
+    } else if (isOpen && mode === 'create') {
+       // Ensure create mode always has default data if balanceData is somehow nullified
+       if (!balanceData || balanceData.transaction?._id) { // Reset if balanceData is null or has an ID
+           setBalanceData(defaultBalanceData);
+       }
+    }
+    // Intentionally excluding balanceData from deps to avoid loop; we only react to prop/mode changes
+  }, [initialTransaction, mode, isOpen]);
 
   // Reset state when modal closes - Wrapped in useCallback (though maybe less critical)
   // Note: dependencies might need adjustment based on what needs resetting
@@ -111,26 +177,34 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
     }
   }, [toast]); // Dependency: toast
 
-  // Fetch latest transaction data - Wrapped in useCallback
+  // Fetch transaction data hook - Refactored to primarily use initialTransaction
+  // This function is now less critical for initial load, more for explicit refetch after updates
   const fetchTransactionDataHook = useCallback(async () => {
-    if (!transactionId) return null; // Return null if no ID
-    
-    console.log(`[useTransactionBalance] Fetching data for ID: ${transactionId}`); // Log fetch attempt
+    const transactionId = initialTransaction?._id; // Get ID from prop
+    // Only fetch if we have an ID (not creating) AND balanceData wasn't initialized from prop
+    // Note: This condition might be too restrictive if we WANT to force a refetch.
+    // Let's simplify: only fetch if ID exists. The CALLER decides WHEN to fetch.
+    if (!transactionId) {
+        if (mode === 'create' && !balanceData) {
+           setBalanceData(defaultBalanceData); // Ensure default for create if somehow lost
+        }
+        return balanceData; // Return current state
+    }
+
     try {
       setLoading(true);
       const response = await fetchTransactionById(transactionId);
       const freshTransaction = response.data;
       
-      if (!freshTransaction || !freshTransaction.entries) {
+      if (!freshTransaction /* Removed || !freshTransaction.entries check, analyze handles null entries */) {
         throw new Error('Could not retrieve transaction details');
       }
 
       const analysis = analyzeTransactionBalance(freshTransaction);
-      setBalanceData(analysis); // Set new balance data reference
+      setBalanceData(analysis);
 
-      if (freshTransaction.entries[0]?.accountId) {
+      if (freshTransaction.entries && freshTransaction.entries[0]?.accountId) {
         const accountId = freshTransaction.entries[0].accountId;
-        // Consider if fetching *all* transactions for the account is always needed here
         const transactionsResponse = await fetchTransactions({ accountId }); 
         setTransactions(transactionsResponse.data);
       }
@@ -139,12 +213,41 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
     } catch (err) {
       console.error('Error analyzing transaction:', err);
       toast.error('Failed to analyze transaction balance.');
-      setBalanceData(null); // Clear data on error
+      setBalanceData(null);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [transactionId, toast]); // Dependencies: transactionId, toast
+  }, [initialTransaction, mode, toast, balanceData]); // Added balanceData to deps? Maybe not needed if we rely on caller. Let's keep it simple for now.
+
+  // Add create transaction function
+  const handleCreateTransactionHook = useCallback(async (headerData) => {
+    const dataToCreate = {
+      date: headerData.date,
+      description: headerData.description,
+      reference: headerData.reference,
+      notes: headerData.notes,
+      entries: [] // Start with empty entries, backend allows this
+    };
+    try {
+      setLoading(true);
+      const response = await createTransaction(dataToCreate);
+      const newTransaction = response.data;
+      toast.success("Transaction created successfully!");
+      // Set the state to the newly created transaction's data
+      const analysis = analyzeTransactionBalance(newTransaction); 
+      setBalanceData(analysis);
+      // TODO: Decide if we should fetch related transactions here
+      return newTransaction; // Return the full new transaction object
+    } catch (err) {
+      const errorMsg = 'Failed to create transaction: ' + (err.response?.data?.message || err.message || 'Please try again.');
+      toast.error(errorMsg);
+      console.error('Error creating transaction:', err);
+      return null; // Indicate failure
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]); // Dependency: toast
 
   // Delete the transaction - Wrapped in useCallback
   const handleDeleteTransactionHook = useCallback(async () => {
@@ -216,5 +319,6 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
     fetchTransactionData: fetchTransactionDataHook,
     handleDeleteTransaction: handleDeleteTransactionHook,
     handleUpdateTransactionHeader: handleUpdateTransactionHeaderHook,
+    handleCreateTransaction: handleCreateTransactionHook, // Expose create function
   };
 }; 

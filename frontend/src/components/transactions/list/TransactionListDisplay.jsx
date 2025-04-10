@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TransactionTable from './TransactionTable';
 
-const TransactionListDisplay = ({ transactions, onViewTransaction, onBalanceTransaction }) => {
+const TransactionListDisplay = ({ transactions, onViewTransaction, onBalanceTransaction, onEditTransaction }) => {
   // State for transaction filtering (managed internally)
   const [filter, setFilter] = useState('all'); // 'all', 'balanced', 'unbalanced'
   const [unbalancedCount, setUnbalancedCount] = useState(0);
@@ -84,8 +84,9 @@ const TransactionListDisplay = ({ transactions, onViewTransaction, onBalanceTran
       {/* Transaction Table - Pass filtered data and handlers */}
       <TransactionTable
         transactions={filteredTransactions} 
-        onViewTransaction={onViewTransaction} // Pass down handler from props
-        onBalanceTransaction={onBalanceTransaction} // Pass down handler from props
+        onViewTransaction={onViewTransaction}
+        onBalanceTransaction={onBalanceTransaction}
+        onEditTransaction={onEditTransaction}
       />
     </div>
   );

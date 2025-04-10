@@ -188,9 +188,12 @@ exports.getTransaction = async (req, res) => {
       });
     }
     
+    // Convert to plain object to ensure virtuals and populated fields are correctly serialized
+    const transactionObject = transaction.toObject({ virtuals: true });
+    
     res.json({
       success: true,
-      data: transaction
+      data: transactionObject // Send the plain object instead of the Mongoose document
     });
   } catch (error) {
     console.error('Error getting transaction:', error);

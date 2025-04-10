@@ -238,7 +238,7 @@ const applyRulesToTransaction = async (transactionId) => {
 
 const applyRuleToTransaction = async (transaction, rule) => {
   if (!transaction.entries || transaction.entries.length === 0) {
-    throw new Error('Transaction must have at least one entry');
+    return transaction;
   }
 
   // Apply rule based on type

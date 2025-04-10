@@ -19,9 +19,18 @@ import {
   useManualSearchControl
 } from './hooks';
 
-const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUpdated }) => {
-  const [isEditingHeader, setIsEditingHeader] = useState(false);
+const TransactionBalanceModal = ({ isOpen, onClose, transaction, mode = 'balance', onTransactionUpdated }) => {
+  const [isEditingHeader, setIsEditingHeader] = useState(() => mode === 'edit' || mode === 'create');
   const [activeTab, setActiveTab] = useState('editAdd');
+
+  // Adjust title based on mode
+  const getModalTitle = () => {
+    if (mode === 'create') return 'Create New Transaction';
+    if (isEditingHeader) return 'Edit Transaction Details'; // Covers edit mode start and manual toggle
+    if (mode === 'view') return 'Transaction Details';
+    if (mode === 'balance') return 'Balance Transaction';
+    return 'Transaction Details'; // Default fallback
+  };
 
   // Transaction balance data and base operations
   const {
@@ -32,8 +41,9 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
     fetchAccounts,
     fetchTransactionData,
     handleDeleteTransaction,
-    handleUpdateTransactionHeader
-  } = useTransactionBalance(transaction?._id, isOpen, toast);
+    handleUpdateTransactionHeader,
+    handleCreateTransaction
+  } = useTransactionBalance(transaction, isOpen, mode, toast); // Pass transaction prop as initialTransaction
 
   // Complementary transactions for imbalance resolution
   const {
@@ -49,7 +59,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
       toast.success(message);
       fetchTransactionData().then((updatedBalanceData) => { 
         if (onTransactionUpdated) {
-          onTransactionUpdated(transaction?._id);
+          onTransactionUpdated({ id: transaction?._id, action: 'update' });
         }
       });
     },
@@ -80,7 +90,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
         setEditingEntry(null);
         setShowAddEntryForm(false);
         if (onTransactionUpdated) {
-          onTransactionUpdated(transaction?._id);
+          onTransactionUpdated({ id: transaction?._id, action: 'update' });
         }
       });
     },
@@ -90,43 +100,18 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
   // Manual search control
   const { showManualSearch, setShowManualSearch } = useManualSearchControl();
 
-  // --- Debugging Logs --- 
-  // Log when the transaction prop reference changes
-  const prevTransactionRef = useRef();
-  useEffect(() => {
-      if (isOpen && prevTransactionRef.current && prevTransactionRef.current !== transaction) {
-          console.warn('>>> Transaction prop reference changed <<< Modal is open.');
-          // console.log('Prev Transaction ID:', prevTransactionRef.current?._id);
-          // console.log('New Transaction ID:', transaction?._id);
-      }
-      prevTransactionRef.current = transaction;
-  }, [transaction, isOpen]); // Also check isOpen to avoid logging when modal closes/reopens with same txn
-
-  // Log when balanceData state reference changes
-  const prevBalanceDataRef = useRef();
-  useEffect(() => {
-      if (isOpen && prevBalanceDataRef.current && prevBalanceDataRef.current !== balanceData) {
-          console.warn('>>> balanceData state reference changed <<< Modal is open.');
-          // console.log('Prev balanceData entries:', prevBalanceDataRef.current?.transaction?.entries?.length);
-          // console.log('New balanceData entries:', balanceData?.transaction?.entries?.length);
-          // console.log('Prev balanceData balanced?: ', prevBalanceDataRef.current?.isBalanced);
-          // console.log('New balanceData balanced?: ', balanceData?.isBalanced);
-      }
-        prevBalanceDataRef.current = balanceData;
-  }, [balanceData, isOpen]); // Also check isOpen
-
-  // Load transaction balance data when opened or transaction ID changes
+  // Load necessary data when modal opens or relevant props change
   useEffect(() => {
     const transactionId = transaction?._id;
-    if (isOpen && transactionId) {
-      console.log(`Effect: Fetching data for transaction ID: ${transactionId}`);
-      fetchTransactionData();
+    // Fetch accounts if the modal is open (needed for dropdowns)
+    if (isOpen) {
       fetchAccounts();
-      setIsEditingHeader(false);
-      // setActiveTab('editAdd'); // Default tab set by later effect
     }
-    // Change dependency from the transaction object to its ID
-  }, [isOpen, transaction?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+    
+    // We no longer fetch transaction data here - useTransactionBalance handles initialization from the transaction prop
+    // The fetchTransactionData function returned by the hook can be used for explicit refetches later if needed (e.g., after an update)
+    
+  }, [isOpen, fetchAccounts, mode, transaction]); // Added mode and transaction to deps to re-evaluate if needed, though fetchAccounts is stable
 
   // Handle the transaction page change for pagination
   const handleTransactionPageChange = useCallback((page) => {
@@ -185,11 +170,12 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
 
     if (result) { 
       if (result === 'transaction_deleted') {
-        if (onTransactionUpdated) onTransactionUpdated(transaction?._id);
+        if (onTransactionUpdated) onTransactionUpdated({ id: transaction?._id, action: 'delete' });
         onClose(); 
       } else {
+        // Entry deleted, transaction exists, refetch internal and notify parent
         fetchTransactionData().then((updatedBalanceData) => {
-          if (onTransactionUpdated) onTransactionUpdated(transaction?._id);
+          if (onTransactionUpdated) onTransactionUpdated({ id: transaction?._id, action: 'update' });
         });
       }
     } // Error toast is handled within the hook
@@ -255,25 +241,99 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
   const showComplementaryTabs = !balanceData?.isBalanced;
 
   // --- Header Edit Logic ---
-  const handleHeaderEditToggle = useCallback(() => setIsEditingHeader(prev => !prev), [setIsEditingHeader]);
+  const handleHeaderEditToggle = useCallback(() => setIsEditingHeader(prev => !prev), []);
   
-  // Updated handleHeaderSave to call the hook function AND notify parent
   const handleHeaderSave = useCallback(async (headerData) => {
-    const success = await handleUpdateTransactionHeader(headerData);
-    if (success) {
-      setIsEditingHeader(false); 
-      // Notify parent after successful header save
-      if (onTransactionUpdated) {
-        onTransactionUpdated(transaction?._id);
+    let success = false;
+    let operationType = mode; // 'create' or 'edit'
+    let resultingTransactionId = balanceData?.transaction?._id; // Existing ID for edit
+
+    console.log('[handleHeaderSave] Attempting save, mode:', mode);
+
+    try {
+      if (mode === 'create') {
+        const result = await handleCreateTransaction(headerData);
+        if (result) {
+          success = true;
+          resultingTransactionId = result._id; // Get ID of the new transaction
+          console.log('[handleHeaderSave] Create successful, result:', result);
+        } else {
+          console.error('[handleHeaderSave] Create operation failed.');
+        }
+      } else { // Assumed 'edit' or other modes where update applies
+        if (!resultingTransactionId) {
+          toast.error("Cannot update: Transaction ID is missing.");
+          return; // Exit early
+        }
+        success = await handleUpdateTransactionHeader(headerData); // Hook returns boolean
+        if (success) {
+          console.log('[handleHeaderSave] Update successful.');
+        } else {
+          console.error('[handleHeaderSave] Update operation failed.');
+        }
       }
+
+      // If the create/update operation was successful, refetch and update UI
+      if (success) {
+        console.log('[handleHeaderSave] Operation successful, refetching data...');
+        const updatedData = await fetchTransactionData(); // Refetch the data using the hook
+        
+        if (updatedData) {
+          console.log('[handleHeaderSave] Refetch successful, updating UI.');
+          setIsEditingHeader(false); // Switch to view mode ONLY after successful refetch
+          
+          // Notify parent list (crucial for keeping list view updated)
+          if (onTransactionUpdated && resultingTransactionId) {
+            const action = (operationType === 'create') ? 'create' : 'update';
+            console.log(`[handleHeaderSave] Calling onTransactionUpdated with: {id: ${resultingTransactionId}, action: '${action}'}`);
+            onTransactionUpdated({ id: resultingTransactionId, action: action });
+          }
+        } else {
+           console.error('[handleHeaderSave] Refetch failed after successful save. UI might be stale.');
+           toast.error("Saved successfully, but failed to refresh details. Close and reopen to see changes.");
+           // Don't switch view mode if refetch fails
+        }
+      } else {
+        // Error handled/toasted within the specific create/update hooks
+        console.log('[handleHeaderSave] Underlying save operation reported failure.');
+      }
+    } catch (error) {
+      // Catch unexpected errors during the save/refetch process
+      console.error("[handleHeaderSave] Unexpected error:", error);
+      toast.error("An unexpected error occurred during save.");
     }
-  }, [handleUpdateTransactionHeader, setIsEditingHeader, onTransactionUpdated, transaction]);
+  }, [mode, balanceData, handleCreateTransaction, handleUpdateTransactionHeader, fetchTransactionData, setIsEditingHeader, onTransactionUpdated]);
   
   const handleHeaderCancel = useCallback(() => {
-    setIsEditingHeader(false); 
-    // No need to explicitly reset form state, useEffect in TransactionHeader handles it
-  }, [setIsEditingHeader]);
+    if (mode === 'create') {
+      onClose();
+    } else {
+      setIsEditingHeader(false); 
+    }
+  }, [mode, onClose]);
   // --- End Header Edit Logic ---
+
+  // --- Delete Action Handler ---
+  const handleDeleteAction = useCallback(async () => {
+    if (!balanceData?.transaction?._id) {
+      toast.error("Cannot delete: Transaction data missing.");
+      return; 
+    }
+    const transactionIdToDelete = balanceData.transaction._id; // Capture ID before potential state clear
+    
+    // Call the delete hook
+    const success = await handleDeleteTransaction(); 
+    
+    if (success) {
+      // If hook signals success, close modal and notify parent list
+      onClose(); 
+      if (onTransactionUpdated) {
+        onTransactionUpdated({ id: transactionIdToDelete, action: 'delete' });
+      }
+    }
+    // Error toast is handled within the hook if success is false
+  }, [balanceData, handleDeleteTransaction, onClose, onTransactionUpdated]);
+  // --- End Delete Action Handler ---
 
   // Determine default active tab based on state
   useEffect(() => {
@@ -288,11 +348,15 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
     }
   }, [isOpen, balanceData, editingEntry, showAddEntryForm]);
 
+  // --- Derived Data ---
+  // Determine if add entry should be disabled
+  const disableAddEntry = mode === 'create' && !balanceData?.transaction?._id;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditingHeader ? "Edit Transaction Details" : "Transaction Details"}
+      title={getModalTitle()}
       size="lg"
     >
       {loading && !balanceData ? (
@@ -304,24 +368,14 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
           {balanceData && (
             <div className="space-y-4">
               <div className="border-b pb-4 mb-4">
-                {isEditingHeader ? (
-                   <div>
-                     <p className="text-center text-gray-500">[Header Edit Form Placeholder]</p>
-                     <div className="flex justify-end space-x-2 mt-2">
-                       <button onClick={handleHeaderSave} className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">Save</button>
-                       <button onClick={handleHeaderCancel} className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</button>
-                     </div>
-                   </div>
-                ) : (
-                  <TransactionHeader 
-                    transaction={balanceData.transaction} 
-                    onDeleteTransaction={handleDeleteTransaction} 
-                    isEditing={isEditingHeader}
-                    onEditTransaction={handleHeaderEditToggle}
-                    onSave={handleHeaderSave}
-                    onCancel={handleHeaderCancel}
-                  />
-                )}
+                <TransactionHeader 
+                  transaction={balanceData.transaction}
+                  onDeleteTransaction={handleDeleteAction}
+                  isEditing={isEditingHeader}
+                  onEditTransaction={handleHeaderEditToggle}
+                  onSave={handleHeaderSave}
+                  onCancel={handleHeaderCancel}
+                />
               </div>
 
               {hasNonUSDEntries && currentAccount && (
@@ -346,6 +400,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, onTransactionUp
                   onEditEntry={handleEditEntryClick}
                   onDeleteEntry={handleDeleteEntry}
                   onAddEntry={handleAddEntryClick}
+                  disableAddEntry={disableAddEntry}
                 />
 
                 {!balanceData.isBalanced && (

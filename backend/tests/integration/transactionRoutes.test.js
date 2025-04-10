@@ -139,21 +139,6 @@ describe('Transaction Routes', () => {
       expect(res.body.error).toContain('Account not found');
     });
 
-    it('should fail if entries array is empty', async () => {
-      const transactionData = {
-        date: new Date(),
-        description: 'Empty Transaction',
-        entries: []
-      };
-      
-      const res = await request(app)
-        .post('/api/transactions')
-        .send(transactionData)
-        .expect(400);
-        
-      expect(res.body.success).toBe(false);
-      expect(res.body.error).toContain('Transaction must have at least one entry');
-    });
   });
 
   describe('PUT /api/transactions/:id', () => {

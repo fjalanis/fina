@@ -119,11 +119,6 @@ TransactionSchema.virtual('isBalanced').get(function() {
 
 // Pre-save middleware to validate entries
 TransactionSchema.pre('save', function(next) {
-  if (!this.entries || this.entries.length === 0) {
-    console.error('Transaction must have at least one entry', this);
-    next(new Error('Transaction must have at least one entry'));
-    return;
-  }
   
   // Validate that all entry amounts are positive
   const hasInvalidAmount = this.entries.some(entry => entry.amount <= 0);

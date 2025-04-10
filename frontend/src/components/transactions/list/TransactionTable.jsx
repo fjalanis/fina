@@ -17,7 +17,8 @@ const accountTypeColors = {
 const TransactionTable = memo(({ 
     transactions, 
     onViewTransaction,     // Handler to open view modal
-    onBalanceTransaction   // Handler to open balance modal
+    onBalanceTransaction,   // Handler to open balance modal
+    onEditTransaction      // Add prop for edit handler
 }) => {
 
     // Helper Functions (Mostly moved from TransactionList)
@@ -223,21 +224,31 @@ const TransactionTable = memo(({
 
                     {/* Actions Column */}
                     <td className={`px-6 py-4 whitespace-nowrap text-center text-sm font-medium ${unbalancedBgClass}`}>
+                      {/* View Button */}
                       <button 
                         onClick={() => onViewTransaction && onViewTransaction(transaction)} 
-                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        className="text-blue-600 hover:text-blue-900 mr-3" // Adjusted margin
                         title="View Details"
-                        disabled={!onViewTransaction} // Disable if handler not provided
+                        disabled={!onViewTransaction}
                       >
                         View
                       </button>
-                      {/* Show Balance button if transaction is unbalanced, regardless of mode */}
+                      {/* Edit Button - NEW */}
+                      <button 
+                        onClick={() => onEditTransaction && onEditTransaction(transaction)} 
+                        className="text-indigo-600 hover:text-indigo-900 mr-3" // Adjusted margin
+                        title="Edit Transaction"
+                        disabled={!onEditTransaction}
+                      >
+                        Edit
+                      </button>
+                      {/* Balance Button */} 
                       {!transaction.isBalanced && (
                         <button
                           onClick={() => onBalanceTransaction && onBalanceTransaction(transaction)}
                           className="text-orange-600 hover:text-orange-900"
                           title="Balance Transaction"
-                          disabled={!onBalanceTransaction} // Disable if handler not provided
+                          disabled={!onBalanceTransaction}
                         >
                           Balance
                         </button>

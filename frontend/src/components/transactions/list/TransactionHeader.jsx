@@ -11,19 +11,33 @@ const TransactionHeader = ({
   onSave,               // New prop
   onCancel              // New prop
 }) => {
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState(() => {
+    const isCreating = transaction?._id === null;
+    const defaultDate = inputDateFormat(new Date());
+    return {
+      date: transaction?.date ? inputDateFormat(transaction.date) : (isCreating ? defaultDate : ''),
+      description: transaction?.description ?? '',
+      reference: transaction?.reference ?? '',
+      notes: transaction?.notes ?? ''
+    };
+  });
 
-  // Initialize form data when transaction loads or edit mode changes
+  // Need effect to update formData IF isEditing becomes false (e.g., cancel)
+  // or if the transaction ID changes (modal switched to different transaction)
   useEffect(() => {
-    if (transaction) {
+    // If not editing, reset form to reflect the potentially updated transaction prop
+    if (!isEditing && transaction) { 
+      const isCreating = transaction?._id === null;
+      const defaultDate = inputDateFormat(new Date());
       setFormData({
-        date: transaction.date ? inputDateFormat(transaction.date) : '',
-        description: transaction.description || '',
-        reference: transaction.reference || '',
-        notes: transaction.notes || ''
+        date: transaction?.date ? inputDateFormat(transaction.date) : (isCreating ? defaultDate : ''),
+        description: transaction?.description ?? '', 
+        reference: transaction?.reference ?? '',
+        notes: transaction?.notes ?? ''
       });
     }
-  }, [transaction, isEditing]); // Re-init if transaction changes or edit starts/cancels
+    // Run when isEditing changes or the transaction we are viewing changes ID
+  }, [isEditing, transaction?._id]); // Include transaction?._id to reset if modal switches txn
 
   const handleChange = (e) => {
     const { name, value } = e.target;

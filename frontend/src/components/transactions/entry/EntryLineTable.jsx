@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { memo } from 'react';
 // Import icons
 import { FaEdit, FaTrashAlt, FaPlus } from 'react-icons/fa';
 
-const EntryLineTable = ({ 
+const EntryLineTable = memo(({ 
   entries, 
   selectedEntryId, 
   onEditEntry, 
   onDeleteEntry,
-  onAddEntry // Added prop
+  onAddEntry,
+  disableAddEntry // Added prop
 }) => {
   const entriesArray = entries || [];
   
@@ -93,8 +94,11 @@ const EntryLineTable = ({
              <td colSpan="4" className="px-4 py-2 text-right">
                 <button
                   onClick={onAddEntry}
-                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 flex items-center ml-auto"
-                  title="Add New Entry Line"
+                  disabled={disableAddEntry}
+                  className={`px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 flex items-center ml-auto transition-opacity ${ 
+                    disableAddEntry ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  title={disableAddEntry ? "Save transaction details first" : "Add New Entry Line"}
                 >
                   <FaPlus className="inline mr-1"/>
                   Add Entry
@@ -105,6 +109,6 @@ const EntryLineTable = ({
       </table>
     </div>
   );
-};
+});
 
 export default EntryLineTable; 
