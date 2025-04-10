@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { fetchTransactionById, deleteTransaction, fetchTransactions } from '../../../../services/transactionService';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchTransactionById, deleteTransaction, fetchTransactions, updateTransaction } from '../../../../services/transactionService';
 import { fetchAccounts } from '../../../../services/accountService';
 import { formatCurrency } from '../../../../utils/formatters';
 
@@ -82,33 +82,42 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
 
-  // Reset state when modal closes
+  // Reset state when modal closes - Wrapped in useCallback (though maybe less critical)
+  // Note: dependencies might need adjustment based on what needs resetting
+  const resetModalState = useCallback(() => {
+      // setBalanceData(null); 
+      // setAccounts([]);
+      // setTransactions([]);
+      // console.log('Resetting modal state');
+  }, []); // Adjust dependencies if needed
+
   useEffect(() => {
     if (!isOpen) {
-      // setError(null);
-      // setSuccessMessage(null);
+      resetModalState();
     }
-  }, [isOpen]);
+  }, [isOpen, resetModalState]);
 
-  // Fetch accounts for dropdown
-  const fetchAccountsHook = async () => {
+  // Fetch accounts - Wrapped in useCallback
+  const fetchAccountsHook = useCallback(async () => {
     try {
+      // setLoading(true); // Avoid double loading indicator if fetchTransactionDataHook also sets it
       const response = await fetchAccounts();
       setAccounts(response.data);
     } catch (err) {
       console.error('Error fetching accounts:', err);
       toast.error('Failed to load accounts.');
+    } finally {
+      // setLoading(false);
     }
-  };
+  }, [toast]); // Dependency: toast
 
-  // Fetch latest transaction data and analyze it
-  const fetchTransactionDataHook = async () => {
-    if (!transactionId) return;
+  // Fetch latest transaction data - Wrapped in useCallback
+  const fetchTransactionDataHook = useCallback(async () => {
+    if (!transactionId) return null; // Return null if no ID
     
+    console.log(`[useTransactionBalance] Fetching data for ID: ${transactionId}`); // Log fetch attempt
     try {
       setLoading(true);
-      
-      // Make sure we have the latest data
       const response = await fetchTransactionById(transactionId);
       const freshTransaction = response.data;
       
@@ -116,14 +125,13 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
         throw new Error('Could not retrieve transaction details');
       }
 
-      // Analyze the transaction balance
       const analysis = analyzeTransactionBalance(freshTransaction);
-      setBalanceData(analysis);
+      setBalanceData(analysis); // Set new balance data reference
 
-      // If we have a transaction with entries, fetch all transactions for the account
       if (freshTransaction.entries[0]?.accountId) {
         const accountId = freshTransaction.entries[0].accountId;
-        const transactionsResponse = await fetchTransactions({ accountId });
+        // Consider if fetching *all* transactions for the account is always needed here
+        const transactionsResponse = await fetchTransactions({ accountId }); 
         setTransactions(transactionsResponse.data);
       }
       
@@ -131,15 +139,18 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
     } catch (err) {
       console.error('Error analyzing transaction:', err);
       toast.error('Failed to analyze transaction balance.');
+      setBalanceData(null); // Clear data on error
       return null;
     } finally {
       setLoading(false);
     }
-  };
+  }, [transactionId, toast]); // Dependencies: transactionId, toast
 
-  // Delete the transaction
-  const handleDeleteTransactionHook = async () => {
-    if (!balanceData || !balanceData.transaction || !balanceData.transaction._id) {
+  // Delete the transaction - Wrapped in useCallback
+  const handleDeleteTransactionHook = useCallback(async () => {
+    // Use balanceData directly from state, no need to pass it
+    if (!balanceData?.transaction?._id) {
+       toast.error('Cannot delete: Transaction data missing.');
       return false;
     }
     
@@ -149,28 +160,61 @@ export const useTransactionBalance = (transactionId, isOpen, toast) => {
     
     try {
       setLoading(true);
-      
       await deleteTransaction(balanceData.transaction._id);
-      
       toast.success('Transaction deleted successfully!');
+      setBalanceData(null); // Clear data after delete
       return true;
     } catch (err) {
-      const errorMsg = 'Failed to delete transaction: ' + (err.message || 'Please try again.');
+      const errorMsg = 'Failed to delete transaction: ' + (err.response?.data?.message || err.message || 'Please try again.');
       toast.error(errorMsg);
       console.error('Error deleting transaction:', err);
       return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, [balanceData, toast]); // Dependencies: balanceData, toast
+
+  // Update transaction header details - Wrapped in useCallback
+  const handleUpdateTransactionHeaderHook = useCallback(async (updatedData) => {
+    if (!balanceData?.transaction?._id) {
+      toast.error("Cannot update: Transaction data is missing.");
+      return false;
+    }
+    // Only include fields relevant to the header
+    const dataToUpdate = {
+      date: updatedData.date,
+      description: updatedData.description,
+      reference: updatedData.reference,
+      notes: updatedData.notes,
+      // Add any other non-entry fields managed in the header here
+    };
+
+    try {
+      setLoading(true);
+      await updateTransaction(balanceData.transaction._id, dataToUpdate);
+      toast.success("Transaction details updated successfully!");
+      // No automatic refetch here, let the modal component decide if needed
+      // await fetchTransactionDataHook(); 
+      return true;
+    } catch (err) {
+      const errorMsg = 'Failed to update transaction: ' + (err.response?.data?.message || err.message || 'Please try again.');
+      toast.error(errorMsg);
+      console.error('Error updating transaction:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [balanceData, toast]); // Dependencies: balanceData, toast
 
   return {
     loading,
     balanceData,
     accounts,
     transactions,
+    // Return the memoized functions
     fetchAccounts: fetchAccountsHook,
     fetchTransactionData: fetchTransactionDataHook,
     handleDeleteTransaction: handleDeleteTransactionHook,
+    handleUpdateTransactionHeader: handleUpdateTransactionHeaderHook,
   };
 }; 

@@ -3,7 +3,7 @@ const request = require('supertest');
 const app = require('../../src/server');
 const Transaction = require('../../src/models/Transaction');
 const Account = require('../../src/models/Account');
-const { setupDB } = require('../setup');
+const { setupDB, connectDB, disconnectDB, clearDB } = require('../setup');
 
 // Setup test database
 setupDB(); // Restore this call
@@ -667,4 +667,101 @@ describe('Transaction Routes', () => {
     });
   });
    // *** END NEW TEST ***
+});
+
+describe('DELETE /api/transactions/:transactionId/entries/:entryId', () => {
+  let testTransaction;
+  let testAccount1;
+  let testAccount2;
+
+  beforeEach(async () => {
+    // Create accounts needed for these specific tests using VALID types
+    testAccount1 = new Account({ name: 'Test Delete Acc 1', type: 'asset' }); // Use valid type 'asset'
+    testAccount2 = new Account({ name: 'Test Delete Acc 2', type: 'expense' }); // Keep valid type 'expense'
+    await testAccount1.save();
+    await testAccount2.save();
+
+    // Create a transaction with multiple entries for deletion tests
+    testTransaction = new Transaction({
+      date: new Date(),
+      description: 'Test Delete Entry Transaction',
+      entries: [
+        { accountId: testAccount1._id, amount: 100, type: 'debit', unit: 'USD' },
+        { accountId: testAccount2._id, amount: 50, type: 'credit', unit: 'USD' },
+        { accountId: testAccount2._id, amount: 50, type: 'credit', unit: 'USD' },
+      ]
+    });
+    await testTransaction.save();
+  });
+
+  it('should delete an entry successfully and return the updated transaction', async () => {
+    const entryToDelete = testTransaction.entries[1]; // Target the first credit entry
+    const initialEntryCount = testTransaction.entries.length;
+
+    const res = await request(app)
+      .delete(`/api/transactions/${testTransaction._id}/entries/${entryToDelete._id}`);
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data._id).toEqual(testTransaction._id.toString());
+    expect(res.body.data.entries).toHaveLength(initialEntryCount - 1);
+    // Check that the specific entry ID is no longer present
+    expect(res.body.data.entries.find(e => e._id === entryToDelete._id.toString())).toBeUndefined();
+
+    // Verify in DB
+    const updatedTxn = await Transaction.findById(testTransaction._id);
+    expect(updatedTxn.entries).toHaveLength(initialEntryCount - 1);
+  });
+
+  it('should delete the last entry and the transaction itself', async () => {
+    // Create a transaction with only one entry
+    const singleEntryTxn = new Transaction({
+      date: new Date(),
+      description: 'Single Entry Test',
+      entries: [
+        { accountId: testAccount1._id, amount: 25, type: 'debit', unit: 'USD' }
+      ]
+    });
+    await singleEntryTxn.save();
+    const entryToDelete = singleEntryTxn.entries[0];
+
+    const res = await request(app)
+      .delete(`/api/transactions/${singleEntryTxn._id}/entries/${entryToDelete._id}`);
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toEqual({}); // Empty data indicates transaction deleted
+    expect(res.body.message).toContain('transaction removed as it became empty');
+
+    // Verify transaction is deleted from DB
+    const deletedTxn = await Transaction.findById(singleEntryTxn._id);
+    expect(deletedTxn).toBeNull();
+  });
+
+  it('should return 404 if the transaction does not exist', async () => {
+    const nonExistentTxnId = new mongoose.Types.ObjectId();
+    const nonExistentEntryId = new mongoose.Types.ObjectId(); 
+
+    const res = await request(app)
+      .delete(`/api/transactions/${nonExistentTxnId}/entries/${nonExistentEntryId}`);
+
+    expect(res.statusCode).toEqual(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toEqual('Transaction not found');
+  });
+
+  it('should return 200 (success) if the entry does not exist but the transaction does', async () => {
+    const nonExistentEntryId = new mongoose.Types.ObjectId();
+    const initialEntryCount = testTransaction.entries.length;
+
+    const res = await request(app)
+      .delete(`/api/transactions/${testTransaction._id}/entries/${nonExistentEntryId}`);
+
+    // The $pull operation doesn't error if the item isn't found.
+    // The controller now handles this by returning the current transaction state.
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data._id).toEqual(testTransaction._id.toString());
+    expect(res.body.data.entries).toHaveLength(initialEntryCount); // No change in entries
+  });
 }); 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { fetchTransactions } from '../../../services/transactionService';
+import { fetchTransactions, fetchTransactionById } from '../../../services/transactionService';
 import Modal from '../../common/Modal';
 import { TransactionForm, SingleEntryForm } from '../form';
 import TransactionBalanceModal from '../balancing/TransactionBalanceModal';
@@ -22,11 +22,7 @@ const TransactionList = () => {
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
 
-  useEffect(() => {
-    getTransactions();
-  }, [startDate, endDate]);
-
-  const getTransactions = async () => {
+  const getTransactions = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetchTransactions({ startDate, endDate });
@@ -38,52 +34,69 @@ const TransactionList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
 
-  const handleCreateTransaction = () => { setIsTransactionModalOpen(true); };
-  const handleCreateSingleEntry = () => { setIsSingleEntryModalOpen(true); };
+  useEffect(() => {
+    getTransactions();
+  }, [getTransactions]);
 
-  const handleSaveTransaction = async () => {
+  const handleCreateTransaction = useCallback(() => { setIsTransactionModalOpen(true); }, []);
+  const handleCreateSingleEntry = useCallback(() => { setIsSingleEntryModalOpen(true); }, []);
+
+  const handleSaveTransaction = useCallback(async () => {
     setIsTransactionModalOpen(false);
     await getTransactions();
-  };
+  }, [getTransactions]);
 
-  const handleSaveSingleEntry = async () => {
+  const handleSaveSingleEntry = useCallback(async () => {
     setIsSingleEntryModalOpen(false);
     await getTransactions();
-  };
+  }, [getTransactions]);
   
-  const handleOpenBalanceModal = (transaction) => {
+  const handleOpenBalanceModal = useCallback((transaction) => {
     setBalancingTransaction(transaction);
     setIsBalanceModalOpen(true);
-  };
+  }, []);
   
-  const handleCloseBalanceModal = () => {
+  const handleCloseBalanceModal = useCallback(() => {
     setIsBalanceModalOpen(false);
     setBalancingTransaction(null);
-  };
+  }, []);
   
-  const handleOpenViewModal = (transaction) => {
+  const handleOpenViewModal = useCallback((transaction) => {
     setViewingTransaction(transaction);
     setIsViewModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseViewModal = () => {
+  const handleCloseViewModal = useCallback(() => {
     setIsViewModalOpen(false);
     setViewingTransaction(null);
-  };
+  }, []);
 
-  const handleTransactionBalanced = async () => {
-    handleCloseBalanceModal();
-    toast.success('Transaction balanced successfully! Refreshing list...');
-    await getTransactions();
-  };
-  
-  const handleTransactionUpdated = async () => {
-    handleCloseViewModal();
-    toast.success('Transaction updated successfully! Refreshing list...');
-    await getTransactions();
-  };
+  const handleBalanceModalUpdate = useCallback(async (transactionId) => {
+    if (!transactionId) return;
+    console.log(`Transaction ${transactionId} was updated. Fetching updated data...`);
+    try {
+      const response = await fetchTransactionById(transactionId);
+      const updatedTransaction = response.data;
+
+      if (updatedTransaction) {
+        setTransactions(prevTransactions => 
+          prevTransactions.map(t => 
+            t._id === transactionId ? updatedTransaction : t
+          )
+        );
+      } else {
+        console.warn(`Could not fetch updated data for ${transactionId}, refreshing full list.`);
+        await getTransactions();
+      }
+    } catch (error) {
+      console.error(`Error fetching updated transaction ${transactionId}:`, error);
+      toast.error('Failed to refresh transaction details.');
+    }
+  }, [getTransactions]);
+
+  const handleDetailModalUpdate = handleBalanceModalUpdate;
 
   if (loading) return <div className="flex justify-center p-5"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
 
@@ -142,7 +155,7 @@ const TransactionList = () => {
           isOpen={isBalanceModalOpen}
           onClose={handleCloseBalanceModal}
           transaction={balancingTransaction}
-          onTransactionBalanced={handleTransactionBalanced}
+          onTransactionUpdated={handleBalanceModalUpdate}
         />
       )}
 
@@ -151,7 +164,7 @@ const TransactionList = () => {
           isOpen={isViewModalOpen}
           onClose={handleCloseViewModal}
           transaction={viewingTransaction}
-          onUpdate={handleTransactionUpdated}
+          onUpdate={handleDetailModalUpdate}
         />
       )}
     </div>

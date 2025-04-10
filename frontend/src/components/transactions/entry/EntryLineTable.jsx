@@ -1,20 +1,17 @@
 import React from 'react';
+// Import icons
+import { FaEdit, FaTrashAlt, FaPlus } from 'react-icons/fa';
 
 const EntryLineTable = ({ 
   entries, 
   selectedEntryId, 
   onEditEntry, 
-  onDeleteEntry 
+  onDeleteEntry,
+  onAddEntry // Added prop
 }) => {
   const entriesArray = entries || [];
   
-  if (entriesArray.length === 0) {
-    return (
-      <div className="p-4 bg-gray-50 border border-gray-200 rounded mb-4">
-        <p className="text-gray-500 text-center">No entries found</p>
-      </div>
-    );
-  }
+
   
   return (
     <div className="overflow-x-auto bg-gray-50 border border-gray-200 rounded mb-4">
@@ -36,14 +33,22 @@ const EntryLineTable = ({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
+          {entriesArray.length === 0 && (
+            <tr>
+              <td colSpan="4" className="px-4 py-3 text-center text-sm text-gray-500">
+                No entries yet.
+              </td>
+            </tr>
+          )}
           {entriesArray.map((entry) => {
-            // Support both entry.type and entry.entryType fields
             const entryType = entry.entryType || entry.type;
+            const isSelected = selectedEntryId === entry._id;
             
             return (
               <tr 
                 key={entry._id} 
-                className={`hover:bg-gray-50 ${selectedEntryId === entry._id ? 'bg-blue-50' : ''}`}
+                // Refined highlighting: darker background and maybe a subtle left border
+                className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : ''}`}
               >
                 <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                   {entry.account?.name || 'Unknown Account'}
@@ -56,26 +61,47 @@ const EntryLineTable = ({
                   </span>
                 </td>
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">
+                  {/* Consider adding currency formatting if needed */}
                   ${parseFloat(entry.amount).toFixed(2)}
                 </td>
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-right flex justify-center space-x-2">
-                  <button
+                  {/* Use icons */}
+                   <button 
+                    type="button"
                     onClick={() => onEditEntry(entry)}
-                    className="text-blue-600 hover:text-blue-900"
+                    className="text-blue-600 hover:text-blue-900 text-xs p-1"
+                    title="Edit Entry"
                   >
-                    Edit
+                    <FaEdit />
                   </button>
                   <button
-                    onClick={() => onDeleteEntry(entry)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
+                    type="button"
+                    onClick={(event) => onDeleteEntry(event, entry)}
+                    className="text-red-600 hover:text-red-900 text-xs p-1"
+                     title="Delete Entry"
+                 >
+                    <FaTrashAlt />
                   </button>
                 </td>
               </tr>
             );
           })}
         </tbody>
+        {/* Footer for Add button */}
+        <tfoot className="bg-gray-50">
+           <tr>
+             <td colSpan="4" className="px-4 py-2 text-right">
+                <button
+                  onClick={onAddEntry}
+                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 flex items-center ml-auto"
+                  title="Add New Entry Line"
+                >
+                  <FaPlus className="inline mr-1"/>
+                  Add Entry
+                </button>
+             </td>
+           </tr>
+        </tfoot>
       </table>
     </div>
   );

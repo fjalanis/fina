@@ -3,8 +3,10 @@ import { updateEntryInTransaction, addEntryToTransaction, deleteEntryFromTransac
 
 /**
  * Custom hook for managing entry lines
+ * @param {function} onSuccess - Callback for success, receives success message.
+ * @param {function} onError - Callback for error, receives error message.
  */
-export const useEntryLineManagement = (toast) => {
+export const useEntryLineManagement = (onSuccess, onError) => {
   const [loading, setLoading] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -59,27 +61,36 @@ export const useEntryLineManagement = (toast) => {
   };
 
   // Update edited entry
-  const handleUpdateEntry = async (transactionId, entryId) => {
-    if (!entryId || !transactionId) return;
+  const handleUpdateEntry = async (entryId) => {
+    if (!editingEntry || !entryId) {
+      onError('Cannot update: Missing entry data.');
+      return false;
+    }
+    const transactionId = editingEntry.transactionId || (editingEntry.transaction && editingEntry.transaction._id);
+    if (!transactionId) {
+      onError('Cannot update: Missing transaction ID.');
+      return false;
+    }
     
+    const payload = {
+      amount: parseFloat(editForm.amount),
+      type: editForm.type,
+      description: editForm.description
+    };
+
+    console.log('[useEntryLineManagement] Updating Entry:', { transactionId, entryId, payload });
+
     try {
       setLoading(true);
       
-      await updateEntryInTransaction(transactionId, entryId, {
-        amount: parseFloat(editForm.amount),
-        type: editForm.type,
-        description: editForm.description
-      });
+      await updateEntryInTransaction(transactionId, entryId, payload);
       
-      setEditingEntry(null);
-      
-      // Notify success
-      toast.success('Entry updated successfully!');
+      onSuccess('Entry updated successfully!');
       
       return true;
     } catch (err) {
-      const errorMsg = 'Failed to update entry: ' + (err.message || 'Please try again.');
-      toast.error(errorMsg);
+      const errorMsg = 'Failed to update entry: ' + (err.response?.data?.message || err.message || 'Please try again.');
+      onError(errorMsg);
       console.error('Error updating entry:', err);
       
       return false;
@@ -107,29 +118,30 @@ export const useEntryLineManagement = (toast) => {
   // Save new entry
   const handleSaveNewEntry = async (transactionId) => {
     if (!newEntryForm.account || !newEntryForm.amount) {
-      toast.error('Account and amount are required.');
+      onError('Account and amount are required.');
       return false;
     }
     
+    const payload = {
+      accountId: newEntryForm.account,
+      amount: parseFloat(newEntryForm.amount),
+      type: newEntryForm.type,
+      description: newEntryForm.description
+    };
+
+    console.log('[useEntryLineManagement] Saving New Entry:', { transactionId, payload });
+
     try {
       setLoading(true);
       
-      await addEntryToTransaction(transactionId, {
-        account: newEntryForm.account,
-        amount: parseFloat(newEntryForm.amount),
-        type: newEntryForm.type,
-        description: newEntryForm.description
-      });
+      await addEntryToTransaction(transactionId, payload);
       
-      setShowAddEntryForm(false);
-      
-      // Notify success
-      toast.success('Entry added successfully!');
+      onSuccess('Entry added successfully!');
       
       return true;
     } catch (err) {
-      const errorMsg = 'Failed to add entry: ' + (err.message || 'Please try again.');
-      toast.error(errorMsg);
+      const errorMsg = 'Failed to add entry: ' + (err.response?.data?.message || err.message || 'Please try again.');
+      onError(errorMsg);
       console.error('Error adding entry:', err);
       
       return false;
@@ -139,14 +151,15 @@ export const useEntryLineManagement = (toast) => {
   };
 
   // Handle deleting an entry
-  const handleDeleteEntry = async (entry, entryCount) => {
+  const handleDeleteEntry = async (transactionId, entry, entryCount) => {
     if (!entry || !entry._id) return false;
     
-    // We need the transaction ID to delete an entry
-    const transactionId = entry.transactionId || (entry.transaction && entry.transaction._id);
+    // Use the passed transactionId directly
+    // const transactionId = entry.transactionId || (entry.transaction && entry.transaction._id);
     
+    // Check if transactionId was actually passed
     if (!transactionId) {
-      toast.error('Cannot delete entry: Missing transaction ID');
+      onError('Cannot delete entry: Transaction ID was not provided to hook function.');
       return false;
     }
     
@@ -174,12 +187,12 @@ export const useEntryLineManagement = (toast) => {
         ? 'Entry and its transaction were deleted successfully!' 
         : 'Entry deleted successfully!';
         
-      toast.success(successMessage);
+      onSuccess(successMessage);
       
       return isLastEntry ? 'transaction_deleted' : true;
     } catch (err) {
-      const errorMsg = 'Failed to delete entry: ' + (err.message || 'Please try again.');
-      toast.error(errorMsg);
+      const errorMsg = 'Failed to delete entry: ' + (err.response?.data?.message || err.message || 'Please try again.');
+      onError(errorMsg);
       console.error('Error deleting entry:', err);
       
       return false;

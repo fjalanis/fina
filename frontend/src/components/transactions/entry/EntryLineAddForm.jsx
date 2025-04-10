@@ -7,19 +7,38 @@ const EntryLineAddForm = ({
   onCancel, 
   onSubmit,
 }) => {
+
+  // Intermediary submit handler to prevent default page refresh
+  const handleSubmit = (event) => {
+    event.preventDefault(); // Stop the browser from reloading the page
+    onSubmit(); // Call the original onSubmit prop (handleSaveNewEntry)
+  };
+
   return (
-    <div className="bg-blue-50 p-4 rounded-lg mb-4">
-      <h4 className="font-medium mb-3">Add New Entry</h4>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">
+          Description (Optional)
+        </label>
+        <input
+          type="text"
+          name="description"
+          className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
+          value={newEntryForm.description}
+          onChange={handleNewEntryChange}
+          placeholder="Entry description"
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <div className="col-span-1">
+          <label className="block text-xs font-medium text-gray-600 mb-1">
             Account *
           </label>
           <select
             name="account"
             value={newEntryForm.account}
             onChange={handleNewEntryChange}
-            className="w-full p-2 border border-gray-300 rounded"
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
             required
           >
             <option value="">Select an account</option>
@@ -30,8 +49,8 @@ const EntryLineAddForm = ({
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="col-span-1">
+          <label className="block text-xs font-medium text-gray-600 mb-1">
             Amount *
           </label>
           <input
@@ -39,73 +58,58 @@ const EntryLineAddForm = ({
             name="amount"
             min="0.01"
             step="0.01"
-            className="w-full p-2 border border-gray-300 rounded"
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
             value={newEntryForm.amount}
             onChange={handleNewEntryChange}
             required
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="col-span-1">
+          <label className="block text-xs font-medium text-gray-600 mb-1">
             Type *
           </label>
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 items-center h-full pt-1">
             <label className="flex items-center">
               <input
                 type="radio"
                 name="type"
-                className="mr-1"
+                className="mr-1 h-3 w-3"
+                value="debit"
                 checked={newEntryForm.type === 'debit'}
-                onChange={() => handleNewEntryChange({ 
-                  target: { name: 'type', value: 'debit' } 
-                })}
+                onChange={handleNewEntryChange}
               />
-              <span>Debit</span>
+              <span className="text-xs text-gray-700">Debit</span>
             </label>
             <label className="flex items-center">
               <input
                 type="radio"
                 name="type"
-                className="mr-1"
+                className="mr-1 h-3 w-3"
+                value="credit"
                 checked={newEntryForm.type === 'credit'}
-                onChange={() => handleNewEntryChange({ 
-                  target: { name: 'type', value: 'credit' } 
-                })}
+                onChange={handleNewEntryChange}
               />
-              <span>Credit</span>
+              <span className="text-xs text-gray-700">Credit</span>
             </label>
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description (Optional)
-          </label>
-          <input
-            type="text"
-            name="description"
-            className="w-full p-2 border border-gray-300 rounded"
-            value={newEntryForm.description}
-            onChange={handleNewEntryChange}
-            placeholder="Entry description"
-          />
-        </div>
-        <div className="flex justify-end space-x-2 pt-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Add Entry
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <div className="flex justify-end space-x-2 pt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-xs"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-xs"
+        >
+          Add Entry
+        </button>
+      </div>
+    </form>
   );
 };
 

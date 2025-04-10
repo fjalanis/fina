@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatNumber } from '../../../utils/formatters';
 import { toast } from 'react-toastify'; // Keep toast for potential future actions
@@ -13,7 +13,8 @@ const accountTypeColors = {
     default: 'bg-gray-100 text-gray-800' // Fallback
 };
 
-const TransactionTable = ({ 
+// Wrap the component definition with memo
+const TransactionTable = memo(({ 
     transactions, 
     onViewTransaction,     // Handler to open view modal
     onBalanceTransaction   // Handler to open balance modal
@@ -69,7 +70,6 @@ const TransactionTable = ({
 
     const processEntriesForDefaultView = (entries, columnType) => {
         if (!Array.isArray(entries)) {
-             console.warn("[DEBUG] processEntriesForDefaultView received non-array entries:", entries);
              return { amount: 0, detail: null };
         }
         const columnEntries = entries.filter(entry => entry.type === columnType);
@@ -104,7 +104,6 @@ const TransactionTable = ({
     const preparedTransactions = transactions
         .map(transaction => {
             if (!transaction || !transaction._id) {
-                console.warn("[DEBUG] Skipping invalid transaction object:", transaction);
                 return null; // Skip invalid transaction objects
             }
 
@@ -119,8 +118,6 @@ const TransactionTable = ({
                         creditTotal += (entry.amount || 0);
                     }
                 });
-            } else {
-                console.warn(`[DEBUG] Transaction ${transaction._id} has invalid entries for balance calculation:`, transaction.entries);
             }
             const overallDifference = calculateDifference(debitTotal, creditTotal);
             const overallIsBalanced = Math.abs(overallDifference) < 0.01;
@@ -128,7 +125,6 @@ const TransactionTable = ({
 
             // Default display mode - THIS IS NOW THE ONLY PATH
             if (!Array.isArray(transaction.entries)) {
-                console.warn(`[DEBUG] Transaction ${transaction._id} has invalid entries:`, transaction.entries);
                 // Provide default values to prevent crashes downstream
                 return {
                     ...transaction,
@@ -254,6 +250,9 @@ const TransactionTable = ({
           </table>
         </div>
     );
-};
+}); // Close the memo wrapper
+
+// Set display name for DevTools
+TransactionTable.displayName = 'TransactionTable';
 
 export default TransactionTable; 

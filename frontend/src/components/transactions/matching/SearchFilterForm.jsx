@@ -9,11 +9,11 @@ const SearchFilterForm = ({
   onReset 
 }) => {
   return (
-    <form onSubmit={onSearch}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <form onSubmit={onSearch} className="mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Amount Range Fields */}
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Amount Range</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Amount Range</label>
           <div className="flex space-x-2">
             <div className="flex-1">
               <input
@@ -24,7 +24,7 @@ const SearchFilterForm = ({
                 placeholder="Min"
                 step="0.01"
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
               />
             </div>
             <div className="flex-1">
@@ -36,7 +36,7 @@ const SearchFilterForm = ({
                 placeholder="Max"
                 step="0.01"
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
               />
             </div>
           </div>
@@ -44,12 +44,12 @@ const SearchFilterForm = ({
         
         {/* Account Dropdown */}
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Account</label>
           <select
             name="accountId"
             value={searchForm.accountId}
             onChange={onInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
           >
             <option value="">All Accounts</option>
             {accounts.map(account => (
@@ -62,12 +62,12 @@ const SearchFilterForm = ({
         
         {/* Type Selector */}
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Entry Type</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Entry Type</label>
           <select
             name="type"
             value={searchForm.type}
             onChange={onInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
           >
             <option value="">Any Type</option>
             <option value="debit">Debit</option>
@@ -76,26 +76,26 @@ const SearchFilterForm = ({
         </div>
         
         {/* Description Search */}
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <div className="col-span-1 md:col-span-2">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
           <input
             type="text"
             name="searchText"
             value={searchForm.searchText}
             onChange={onInputChange}
-            placeholder="Search transaction descriptions..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            placeholder="Search descriptions..."
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
           />
         </div>
         
         {/* Date Range */}
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date Range (days)</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Date Range (days)</label>
           <select
             name="dateRange"
             value={searchForm.dateRange}
             onChange={onInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
           >
             <option value="7">Last 7 days</option>
             <option value="15">Last 15 days</option>
@@ -106,18 +106,18 @@ const SearchFilterForm = ({
         </div>
       </div>
       
-      <div className="mt-4 flex justify-end">
+      <div className="mt-3 flex justify-end space-x-2">
         <button
           type="button"
           onClick={onReset}
-          className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md mr-2"
+          className="px-3 py-1 text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
         >
           Reset
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className={`px-4 py-2 text-sm text-white rounded-md ${isLoading ? 'bg-blue-300' : 'bg-blue-500 hover:bg-blue-600'}`}
+          className={`px-3 py-1 text-xs text-white rounded-md ${isLoading ? 'bg-blue-300' : 'bg-blue-500 hover:bg-blue-600'}`}
         >
           {isLoading ? 'Searching...' : 'Search'}
         </button>

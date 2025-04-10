@@ -235,47 +235,38 @@ exports.updateEntry = async (req, res) => {
 // @access  Public
 exports.deleteEntry = async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.transactionId);
+    const { transactionId, entryId } = req.params;
 
+    // Step 1: Try to find the transaction and pull the entry
+    const transaction = await Transaction.findByIdAndUpdate(
+      transactionId,
+      { $pull: { entries: { _id: entryId } } },
+      { new: true } // Return the updated document after the pull
+    ).populate({ path: 'entries.account', select: 'name type unit' });
+
+    // Step 2: Check if the transaction was found at all
     if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        error: 'Transaction not found'
-      });
+      // If findByIdAndUpdate returns null, the transaction ID itself was invalid
+      return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
 
-    const entry = transaction.entries.id(req.params.entryId);
-
-    if (!entry) {
-      return res.status(404).json({
-        success: false,
-        error: 'Entry not found'
-      });
-    }
-
-    // Check if this is the only entry in the transaction
-    if (transaction.entries.length <= 1) {
-      // If this was the last entry, delete the transaction too
-      console.log(`Automatically deleting transaction ${transaction._id} as its last entry was removed`);
-      await Transaction.findByIdAndDelete(transaction._id);
-      
+    // Step 3: Transaction was found. Check if it's now empty.
+    if (transaction.entries.length === 0) {
+      // If now empty, delete the transaction document
+      await Transaction.findByIdAndDelete(transactionId);
       return res.status(200).json({
         success: true,
-        data: {},
-        message: 'Entry and its parent transaction were deleted since this was the last entry'
+        data: {}, // Indicate transaction was also deleted
+        message: 'Entry deleted and transaction removed as it became empty.'
+      });
+    } else {
+      // Transaction still has entries (entry was pulled or was already gone)
+      // Return the current state of the transaction.
+      return res.status(200).json({
+        success: true,
+        data: transaction 
       });
     }
-
-    entry.remove();
-    await transaction.save();
-
-    const updatedTransaction = await Transaction.findById(req.params.transactionId)
-      .populate({ path: 'entries.account', select: 'name type unit' });
-
-    res.status(200).json({
-      success: true,
-      data: updatedTransaction
-    });
   } catch (error) {
     handleError(res, error, 'Error deleting entry');
   }
