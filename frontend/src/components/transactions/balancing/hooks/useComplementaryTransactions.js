@@ -116,16 +116,24 @@ export const useComplementaryTransactions = (onSuccessCallback, toast) => {
 
   // Handle moving an entry from manual search
   const handleMoveEntryHook = async (entry, targetTransactionId) => {
-    if (!entry || !targetTransactionId) return false;
+    if (!entry || !targetTransactionId || !entry.transaction || !entry.transaction._id) {
+      console.error('Missing data for moving entry:', { entry, targetTransactionId });
+      toast.error('Cannot move entry: Missing required data.');
+      return false;
+    }
     
+    const sourceTransactionId = entry.transaction._id;
+    const entryId = entry._id;
+
     try {
       setMatchLoading(true);
       
-      console.log(`Moving entry ${entry._id} to transaction ${targetTransactionId}`);
+      console.log(`Moving entry ${entryId} from transaction ${sourceTransactionId} to transaction ${targetTransactionId}`);
       
-      // Call the moveEntry API to move this single entry
+      // Call the moveEntry API with sourceTransactionId, entryId, and destinationTransactionId
       await moveEntry(
-        entry._id,
+        sourceTransactionId, 
+        entryId, 
         targetTransactionId
       );
       

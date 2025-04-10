@@ -134,10 +134,11 @@ export const searchEntries = async (filters = {}, page = 1, limit = 10) => {
 };
 
 // Move an entry from one transaction to another
-export const moveEntry = async (entryId, destinationTransactionId) => {
+export const moveEntry = async (sourceTransactionId, entryId, destinationTransactionId) => {
   return fetchData(`${TRANSACTION_ENDPOINT}/move-entry`, {
     method: 'POST',
     body: JSON.stringify({
+      sourceTransactionId,
       entryId,
       destinationTransactionId
     }),

@@ -5,12 +5,12 @@ const Transaction = require('../../models/Transaction');
 // @access  Public
 exports.moveEntry = async (req, res) => {
   try {
-    const { sourceTransactionId, entryIndex, destinationTransactionId } = req.body;
+    const { sourceTransactionId, entryId, destinationTransactionId } = req.body;
     
-    if (!sourceTransactionId || entryIndex === undefined || !destinationTransactionId) {
+    if (!sourceTransactionId || !entryId || !destinationTransactionId) {
       return res.status(400).json({
         success: false,
-        error: 'sourceTransactionId, entryIndex, and destinationTransactionId are required'
+        error: 'sourceTransactionId, entryId, and destinationTransactionId are required'
       });
     }
     
@@ -32,35 +32,41 @@ exports.moveEntry = async (req, res) => {
       });
     }
 
-    if (entryIndex >= sourceTransaction.entries.length) {
+    // Find the entry to move using entryId
+    const entryToMove = sourceTransaction.entries.find(entry => entry._id.toString() === entryId);
+
+    if (!entryToMove) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid entry index'
+        error: 'Entry not found in source transaction'
       });
     }
     
-    // Get the entry to move
-    const entryToMove = sourceTransaction.entries[entryIndex];
-    
-    // Remove entry from source transaction
-    sourceTransaction.entries.splice(entryIndex, 1);
-    
     // Add entry to destination transaction
     destinationTransaction.entries.push(entryToMove);
+
+    // Remove entry from source transaction using Mongoose's pull method
+    sourceTransaction.entries.pull({ _id: entryId });
     
-    // Save both transactions
-    if (sourceTransaction.entries.length === 0) {
+    // Check if source transaction is now empty
+    const sourceIsEmpty = sourceTransaction.entries.length === 0;
+
+    // Save destination transaction first
+    await destinationTransaction.save();
+    
+    // Handle source transaction: delete if empty, otherwise save the modification
+    if (sourceIsEmpty) {
       await Transaction.findByIdAndDelete(sourceTransactionId);
     } else {
+      // Save the source transaction to persist the pulled entry
       await sourceTransaction.save();
     }
-    await destinationTransaction.save();
     
     return res.status(200).json({
       success: true,
       data: {
         transaction: destinationTransaction,
-        sourceTransactionDeleted: sourceTransaction.entries.length === 0
+        sourceTransactionDeleted: sourceIsEmpty // Use the flag here
       },
       message: 'Entry moved successfully'
     });

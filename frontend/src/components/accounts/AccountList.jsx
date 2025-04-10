@@ -133,12 +133,12 @@ const AccountList = () => {
     }
   };
 
-  const accountTypeColors = {
-    asset: 'bg-blue-100 text-blue-800',
-    liability: 'bg-red-100 text-red-800',
-    income: 'bg-green-100 text-green-800',
-    expense: 'bg-yellow-100 text-yellow-800',
-    equity: 'bg-purple-100 text-purple-800'
+  const accountTypeBackgroundColors = {
+    asset: 'bg-blue-50 hover:bg-blue-100',
+    liability: 'bg-red-50 hover:bg-red-100',
+    income: 'bg-green-50 hover:bg-green-100',
+    expense: 'bg-yellow-50 hover:bg-yellow-100',
+    equity: 'bg-purple-50 hover:bg-purple-100'
   };
 
   const renderAccountRow = (account, level = 0) => {
@@ -148,6 +148,7 @@ const AccountList = () => {
     let balance = 0;
     const debits = account.totalDebits || 0;
     const credits = account.totalCredits || 0;
+    const unit = account.unit || 'USD'; // Get unit
 
     // Standard accounting: Assets/Expenses increase with debits, others with credits
     if (['asset', 'expense'].includes(account.type)) {
@@ -158,59 +159,31 @@ const AccountList = () => {
     
     return (
       <React.Fragment key={account._id}>
-        <tr className="hover:bg-gray-50">
-          <td className="py-4 px-4 whitespace-nowrap">
-            <div style={{ paddingLeft: `${level * 20}px` }}>
-              <Link to={`/accounts/${account._id}`} className="text-blue-600 hover:text-blue-900 font-medium">
+        <tr>
+          <td className={`py-0 px-0 whitespace-nowrap ${accountTypeBackgroundColors[account.type]}`}>
+            <Link to={`/accounts/${account._id}`} className="block py-4 px-4 text-gray-900 hover:text-blue-700">
+              <div style={{ paddingLeft: `${level * 20}px` }}>
                 {account.name}
-              </Link>
-            </div>
-          </td>
-          <td className="py-4 px-4 whitespace-nowrap">
-            <span className={`px-2 py-1 text-xs rounded-full ${accountTypeColors[account.type]}`}>
-              {account.type}
-            </span>
-          </td>
-          <td className="py-4 px-4 whitespace-nowrap">
-            <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
-              {account.unit ? account.unit : 'USD'}
-            </span>
+              </div>
+            </Link>
           </td>
           <td className="py-4 px-4 whitespace-nowrap text-center">
             <span className="text-sm text-gray-600" title="Includes transactions from all child accounts within the selected date range">
               {Number(account.totalTransactionCount) || 0}
             </span>
           </td>
-          <td className="py-4 px-4 whitespace-nowrap text-right">
-            <span className="text-sm text-red-600" title="Total debits including children within the selected date range">
-              {formatNumber(account.totalDebits || 0)}
-            </span>
-          </td>
-          <td className="py-4 px-4 whitespace-nowrap text-right">
-            <span className="text-sm text-green-600" title="Total credits including children within the selected date range">
-              {formatNumber(account.totalCredits || 0)}
-            </span>
-          </td>
-          <td className="py-4 px-4 whitespace-nowrap text-right">
-            <span className={`text-sm font-medium ${balance >= 0 ? 'text-gray-900' : 'text-red-600'}`} title="Calculated balance based on account type (Assets/Expenses: Debits-Credits; Others: Credits-Debits)">
-              {formatNumber(balance)}
-            </span>
-          </td>
-          <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
-            <button
-              onClick={() => handleEditAccount(account)}
-              className="text-indigo-600 hover:text-indigo-900 mr-4"
-            >
-              Edit
-            </button>
-            {!hasChildren && (
-              <button
-                onClick={() => handleDeleteClick(account)}
-                className="text-red-600 hover:text-red-900"
-              >
-                Delete
-              </button>
-            )}
+          <td className="py-4 px-4 whitespace-nowrap text-right text-xs">
+             <div className={`font-bold text-sm mb-1 ${balance >= 0 ? 'text-gray-900' : 'text-red-600'}`} title="Calculated balance based on account type (Assets/Expenses: Debits-Credits; Others: Credits-Debits)">
+              {formatNumber(balance)} {unit}
+            </div>
+            <div className="text-gray-600">
+              <span className="text-red-500 mr-2" title="Total debits including children within the selected date range">
+                D: {formatNumber(debits)}
+              </span>
+              <span className="text-green-500" title="Total credits including children within the selected date range">
+                C: {formatNumber(credits)}
+              </span>
+            </div>
           </td>
         </tr>
         {hasChildren && account.children.map(child => renderAccountRow(child, level + 1))}
@@ -242,27 +215,34 @@ const AccountList = () => {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
+          <table className="min-w-full bg-white table-fixed">
+            <colgroup>
+              <col className="w-full" />
+              <col className="w-auto" />
+              <col className="w-auto" />
+            </colgroup>
             <thead className="bg-gray-50">
               <tr>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
                 <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <span title="Total transactions including all child accounts within the selected date range">Txns</span>
                 </th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span title="Total debits including children within the selected date range">Debits</span>
-                </th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span title="Total credits including children within the selected date range">Credits</span>
-                </th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Financial Summary</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {accounts.map(account => renderAccountRow(account))}
+              {[...accounts].sort((a, b) => {
+                // Define type order: assets, income, liability, expenses, equity
+                const typeOrder = {
+                  asset: 1,
+                  income: 2,
+                  liability: 3,
+                  expense: 4,
+                  equity: 5
+                };
+                // Sort by type order
+                return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+              }).map(account => renderAccountRow(account))}
             </tbody>
           </table>
         </div>

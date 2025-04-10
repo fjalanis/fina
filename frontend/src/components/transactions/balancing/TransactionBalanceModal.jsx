@@ -63,7 +63,7 @@ const TransactionBalanceModal = ({ isOpen, onClose, transaction, mode = 'balance
         }
       });
     },
-    toast.error 
+    toast
   );
 
   // Entry line management
