@@ -13,8 +13,6 @@ const EntryManager = ({ entries, accounts, onEntriesChange }) => {
         description: '',
         amount: '',
         type: 'debit',
-        unit: 'USD',
-        quantity: ''
       }
     ]);
   };
@@ -68,8 +66,8 @@ const EntryManager = ({ entries, accounts, onEntriesChange }) => {
     <div className="space-y-4">
       {entries.map((entry, index) => (
         <div key={index} className="bg-white p-4 rounded-lg shadow">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 items-end">
+            <div className="sm:col-span-1 md:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Account
               </label>
@@ -88,7 +86,7 @@ const EntryManager = ({ entries, accounts, onEntriesChange }) => {
               </select>
             </div>
 
-            <div>
+            <div className="sm:col-span-2 md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description
               </label>
@@ -102,7 +100,7 @@ const EntryManager = ({ entries, accounts, onEntriesChange }) => {
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-1 md:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Amount
               </label>
@@ -117,7 +115,7 @@ const EntryManager = ({ entries, accounts, onEntriesChange }) => {
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-1 md:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Type
               </label>
@@ -132,54 +130,26 @@ const EntryManager = ({ entries, accounts, onEntriesChange }) => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Unit
-              </label>
-              <input
-                type="text"
-                name="unit"
-                value={entry.unit}
-                onChange={(e) => handleEntryChange(index, e)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter unit (e.g., USD, AAPL)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quantity
-              </label>
-              <input
-                type="number"
-                value={entry.quantity}
-                onChange={(e) => handleEntryChange(index, e)}
-                step="0.0001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter quantity"
-              />
+            <div className="sm:col-span-1 md:col-span-1 flex justify-end items-end">
+              <button
+                onClick={() => handleRemoveEntry(index)}
+                className="px-3 py-2 text-sm text-red-600 hover:text-red-900"
+              >
+                Remove
+              </button>
             </div>
           </div>
 
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={() => handleRemoveEntry(index)}
-              className="px-3 py-2 text-sm text-red-600 hover:text-red-900"
-            >
-              Remove Entry
-            </button>
-          </div>
+          {showLotsTable && selectedAccount && (
+            <CostBasisLotsTable
+              accountId={selectedAccount._id}
+              assetUnit={selectedAccount.unit}
+              onSelectLot={handleLotSelection}
+              onCalculateGainLoss={handleGainLossCalculation}
+            />
+          )}
         </div>
       ))}
-
-      {showLotsTable && selectedAccount && (
-        <CostBasisLotsTable
-          accountId={selectedAccount._id}
-          assetUnit={selectedAccount.unit}
-          onSelectLot={handleLotSelection}
-          onCalculateGainLoss={handleGainLossCalculation}
-        />
-      )}
 
       <button
         onClick={handleAddEntry}

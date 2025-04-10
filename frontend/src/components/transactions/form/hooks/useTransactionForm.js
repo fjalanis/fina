@@ -7,7 +7,6 @@ export const useTransactionForm = (onSaveSuccess) => {
   const [formData, setFormData] = useState({
     description: '',
     date: new Date().toISOString().split('T')[0],
-    reference: '',
     notes: ''
   });
 
@@ -70,25 +69,6 @@ export const useTransactionForm = (onSaveSuccess) => {
     setEntries(entries);
   };
 
-  // Add new entry line
-  const handleAddEntryLine = () => {
-    setEntries([
-      ...entries,
-      { account: '', description: '', amount: '', type: 'debit' }
-    ]);
-  };
-
-  // Remove entry line
-  const handleRemoveEntryLine = (index) => {
-    if (entries.length <= 2) {
-      toast.warn('A transaction must have at least two entry lines.');
-      return;
-    }
-
-    const updatedEntries = entries.filter((_, i) => i !== index);
-    setEntries(updatedEntries);
-  };
-
   // Handle form submission
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -104,13 +84,14 @@ export const useTransactionForm = (onSaveSuccess) => {
       entry.account && entry.amount && parseFloat(entry.amount) > 0
     );
 
-    if (validEntries.length < 2) {
-      toast.error('Please provide at least two valid entry lines.');
+    if (validEntries.length === 0) { // Allow single valid entry for now, balance check handles validity
+      toast.error('Please provide at least one valid entry line.');
       return;
     }
+    // Removed check for validEntries.length < 2, balance check is sufficient
 
     // Check if transaction is balanced
-    if (Math.abs(balance) > 0.001) {
+    if (Math.abs(balance) > 0.01) { // Use a slightly larger threshold for safety
       toast.error('Transaction is not balanced. Total debits must equal total credits.');
       return;
     }
@@ -120,21 +101,37 @@ export const useTransactionForm = (onSaveSuccess) => {
 
       // Format data for API
       const transactionData = {
-        ...formData,
-        entries: entries.map(entry => ({
-          account: entry.account,
-          description: entry.description || formData.description,
-          amount: parseFloat(entry.amount),
-          type: entry.type
-        }))
+        description: formData.description,
+        date: formData.date,
+        notes: formData.notes,
+        entries: entries
+          .filter(entry => entry.account && entry.amount) // Ensure only valid entries are sent
+          .map(entry => {
+            const account = accounts.find(acc => acc._id === entry.account);
+            return {
+              account: entry.account, // Send account ID
+              description: entry.description || formData.description,
+              amount: parseFloat(entry.amount),
+              type: entry.type,
+              unit: account ? account.unit : 'USD' // Derive unit from account, default to USD if not found
+              // quantity is intentionally omitted
+            };
+          })
       };
+
+      // Final check if entries exist after mapping/filtering
+      if (transactionData.entries.length < 2) {
+        toast.error('A balanced transaction requires at least two valid entries with different accounts/types.');
+        setSubmitting(false);
+        return;
+      }
 
       await createTransaction(transactionData);
 
       toast.success('Transaction created successfully!');
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
-      toast.error('Failed to create transaction. Please try again.');
+      toast.error(`Failed to create transaction: ${err.response?.data?.error || err.message}`);
       console.error('Error creating transaction:', err);
     } finally {
       setSubmitting(false);
@@ -150,8 +147,6 @@ export const useTransactionForm = (onSaveSuccess) => {
     balance,
     handleTransactionChange,
     handleEntryLineChange,
-    handleAddEntryLine,
-    handleRemoveEntryLine,
     handleSubmit
   };
 }; 
