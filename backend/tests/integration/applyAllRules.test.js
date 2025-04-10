@@ -32,7 +32,6 @@ describe('Apply Rules to All Transactions', () => {
       isHidden: false,
       unit: 'USD'
     });
-    console.log(`Created test account: ${testAccount._id}`);
 
     expenseAccount = await Account.create({
       name: 'Expense Account',
@@ -42,7 +41,6 @@ describe('Apply Rules to All Transactions', () => {
       isHidden: false,
       unit: 'USD'
     });
-    console.log(`Created expense account: ${expenseAccount._id}`);
 
     assetAccount = await Account.create({ name: 'Bank Account', type: 'asset', unit: 'USD' });
     incomeAccount = await Account.create({ name: 'Salary', type: 'income', unit: 'USD' });
@@ -74,7 +72,6 @@ describe('Apply Rules to All Transactions', () => {
       type: 'edit',
       unit: 'USD'
     });
-    console.log(`Created rule: ${rule._id}`);
 
     // Create unbalanced transactions (entries don't sum to zero)
     const unbalancedTransactions = [];
@@ -94,7 +91,6 @@ describe('Apply Rules to All Transactions', () => {
       ]
     });
     unbalancedTransactions.push(transaction1);
-    console.log(`Created transaction 1: ${transaction1._id}`);
     
     // Transaction 2 - Should match the rule
     const transaction2 = await Transaction.create({
@@ -111,7 +107,6 @@ describe('Apply Rules to All Transactions', () => {
       ]
     });
     unbalancedTransactions.push(transaction2);
-    console.log(`Created transaction 2: ${transaction2._id}`);
     
     // Transaction 3 - Should NOT match the rule
     const transaction3 = await Transaction.create({
@@ -128,12 +123,10 @@ describe('Apply Rules to All Transactions', () => {
       ]
     });
     unbalancedTransactions.push(transaction3);
-    console.log(`Created transaction 3: ${transaction3._id}`);
 
     // Verify the transactions are saved and unbalanced
     for (const tx of unbalancedTransactions) {
       const savedTx = await Transaction.findById(tx._id).populate('entries.account');
-      console.log(`Transaction ${tx.description} isBalanced: ${savedTx.isBalanced}`);
       expect(savedTx.isBalanced).toBe(false);
     }
 
@@ -142,8 +135,6 @@ describe('Apply Rules to All Transactions', () => {
       .post('/api/rules/apply-all')
       .expect(200);
 
-    console.log('Apply-all response:', JSON.stringify(response.body, null, 2));
-    
     // Verify the response has the right structure
     expect(response.body.success).toBe(true);
     expect(response.body.data.total).toBeGreaterThan(0);

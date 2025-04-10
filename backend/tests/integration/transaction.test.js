@@ -65,10 +65,6 @@ describe('Transaction API', () => {
         });
       
       // Debug what we're actually getting
-      console.log('Test - Response status:', response.status);
-      console.log('Test - Response body has entries?', !!response.body.data.entries);
-      console.log('Test - Response body entries length:', response.body.data.entries?.length);
-      
       expect(response.status).toBe(201);
       // Check directly that entries exist and has a length of 2
       expect(Array.isArray(response.body.data.entries)).toBe(true);

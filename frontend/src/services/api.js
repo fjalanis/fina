@@ -8,15 +8,6 @@ export const fetchData = async (endpoint, options = {}) => {
   const baseUrl = API_BASE_URL;
   const url = `${baseUrl}${endpoint}`;
 
-  console.log('Making API request:', {
-    url,
-    method: options.method || 'GET',
-    endpoint,
-    baseUrl,
-    // Note: Logging params here might expose sensitive data if not careful
-    // params: options, // Consider removing or sanitizing this log
-  });
-
   // Set default headers
   const headers = {
     'Content-Type': 'application/json',
@@ -27,12 +18,6 @@ export const fetchData = async (endpoint, options = {}) => {
     const response = await fetch(url, {
       ...options,
       headers
-    });
-
-    console.log('API response:', {
-      status: response.status,
-      statusText: response.statusText,
-      url: response.url
     });
 
     // Attempt to parse JSON, but handle cases where response might be empty (e.g., 204 No Content)

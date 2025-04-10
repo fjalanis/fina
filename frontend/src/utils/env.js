@@ -25,9 +25,6 @@ export function validateEnv(requiredVars) {
  */
 export function getEnvVar(varName) {
   // Debug: Log the specific variable we're trying to access
-  console.log(`Attempting to access env var: ${varName}`);
-  console.log(`Available env vars:`, import.meta.env);
-  
   const value = import.meta.env[varName];
   if (!value) {
     throw new Error(

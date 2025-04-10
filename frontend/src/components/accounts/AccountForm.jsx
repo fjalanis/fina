@@ -100,8 +100,6 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
         parent: formData.parent || null
       };
       
-      console.log('Submitting account data:', accountData);
-      
       let savedAccount;
       
       if (isEditing) {
@@ -111,8 +109,6 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
         const response = await createAccount(accountData);
         savedAccount = response.data;
       }
-      
-      console.log('API response:', savedAccount);
       
       // Call the onSave callback with the saved account from the API
       onSave(savedAccount);

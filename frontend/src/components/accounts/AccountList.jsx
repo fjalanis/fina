@@ -25,7 +25,6 @@ const AccountList = () => {
   const fetchAccounts = async () => {
     // Ensure dates are present before fetching
     if (!startDate || !endDate) {
-      console.log('AccountList: Dates missing, waiting for URL update.');
       // Keep loading state until dates are available
       setLoading(true);
       setError(null);
@@ -85,7 +84,6 @@ const AccountList = () => {
   };
 
   const handleSaveAccount = (savedAccount) => {
-    console.log('handleSaveAccount received:', savedAccount);
     
     if (editAccount) {
       const updateAccount = (accounts) => {
@@ -99,7 +97,6 @@ const AccountList = () => {
       };
       setAccounts(updateAccount(accounts));
       setEditAccount(null);
-      console.log('Showing success toast for account update');
       toast.success('Account updated successfully');
     } else {
       const formattedAccount = {
@@ -107,7 +104,6 @@ const AccountList = () => {
         parent: savedAccount.parent || null,
         children: []
       };
-      console.log('Formatted account before adding:', formattedAccount);
 
       const updateAccountsHierarchy = (accounts) => {
         return accounts.map(account => {
@@ -133,7 +129,6 @@ const AccountList = () => {
         setAccounts([...accounts, formattedAccount]);
       }
       setIsCreateModalOpen(false);
-      console.log('Showing success toast for account creation');
       toast.success('Account created successfully');
     }
   };
