@@ -10,6 +10,11 @@ const EntrySchema = new mongoose.Schema({
     type: String,
     required: [true, 'Unit is required for transaction entry']
   },
+  quantity: {
+    type: Number,
+    min: [0, 'Quantity must be a non-negative number'],
+    required: false
+  },
   description: {
     type: String,
     trim: true,
@@ -30,6 +35,14 @@ const EntrySchema = new mongoose.Schema({
     required: [true, 'Entry type is required'],
     enum: ['debit', 'credit'],
     default: 'debit'
+  },
+  generated: {
+    kind: {
+      type: String,
+      enum: ['complementary', 'merge'],
+      required: false
+    },
+    note: { type: String, trim: true }
   }
 }, {
   toJSON: { virtuals: true },
@@ -65,6 +78,55 @@ const TransactionSchema = new mongoose.Schema({
     trim: true,
     maxlength: [1000, 'Notes cannot exceed 1000 characters']
   },
+  // Extended/import metadata fields
+  owner: { // Card member / owner of the transaction source
+    type: String,
+    trim: true,
+    maxlength: [100, 'Owner cannot exceed 100 characters']
+  },
+  category: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Category cannot exceed 200 characters']
+  },
+  zipCode: {
+    type: String,
+    trim: true,
+    maxlength: [20, 'Zip code cannot exceed 20 characters']
+  },
+  memo: { // Extended details text
+    type: String,
+    trim: true,
+    maxlength: [2000, 'Memo cannot exceed 2000 characters']
+  },
+  // Optional parsed contact/location fields from importers
+  contact: {
+    phone: { type: String, trim: true },
+    url: { type: String, trim: true }
+  },
+  location: {
+    address: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    country: { type: String, trim: true }
+  },
+  // Optional ingestion metadata for external sources
+  source: {
+    importer: { type: String, trim: true }, // e.g., 'amex-csv-v1'
+    file: { type: String, trim: true },
+    line: { type: Number },
+    hash: { type: String, trim: true }, // content-based dedupe key
+  },
+  // Raw record from source file (kept for traceability)
+  rawSource: {
+    type: mongoose.Schema.Types.Mixed,
+    default: undefined
+  },
+  // Parsed auxiliary details (e.g., location, phone, website, cardMember)
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: undefined
+  },
   entries: [EntrySchema],
   appliedRules: [{
     ruleId: {
@@ -82,6 +144,9 @@ const TransactionSchema = new mongoose.Schema({
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+// Unique sparse index on source.hash to prevent duplicate ingests
+TransactionSchema.index({ 'source.hash': 1 }, { unique: true, sparse: true });
 
 // Virtual property to check if transaction is balanced
 TransactionSchema.virtual('isBalanced').get(function() {

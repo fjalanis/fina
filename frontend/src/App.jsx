@@ -40,7 +40,9 @@ const HeaderDateRangePicker = () => {
   const showDatePickerRoutes = ['/accounts', '/transactions', '/reports', '/prices'];
 
   // Show picker only on specific list/dashboard routes
-  if (showDatePickerRoutes.includes(location.pathname)) {
+  const shouldShow = showDatePickerRoutes.includes(location.pathname) || /^\/accounts\/[^/]+$/.test(location.pathname);
+
+  if (shouldShow) {
     return <DateRangePicker />;
   }
 

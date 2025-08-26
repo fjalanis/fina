@@ -6,6 +6,7 @@ const logger = require('../backend/src/config/logger');
 const accountGenerator = require('./generators/accountGenerator');
 const transactionGenerator = require('./generators/transactionGenerator');
 const ruleGenerator = require('./generators/ruleGenerator');
+const assetPriceGenerator = require('./generators/assetPriceGenerator');
 const utils = require('./generators/dataUtils');
 
 // Clear all existing data
@@ -13,6 +14,7 @@ const clearAllData = async () => {
   logger.info('Clearing existing data...');
   await Transaction.deleteMany({});
   await Account.deleteMany({});
+  await assetPriceGenerator.clearAllPrices();
   logger.info('All data cleared');
 };
 
@@ -207,17 +209,26 @@ const generateTestData = async () => {
     await transactionGenerator.createInitialBalances(accounts);
     
     // Generate transactions for multiple months
-    const startMonth = 1; // January
-    const startYear = 2025;
+    const now = new Date();
+    const startYear = now.getFullYear();
+    const startMonth = now.getMonth() + 1; // current month
     
-    // Generate transactions for 3 months
-    for (let month = startMonth; month < startMonth + 3; month++) {
-      await transactionGenerator.generateMonthlyTransactions(accounts, startYear, month);
+    // Generate transactions for last 2 months and current month
+    const months = [startMonth - 2, startMonth - 1, startMonth].map(m => {
+      if (m <= 0) return m + 12;
+      return m;
+    });
+    const years = [startMonth - 2, startMonth - 1, startMonth].map((m, idx) => {
+      if (m <= 0) return startYear - 1;
+      return startYear;
+    });
+    for (let i = 0; i < months.length; i++) {
+      await transactionGenerator.generateMonthlyTransactions(accounts, years[i], months[i]);
     }
     
     // Create a simple imbalanced transaction for basic testing
     await utils.createImbalancedTransaction(
-      new Date(2025, 1, 15),
+      new Date(now.getFullYear(), now.getMonth(), 15),
       "[UNMATCHED-DEBIT] Intentionally imbalanced transaction - needs any credit $500",
       accounts.checkingAccount._id,
       500,
@@ -227,7 +238,7 @@ const generateTestData = async () => {
     
     // Add some additional unbalanced transactions with specific edge cases
     await utils.createImbalancedTransaction(
-      new Date(2025, 1, 10),
+      new Date(now.getFullYear(), now.getMonth(), 10),
       "[UNMATCHED-CREDIT] Credit without matching debit - needs any debit $123.45",
       accounts.visaCard._id,
       123.45,
@@ -237,7 +248,7 @@ const generateTestData = async () => {
     
     // Create a very small amount transaction to test minimum thresholds
     await utils.createImbalancedTransaction(
-      new Date(2025, 1, 20),
+      new Date(now.getFullYear(), now.getMonth(), 20),
       "[SMALL-AMOUNT-DEBIT] Very small unbalanced transaction - needs credit $0.01",
       accounts.checkingAccount._id,
       0.01,
@@ -247,7 +258,7 @@ const generateTestData = async () => {
     
     // Create a large amount transaction to test maximum thresholds
     await utils.createImbalancedTransaction(
-      new Date(2025, 1, 25),
+      new Date(now.getFullYear(), now.getMonth(), 25),
       "[LARGE-AMOUNT-CREDIT] Large unbalanced transaction - needs debit $9999.99",
       accounts.savingsAccount._id,
       9999.99,
@@ -265,7 +276,7 @@ const generateTestData = async () => {
     logger.info('Creating intentionally invalid transaction pair for validation testing...');
     // Create a debit from Checking (that needs a credit)
     await Transaction.create({
-      date: new Date(2025, 2, 28), // March 28
+      date: new Date(now.getFullYear(), now.getMonth(), 28),
       description: '[INVALID-DEBIT] Debit from Checking - should not merge with credit to Checking',
       entries: [{
         accountId: accounts.checkingAccount._id,
@@ -276,7 +287,7 @@ const generateTestData = async () => {
     });
     // Create a credit to Checking (that needs a debit)
     await Transaction.create({
-      date: new Date(2025, 2, 29), // March 29
+      date: new Date(now.getFullYear(), now.getMonth(), 29),
       description: '[INVALID-CREDIT] Credit to Checking - should not merge with debit from Checking',
       entries: [{
         accountId: accounts.checkingAccount._id,
@@ -290,6 +301,9 @@ const generateTestData = async () => {
 
     // Create sample rules (disabled by default)
     await ruleGenerator.createSampleRules(accounts);
+
+    // Seed asset prices for units used
+    await assetPriceGenerator.seedDefaultPrices();
 
     // Generate Cypress test data
     await generateCypressTestData(accounts);

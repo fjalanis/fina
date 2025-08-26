@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Modal from '../common/Modal';
 import { createRule, updateRule } from '../../services/ruleService';
+import { previewRule } from '../../services/ruleService';
 import { fetchAccounts } from '../../services/accountService';
 import { toast } from 'react-toastify';
+import SearchReplaceBar from '../common/SearchReplaceBar';
 
-const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
+const RuleModal = ({ isOpen, onClose, onSave, rule, initialSearch }) => {
   const initialFormState = {
     name: '',
     description: '',
@@ -28,6 +30,8 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [previewCount, setPreviewCount] = useState(null);
+  const [searchState, setSearchState] = useState(initialSearch || null);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +67,21 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
       }
     }
   }, [isOpen, rule]);
+
+  // Map search/replace state into rule form fields to avoid duplicate controls
+  useEffect(() => {
+    if (!searchState) return;
+    const s = searchState;
+    setFormData(prev => ({
+      ...prev,
+      pattern: s.query?.pattern || prev.pattern,
+      entryType: s.query?.entryType || prev.entryType,
+      sourceAccounts: Array.isArray(s.query?.sourceAccounts) ? s.query.sourceAccounts : prev.sourceAccounts,
+      type: s.action?.type === 'ComplementaryAdd' ? 'complementary' : s.action?.type === 'MergeInto' ? 'merge' : (s.action?.type === 'EditFields' ? 'edit' : prev.type),
+      destinationAccounts: Array.isArray(s.action?.destination) && s.action.destination.length > 0 ?
+        s.action.destination.map(d => ({ accountId: d.accountId || '', ratio: d.ratio || 0 })) : prev.destinationAccounts
+    }));
+  }, [searchState]);
 
   const loadAccounts = async () => {
     try {
@@ -103,7 +122,7 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
     if (formData.type === 'complementary') {
       // Check if at least one destination account is selected
       const hasValidDestination = formData.destinationAccounts.some(
-        dest => dest.accountId && (dest.ratio > 0 || dest.absoluteAmount > 0)
+        dest => dest.accountId && (dest.ratio > 0)
       );
       
       if (!hasValidDestination) {
@@ -111,12 +130,12 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
       }
       
       // Validate total ratio is 1 if using ratios
-      const usingRatios = formData.destinationAccounts.some(dest => dest.ratio > 0);
-      if (usingRatios) {
-        const totalRatio = formData.destinationAccounts.reduce((sum, dest) => sum + parseFloat(dest.ratio || 0), 0);
-        if (Math.abs(totalRatio - 1) > 0.001) { // Allow small rounding errors
-          newErrors.ratioSum = `Ratio sum must be 1.0. Current sum: ${totalRatio.toFixed(2)}`;
-        }
+      const totalRatio = formData.destinationAccounts.reduce((sum, dest) => sum + (parseFloat(dest.ratio) || 0), 0);
+      const allRatiosPositive = formData.destinationAccounts.every(dest => (parseFloat(dest.ratio) || 0) > 0);
+      if (!allRatiosPositive) {
+        newErrors.ratioSum = 'All ratios must be > 0.';
+      } else if (Math.abs(totalRatio - 1) > 0.001) {
+        newErrors.ratioSum = `Ratio sum must be 1.0. Current sum: ${totalRatio.toFixed(2)}`;
       }
     }
     
@@ -130,6 +149,22 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handlePatternBlur = async () => {
+    try {
+      if (!formData.pattern.trim()) return;
+      const resp = await previewRule({
+        pattern: formData.pattern,
+        sourceAccounts: formData.sourceAccounts,
+        entryType: formData.entryType
+      });
+      const total = resp?.data?.totalMatching ?? (resp?.data?.matchingTransactions?.length || 0);
+      setPreviewCount(total);
+    } catch (err) {
+      console.error('Preview failed:', err);
+      setPreviewCount(null);
+    }
   };
 
   const handleDestinationChange = (index, field, value) => {
@@ -238,27 +273,18 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
     >
       <form onSubmit={handleSubmit}>
         <div className="space-y-4">
-          {/* Rule Type Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Rule Type *
-            </label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleTypeChange}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="edit">Edit Rule</option>
-              <option value="merge">Merge Rule</option>
-              <option value="complementary">Complementary Rule</option>
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              {formData.type === 'edit' && 'Edit rules modify transaction descriptions based on pattern matching.'}
-              {formData.type === 'merge' && 'Merge rules combine similar transactions within a date range.'}
-              {formData.type === 'complementary' && 'Complementary rules add balancing entries to transactions.'}
-            </p>
-          </div>
+          {/* Reusable Search/Replace (always expanded) */}
+          <SearchReplaceBar
+            startDate={new Date().toISOString()}
+            endDate={new Date().toISOString()}
+            accounts={accounts}
+            alwaysShowReplace={true}
+            hideApply={true}
+            value={searchState}
+            onChange={setSearchState}
+          />
+
+          {/* Rule Type selection is driven by SearchReplaceBar */}
           
           {/* Rule Name */}
           <div>
@@ -291,67 +317,19 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
             />
           </div>
           
-          {/* Pattern */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Pattern (Regex) *
-            </label>
-            <input
-              type="text"
-              name="pattern"
-              value={formData.pattern}
-              onChange={handleChange}
-              className={`mt-1 block w-full p-2 border rounded-md ${errors.pattern ? 'border-red-500' : 'border-gray-300'}`}
-              placeholder="E.g., Grocery|Supermarket"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Regular expression to match transaction descriptions
-            </p>
-            {errors.pattern && <p className="mt-1 text-sm text-red-600">{errors.pattern}</p>}
-          </div>
+          {/* Pattern is driven by SearchReplaceBar; keep the preview count only */}
+          {previewCount !== null && (
+            <p className="text-xs text-blue-600">{previewCount} existing transactions match.</p>
+          )}
+
+          {/* Note for complementary orientation */}
+          {formData.type === 'complementary' && (
+            <p className="text-xs text-gray-600">For credit card purchases (credits), destination entries will be debits.</p>
+          )}
           
-          {/* Entry Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Entry Type
-            </label>
-            <select
-              name="entryType"
-              value={formData.entryType}
-              onChange={handleChange}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="both">Both (Debit & Credit)</option>
-              <option value="debit">Debit Only</option>
-              <option value="credit">Credit Only</option>
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Which entry types this rule applies to
-            </p>
-          </div>
+          {/* Entry type driven by SearchReplaceBar */}
           
-          {/* Source Accounts */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Source Accounts
-            </label>
-            <select
-              multiple
-              name="sourceAccounts"
-              value={formData.sourceAccounts}
-              onChange={handleSourceAccountsChange}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md h-32"
-            >
-              {accounts.map(account => (
-                <option key={account._id} value={account._id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Select accounts this rule applies to (hold Ctrl/Cmd to select multiple). Leave empty to apply to all accounts.
-            </p>
-          </div>
+          {/* Source accounts driven by SearchReplaceBar */}
           
           {/* Auto Apply */}
           <div className="flex items-center">
@@ -453,6 +431,7 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
                       </select>
                     </div>
                     <div className="w-24">
+                      <label className="block text-xs text-gray-500 mb-0.5">Ratio (0-1)</label>
                       <input
                         type="number"
                         value={dest.ratio}
@@ -464,17 +443,8 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
                         placeholder="Ratio"
                       />
                     </div>
-                    <div className="w-24">
-                      <input
-                        type="number"
-                        value={dest.absoluteAmount}
-                        onChange={(e) => handleDestinationChange(index, 'absoluteAmount', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        className="block w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Amount"
-                      />
-                    </div>
+                    {/* Removed Absolute Amount to reduce confusion; ratios only */}
+                    <div className="text-xs text-gray-500 w-28">Creates {formData.entryType === 'credit' ? 'credits' : formData.entryType === 'debit' ? 'debits' : 'entries'} in selected accounts</div>
                     {formData.destinationAccounts.length > 1 && (
                       <button
                         type="button"
@@ -490,7 +460,7 @@ const RuleModal = ({ isOpen, onClose, onSave, rule }) => {
                 ))}
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Configure how to distribute amounts to destination accounts. Ratios must sum to 1.
+                Configure how to distribute amounts using ratios only. Ratios across non-zero rows must sum to 1.00.
               </p>
             </div>
           )}

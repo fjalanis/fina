@@ -18,7 +18,17 @@ const TransactionHeader = ({
       date: transaction?.date ? inputDateFormat(transaction.date) : (isCreating ? defaultDate : ''),
       description: transaction?.description ?? '',
       reference: transaction?.reference ?? '',
-      notes: transaction?.notes ?? ''
+      notes: transaction?.notes ?? '',
+      contactPhone: transaction?.contact?.phone ?? '',
+      contactUrl: transaction?.contact?.url ?? '',
+      locationAddress: transaction?.location?.address ?? '',
+      locationCity: transaction?.location?.city ?? '',
+      locationState: transaction?.location?.state ?? '',
+      locationCountry: transaction?.location?.country ?? '',
+      owner: transaction?.owner ?? '',
+      category: transaction?.category ?? '',
+      zipCode: transaction?.zipCode ?? '',
+      memo: transaction?.memo ?? ''
     };
   });
 
@@ -33,7 +43,17 @@ const TransactionHeader = ({
         date: transaction?.date ? inputDateFormat(transaction.date) : (isCreating ? defaultDate : ''),
         description: transaction?.description ?? '', 
         reference: transaction?.reference ?? '',
-        notes: transaction?.notes ?? ''
+        notes: transaction?.notes ?? '',
+        contactPhone: transaction?.contact?.phone ?? '',
+        contactUrl: transaction?.contact?.url ?? '',
+        locationAddress: transaction?.location?.address ?? '',
+        locationCity: transaction?.location?.city ?? '',
+        locationState: transaction?.location?.state ?? '',
+        locationCountry: transaction?.location?.country ?? '',
+        owner: transaction?.owner ?? '',
+        category: transaction?.category ?? '',
+        zipCode: transaction?.zipCode ?? '',
+        memo: transaction?.memo ?? ''
       });
     }
     // Run when isEditing changes or the transaction we are viewing changes ID
@@ -53,7 +73,8 @@ const TransactionHeader = ({
   return (
     <div className="bg-gray-50 p-4 rounded-lg">
       {isEditing ? (
-        // EDIT MODE
+        <>
+        {/* EDIT MODE */}
         <div className="space-y-3">
           <div>
             <label htmlFor="description" className="block text-xs font-medium text-gray-700 mb-1">Description</label>
@@ -92,6 +113,44 @@ const TransactionHeader = ({
               />
             </div>
           </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="owner" className="block text-xs font-medium text-gray-700 mb-1">Owner</label>
+              <input 
+                type="text"
+                name="owner"
+                id="owner"
+                value={formData.owner}
+                onChange={handleChange}
+                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Card Member"
+              />
+            </div>
+            <div>
+              <label htmlFor="category" className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+              <input 
+                type="text"
+                name="category"
+                id="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Category"
+              />
+            </div>
+            <div>
+              <label htmlFor="zipCode" className="block text-xs font-medium text-gray-700 mb-1">Zip Code</label>
+              <input 
+                type="text"
+                name="zipCode"
+                id="zipCode"
+                value={formData.zipCode}
+                onChange={handleChange}
+                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Zip Code"
+              />
+            </div>
+          </div>
           <div>
             <label htmlFor="notes" className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
             <textarea
@@ -102,6 +161,18 @@ const TransactionHeader = ({
               onChange={handleChange}
               className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Optional Notes"
+            ></textarea>
+          </div>
+          <div>
+            <label htmlFor="memo" className="block text-xs font-medium text-gray-700 mb-1">Memo</label>
+            <textarea
+              name="memo"
+              id="memo"
+              rows="3"
+              value={formData.memo}
+              onChange={handleChange}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Extended Details / Memo"
             ></textarea>
           </div>
           <div className="flex justify-end space-x-2 mt-3">
@@ -119,6 +190,70 @@ const TransactionHeader = ({
             </button>
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="contactPhone" className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+            <input 
+              type="text"
+              name="contactPhone"
+              id="contactPhone"
+              value={formData.contactPhone}
+              onChange={handleChange}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="(800)123-4567"
+            />
+          </div>
+          <div>
+            <label htmlFor="contactUrl" className="block text-xs font-medium text-gray-700 mb-1">URL</label>
+            <input 
+              type="url"
+              name="contactUrl"
+              id="contactUrl"
+              value={formData.contactUrl}
+              onChange={handleChange}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="https://example.com"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
+          <div className="grid grid-cols-4 gap-3">
+            <input
+              type="text"
+              name="locationAddress"
+              value={formData.locationAddress}
+              onChange={handleChange}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Address"
+            />
+            <input
+              type="text"
+              name="locationCity"
+              value={formData.locationCity}
+              onChange={handleChange}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="City"
+            />
+            <input
+              type="text"
+              name="locationState"
+              value={formData.locationState}
+              onChange={handleChange}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="State"
+            />
+            <input
+              type="text"
+              name="locationCountry"
+              value={formData.locationCountry}
+              onChange={handleChange}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Country"
+            />
+          </div>
+        </div>
+        </>
       ) : (
         // DISPLAY MODE
         <div>

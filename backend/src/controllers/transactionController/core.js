@@ -40,7 +40,7 @@ async function enrichEntriesWithUnits(entriesData) {
 // @access  Private
 exports.createTransaction = async (req, res) => {
   try {
-    const { date, description, reference, notes, entries } = req.body;
+    const { date, description, reference, notes, entries, contact, location, owner, category, zipCode, memo } = req.body;
     
     // Prepare raw entries data
     const rawEntries = entries?.map(entry => ({
@@ -59,6 +59,12 @@ exports.createTransaction = async (req, res) => {
       description,
       reference,
       notes,
+      owner,
+      category,
+      zipCode,
+      memo,
+      contact,
+      location,
       entries: enrichedEntries // Use enriched entries
     };
     
@@ -107,27 +113,55 @@ exports.createTransaction = async (req, res) => {
 exports.getTransactions = async (req, res) => {
   try {
     
-    const { startDate, endDate, accountId, accountIds } = req.query;
+    const { startDate, endDate, accountId, accountIds, description, entryType, owner, category } = req.query;
     const query = {};
     
-    if (startDate && endDate) {
-      query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+    // Fail fast if no date range
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, error: 'startDate and endDate are required' });
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, error: 'Invalid startDate or endDate' });
+    }
+    // Enforce max 1 year range
+    const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+    if ((end - start) > oneYearMs) {
+      return res.status(400).json({ success: false, error: 'Date range cannot exceed 1 year' });
+    }
+    query.date = { $gte: start, $lte: end };
+
+    // Optional top-level filters
+    if (description && description.trim() !== '') {
+      try {
+        // Validate regex to avoid catastrophic backtracking
+        new RegExp(description);
+        query.description = { $regex: description, $options: 'i' };
+      } catch(e) {
+        return res.status(400).json({ success: false, error: 'Invalid description regex' });
+      }
+    }
+    if (owner && owner.trim() !== '') {
+      query.owner = { $regex: owner.trim(), $options: 'i' };
+    }
+    if (category && category.trim() !== '') {
+      query.category = { $regex: category.trim(), $options: 'i' };
     }
     
+    // Entry-level filters (combined via $elemMatch)
+    const entryFilter = {};
     if (accountIds) {
-      // If accountIds is a string (e.g., "id1,id2"), split it. If it's already an array, use it.
-      const idsArray = Array.isArray(accountIds) ? accountIds : accountIds.split(',').map(id => id.trim()).filter(id => !!id);
-      if (idsArray.length > 0) {
-        // TODO: Validate these are actual ObjectIds?
-        query['entries.accountId'] = { $in: idsArray };
-      }
+      const idsArray = Array.isArray(accountIds) ? accountIds : accountIds.split(',').map(id => id.trim()).filter(Boolean);
+      if (idsArray.length > 0) entryFilter.accountId = { $in: idsArray };
     } else if (accountId) {
-      // Fallback to single accountId if accountIds is not provided
-      // TODO: Validate this is an actual ObjectId?
-      query['entries.accountId'] = accountId; 
+      entryFilter.accountId = accountId;
+    }
+    if (entryType && (entryType === 'debit' || entryType === 'credit')) {
+      entryFilter.type = entryType;
+    }
+    if (Object.keys(entryFilter).length > 0) {
+      query.entries = { $elemMatch: entryFilter };
     }
     
     console.log('MongoDB query:', JSON.stringify(query));
@@ -218,7 +252,7 @@ exports.updateTransaction = async (req, res) => {
       });
     }
     
-    const { date, description, reference, notes, entries } = req.body;
+    const { date, description, reference, notes, entries, contact, location, owner, category, zipCode, memo } = req.body;
     
     // Prepare raw entries data from request
     const rawEntries = entries?.map(entry => ({
@@ -234,6 +268,12 @@ exports.updateTransaction = async (req, res) => {
     if (description) transaction.description = description;
     if (reference !== undefined) transaction.reference = reference;
     if (notes !== undefined) transaction.notes = notes;
+    if (owner !== undefined) transaction.owner = owner;
+    if (category !== undefined) transaction.category = category;
+    if (zipCode !== undefined) transaction.zipCode = zipCode;
+    if (memo !== undefined) transaction.memo = memo;
+    if (contact !== undefined) transaction.contact = contact;
+    if (location !== undefined) transaction.location = location;
     // Only update entries if provided in the request body
     if (rawEntries) {
       // Enrich the updated entries with units before assigning

@@ -5,6 +5,9 @@ import Modal from '../../common/Modal';
 import TransactionBalanceModal from '../balancing/TransactionBalanceModal';
 import { useSearchParams } from 'react-router-dom';
 import TransactionListDisplay from './TransactionListDisplay';
+import SearchReplaceBar from '../../common/SearchReplaceBar';
+import { fetchAccounts } from '../../../services/accountService';
+import RuleModal from '../../rules/RuleModal';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
@@ -16,6 +19,10 @@ const TransactionList = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [modalMode, setModalMode] = useState(null);
+  const [allAccounts, setAllAccounts] = useState([]);
+  const [eligibility, setEligibility] = useState(null);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [initialRuleSearch, setInitialRuleSearch] = useState(null);
 
   const getTransactions = useCallback(async () => {
     try {
@@ -34,6 +41,22 @@ const TransactionList = () => {
   useEffect(() => {
     getTransactions();
   }, [getTransactions]);
+
+  useEffect(() => {
+    // Load accounts for the search multi-select
+    fetchAccounts().then(resp => {
+      const list = resp.data || [];
+      // Build simple depth if the payload has parent relationships
+      const idToNode = new Map();
+      list.forEach(a => idToNode.set(a._id, { ...a, depth: 0 }));
+      list.forEach(a => {
+        let d = 0; let p = a.parent;
+        while (p && idToNode.has(p)) { d++; p = idToNode.get(p).parent; }
+        idToNode.get(a._id).depth = d;
+      });
+      setAllAccounts(Array.from(idToNode.values()));
+    }).catch(()=>{});
+  }, []);
 
   const handleOpenModal = useCallback((transaction, mode) => {
     setSelectedTransaction(transaction);
@@ -100,6 +123,13 @@ const TransactionList = () => {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
+      <SearchReplaceBar startDate={startDate} endDate={endDate} accounts={allAccounts} onSearch={(params)=>{
+        console.log('[SearchReplace] onSearch params', params);
+        fetchTransactions(params).then(resp=>{
+          console.log('[SearchReplace] response count', Array.isArray(resp.data) ? resp.data.length : 'n/a');
+          setTransactions(Array.isArray(resp.data) ? resp.data : []);
+        }).catch(()=>{});
+      }} onEligibilityChange={(pred) => setEligibility(() => pred)} onCreateRule={(state)=>{ setInitialRuleSearch(state); setShowRuleModal(true); }} />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Transactions</h2>
         <div className="space-x-2">
@@ -113,7 +143,7 @@ const TransactionList = () => {
       </div>
 
       <TransactionListDisplay
-          transactions={transactions}
+          transactions={eligibility ? transactions.filter(t => eligibility(t)) : transactions}
           onViewTransaction={(transaction) => handleOpenModal(transaction, 'view')}
           onBalanceTransaction={(transaction) => handleOpenModal(transaction, 'balance')}
           onEditTransaction={(transaction) => handleOpenModal(transaction, 'edit')}
@@ -127,6 +157,15 @@ const TransactionList = () => {
           transaction={selectedTransaction}
           mode={modalMode}
           onTransactionUpdated={handleModalUpdate}
+        />
+      )}
+
+      {showRuleModal && (
+        <RuleModal
+          isOpen={showRuleModal}
+          onClose={() => setShowRuleModal(false)}
+          onSave={() => setShowRuleModal(false)}
+          initialSearch={initialRuleSearch}
         />
       )}
     </div>

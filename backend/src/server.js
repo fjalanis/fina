@@ -20,6 +20,7 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const assetPriceRoutes = require('./routes/assetPriceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const ruleRoutes = require('./routes/ruleRoutes');
+const massEditRoutes = require('./routes/massEditRoutes');
 
 // Mount routers
 app.use('/api/accounts', accountRoutes);
@@ -27,6 +28,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/asset-prices', assetPriceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/rules', ruleRoutes);
+app.use('/api/mass', massEditRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -49,9 +51,13 @@ if (require.main === module) {
       process.exit(1);
     });
 
-  // Start server
+  // Start server with Socket.io
+  const http = require('http');
+  const { initSocket } = require('./socket');
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
+  const server = http.createServer(app);
+  initSocket(server);
+  server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 } 

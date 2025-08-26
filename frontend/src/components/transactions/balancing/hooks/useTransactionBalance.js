@@ -227,6 +227,20 @@ export const useTransactionBalance = (initialTransaction, isOpen, mode, toast) =
       description: headerData.description,
       reference: headerData.reference,
       notes: headerData.notes,
+      owner: headerData.owner || undefined,
+      category: headerData.category || undefined,
+      zipCode: headerData.zipCode || undefined,
+      memo: headerData.memo || undefined,
+      contact: {
+        phone: headerData.contactPhone || undefined,
+        url: headerData.contactUrl || undefined
+      },
+      location: {
+        address: headerData.locationAddress || undefined,
+        city: headerData.locationCity || undefined,
+        state: headerData.locationState || undefined,
+        country: headerData.locationCountry || undefined
+      },
       entries: [] // Start with empty entries, backend allows this
     };
     try {
@@ -289,6 +303,20 @@ export const useTransactionBalance = (initialTransaction, isOpen, mode, toast) =
       description: updatedData.description,
       reference: updatedData.reference,
       notes: updatedData.notes,
+      owner: updatedData.owner || undefined,
+      category: updatedData.category || undefined,
+      zipCode: updatedData.zipCode || undefined,
+      memo: updatedData.memo || undefined,
+      contact: {
+        phone: updatedData.contactPhone || undefined,
+        url: updatedData.contactUrl || undefined
+      },
+      location: {
+        address: updatedData.locationAddress || undefined,
+        city: updatedData.locationCity || undefined,
+        state: updatedData.locationState || undefined,
+        country: updatedData.locationCountry || undefined
+      },
       // Add any other non-entry fields managed in the header here
     };
 

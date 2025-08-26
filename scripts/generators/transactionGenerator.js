@@ -8,14 +8,19 @@ const createTransaction = async (date, description, entries) => {
     date,
     description,
     isBalanced: true,
-    entries: entries.map(entry => ({
-      accountId: entry.account._id,
-      amount: entry.amount,
-      type: entry.type,
-      description: entry.description || description,
-      unit: entry.unit || 'USD',
-      quantity: entry.quantity || ''
-    }))
+    entries: entries.map(entry => {
+      const mapped = {
+        accountId: entry.account._id,
+        amount: entry.amount,
+        type: entry.type,
+        description: entry.description || description,
+        unit: entry.unit || 'USD'
+      };
+      if (typeof entry.quantity === 'number') {
+        mapped.quantity = entry.quantity;
+      }
+      return mapped;
+    })
   });
   
   return transaction;
@@ -25,7 +30,8 @@ const createTransaction = async (date, description, entries) => {
 exports.createInitialBalances = async (accounts) => {
   logger.info('Creating initial account balances...');
   
-  const openingDate = new Date(2025, 0, 1); // Jan 1, 2025
+  const now = new Date();
+  const openingDate = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
   
   // Checking account starting balance
   await createTransaction(
@@ -136,7 +142,7 @@ exports.generateMonthlyTransactions = async (accounts, year, month) => {
   
   // 1. Primary income (paycheck twice a month)
   const paycheck1Date = new Date(year, month - 1, 15);
-  const paycheck2Date = new Date(year, month - 1, 30);
+  const paycheck2Date = new Date(year, month - 1, Math.min(28, new Date(year, month, 0).getDate()));
   const paycheckAmount = 4800; // $4800 semi-monthly salary
   
   transactions.push(await createTransaction(
@@ -295,7 +301,7 @@ exports.generateMonthlyTransactions = async (accounts, year, month) => {
     const unit = isStock ? 'AAPL' : 'BTC';
     const isBuy = Math.random() < 0.5;
     const amount = isStock ? utils.varyAmount(1000) : utils.varyAmount(500);
-    const quantity = isStock ? Math.floor(Math.random() * 5) + 1 : (Math.random() * 0.1).toFixed(4);
+    const quantity = isStock ? Math.floor(Math.random() * 5) + 1 : parseFloat((Math.random() * 0.1).toFixed(4));
 
     transactions.push(await createTransaction(
       investmentDate,

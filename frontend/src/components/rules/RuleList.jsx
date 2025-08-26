@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { fetchRules, deleteRule, applyRulesToAllTransactions } from '../../services/ruleService';
+import { fetchRules, deleteRule, applyRulesToAllTransactions, applyRuleBulk } from '../../services/ruleService';
+import { io } from 'socket.io-client';
 import { Link } from 'react-router-dom';
 import RuleModal from './RuleModal';
 import { toast } from 'react-toastify';
@@ -12,9 +13,22 @@ const RuleList = () => {
   const [currentRule, setCurrentRule] = useState(null);
   const [processingRules, setProcessingRules] = useState(false);
   const [processResult, setProcessResult] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     loadRules();
+  }, []);
+
+  useEffect(() => {
+    const s = io('/', { path: '/socket.io' });
+    s.on('rule-apply-progress', (data) => {
+      setProgress(data);
+    });
+    setSocket(s);
+    return () => {
+      s.disconnect();
+    };
   }, []);
 
   const loadRules = async () => {
@@ -84,10 +98,11 @@ const RuleList = () => {
     closeModal();
   };
 
-  const handleApplyAllRules = async () => {
+  const handleApplyAllRules = async (ruleId) => {
     try {
       setProcessingRules(true);
-      const response = await applyRulesToAllTransactions();
+      setProgress(null);
+      const response = await applyRuleBulk(ruleId);
       setProcessResult(response.data);
       toast.success('Rules processing completed');
     } catch (err) {
@@ -106,13 +121,17 @@ const RuleList = () => {
       <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
         <h2 className="text-xl font-semibold text-gray-800">Balancing Rules</h2>
         <div className="space-x-2">
-          <button 
-            onClick={handleApplyAllRules}
+          <select
             disabled={processingRules || rules.length === 0}
-            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
+            onChange={(e) => e.target.value && handleApplyAllRules(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded"
+            defaultValue=""
           >
-            {processingRules ? 'Processing...' : 'Apply Rules to All Transactions'}
-          </button>
+            <option value="">Apply Rule to Matching Transactions...</option>
+            {rules.map(r => (
+              <option key={r._id} value={r._id}>{r.name}</option>
+            ))}
+          </select>
           <button
             onClick={handleCreateRule}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
@@ -127,9 +146,17 @@ const RuleList = () => {
       {processResult && (
         <div className="bg-gray-100 p-4 mb-6 rounded">
           <h3 className="font-bold mb-2">Rule Processing Results:</h3>
-          <p>Total transactions processed: {processResult.total}</p>
-          <p>Successfully processed: {processResult.successful}</p>
-          <p>Failed: {processResult.failed}</p>
+          <p>Processed: {processResult.processed ?? processResult.total}</p>
+          <p>Matched: {processResult.matched ?? '-'}</p>
+          <p>Modified: {processResult.modified ?? processResult.successful}</p>
+          <p>Skipped (already applied): {processResult.skippedAlreadyAppliedCount ?? '-'}</p>
+          <p>Errors: {processResult.errorsCount ?? processResult.failed}</p>
+        </div>
+      )}
+
+      {progress && (
+        <div className="bg-blue-50 p-3 mb-4 rounded text-sm text-blue-800">
+          Progress - Processed: {progress.processed}, Matched: {progress.matched}, Modified: {progress.modified}
         </div>
       )}
 
@@ -157,11 +184,12 @@ const RuleList = () => {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      rule.isInvalid ? 'bg-red-100 text-red-800' :
                       rule.type === 'edit' ? 'bg-blue-100 text-blue-800' : 
                       rule.type === 'merge' ? 'bg-purple-100 text-purple-800' : 
                       'bg-green-100 text-green-800'
                     }`}>
-                      {rule.type.charAt(0).toUpperCase() + rule.type.slice(1).substring(0, 3)}
+                      {rule.isInvalid ? 'Invalid' : (rule.type.charAt(0).toUpperCase() + rule.type.slice(1).substring(0, 3))}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 font-mono">

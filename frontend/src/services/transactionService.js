@@ -10,6 +10,9 @@ export const fetchTransactions = async (params = {}) => {
   if (params.accountIds && Array.isArray(params.accountIds) && params.accountIds.length > 0) {
     // Join array into comma-separated string for query param
     queryParams.append('accountIds', params.accountIds.join(','));
+  } else if (typeof params.accountIds === 'string' && params.accountIds.length > 0) {
+    // Allow callers to provide comma-separated string directly
+    queryParams.append('accountIds', params.accountIds);
   } else if (params.accountId) {
     // Fallback to single accountId if accountIds is not provided or invalid
     queryParams.append('accountId', params.accountId);
@@ -20,6 +23,31 @@ export const fetchTransactions = async (params = {}) => {
   }
   if (params.endDate) {
     queryParams.append('endDate', params.endDate);
+  }
+
+  // Optional filters
+  if (params.description) {
+    queryParams.append('description', params.description);
+  }
+  if (params.entryType && (params.entryType === 'debit' || params.entryType === 'credit')) {
+    queryParams.append('entryType', params.entryType);
+  }
+  if (params.owner) {
+    queryParams.append('owner', params.owner);
+  }
+  if (params.category) {
+    queryParams.append('category', params.category);
+  }
+
+  // Enforce app-wide default if dates missing (last 30 days)
+  if (!params.startDate || !params.endDate) {
+    const now = new Date();
+    const end = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)).toISOString();
+    const startDateObj = new Date(end);
+    startDateObj.setUTCDate(startDateObj.getUTCDate() - 30);
+    const start = startDateObj.toISOString();
+    queryParams.set('startDate', start);
+    queryParams.set('endDate', end);
   }
 
   const queryString = queryParams.toString();

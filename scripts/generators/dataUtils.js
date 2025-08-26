@@ -70,8 +70,9 @@ exports.createComplementaryTransactions = async (account1Id, account2Id, amount,
 exports.createPatternsForRuleTesting = async (accounts) => {
   logger.info('Creating unbalanced transactions with specific patterns for rule testing');
   
-  const currentYear = 2025;
-  const currentMonth = 2; // February 2025
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
   
   // Transactions for testing the edit rule (grocery stores)
   const groceryStores = ['Safeway', 'Kroger', 'Albertsons', 'Trader Joe\'s', 'Whole Foods Market'];
@@ -97,7 +98,7 @@ exports.createPatternsForRuleTesting = async (accounts) => {
   
   // Create multiple gas transactions on the same day
   const gasDate1 = new Date(currentYear, currentMonth - 1, 12);
-  const gasDate2 = new Date(currentYear, currentMonth - 1, 12); // Same date
+  const gasDate2 = new Date(currentYear, currentMonth - 1, 12);
   
   await Transaction.create({
     date: gasDate1,
@@ -173,8 +174,9 @@ exports.createPatternsForRuleTesting = async (accounts) => {
 exports.createBalancingTestTransactions = async (accounts) => {
   logger.info('Creating unbalanced transactions for balancing testing');
   
-  const currentYear = 2025;
-  const currentMonth = 2; // February 2025
+  const today2 = new Date();
+  const currentYear = today2.getFullYear();
+  const currentMonth = today2.getMonth() + 1;
   
   // Create sets of complementary transactions with various amounts
   const amounts = [250, 180.45, 1200, 25.99, 76.50];

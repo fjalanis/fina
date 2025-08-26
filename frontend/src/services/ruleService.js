@@ -52,6 +52,13 @@ export const applyRulesToAllTransactions = async () => {
   });
 };
 
+export const applyRuleBulk = async (ruleId) => {
+  return fetchData(`${RULE_ENDPOINT}/apply-all`, {
+    method: 'POST',
+    body: JSON.stringify({ ruleId })
+  });
+};
+
 export const previewRule = async ({ pattern, sourceAccounts, entryType }) => {
   // Build query params for GET request
   const params = new URLSearchParams();

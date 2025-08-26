@@ -59,7 +59,8 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
     const { name, value, type, checked } = e.target;
     setFormData(prevState => ({
       ...prevState,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
+      ...(name === 'type' ? { parent: '' } : {}) // Reset parent when type changes
     }));
     
     // Clear validation error when user starts typing
@@ -161,6 +162,7 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                disabled={isEditing && (account?.transactionCount > 0)}
               >
                 <option value="asset">Asset</option>
                 <option value="liability">Liability</option>
@@ -168,6 +170,11 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
                 <option value="expense">Expense</option>
                 <option value="equity">Equity</option>
               </select>
+              {isEditing && account?.transactionCount > 0 && (
+                <p className="mt-1 text-xs text-yellow-700">
+                  This account has transactions; changing type may not be allowed.
+                </p>
+              )}
             </div>
             
             <div>
@@ -208,7 +215,10 @@ const AccountForm = ({ account = null, onSave, onCancel }) => {
               >
                 <option value="">None</option>
                 {accounts
-                  .filter(account => isEditing ? account._id !== account._id : true) // Filter out current account to prevent circular reference
+                  .filter(acct => (
+                    // Exclude current account when editing; show only same-type accounts
+                    (!isEditing || acct._id !== (account?._id)) && acct.type === formData.type
+                  ))
                   .map(acct => (
                     <option key={acct._id} value={acct._id}>
                       {acct.name} ({acct.type})

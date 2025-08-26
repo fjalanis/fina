@@ -8,9 +8,24 @@ export const fetchAccounts = async () => {
   return fetchData(ACCOUNT_ENDPOINT);
 };
 
-export const fetchAccountById = async (accountId) => {
-  // Construct the endpoint dynamically
-  return fetchData(`${ACCOUNT_ENDPOINT}/${accountId}`);
+// Modified to accept and pass date range options
+export const fetchAccountById = async (accountId, options = {}) => {
+  const { startDate, endDate } = options;
+  let url = `${ACCOUNT_ENDPOINT}/${accountId}`;
+  const params = new URLSearchParams();
+  
+  if (startDate) {
+    params.append('startDate', startDate);
+  }
+  if (endDate) {
+    params.append('endDate', endDate);
+  }
+
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+
+  return fetchData(url);
 };
 
 export const createAccount = async (accountData) => {

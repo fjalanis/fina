@@ -423,57 +423,60 @@ exports.applyRule = async (req, res) => {
 // Apply rules to all unbalanced transactions
 exports.applyRulesToAllTransactions = async (req, res) => {
   try {
-    console.log('Starting applyRulesToAllTransactions...');
-    
-    // Import the service function
-    const { applyRulesToTransaction } = require('../services/ruleApplicationService');
-    
-    // Find all unbalanced transactions using the aggregation method
-    const unbalancedTransactions = await Transaction.findUnbalanced();
-    console.log(`Found ${unbalancedTransactions.length} unbalanced transactions`);
-    
-    // Log transaction IDs for debugging
-    unbalancedTransactions.forEach(tx => {
-      console.log(`Transaction ID: ${tx._id}, Description: ${tx.description}, Balance Difference: ${tx.balanceDifference}`);
-    });
-    
-    const results = {
-      total: unbalancedTransactions.length,
-      successful: 0,
-      failed: 0,
-      details: []
-    };
-    
-    // Process each transaction
-    for (const transaction of unbalancedTransactions) {
-      console.log(`Processing transaction: ${transaction.description}`);
+    const { applyEditRule, applyMergeRule, applyComplementaryRule } = require('../services/ruleApplicationService');
+    const { ruleId } = req.body || {};
+
+    if (!ruleId) {
+      return res.status(400).json({ success: false, message: 'ruleId is required' });
+    }
+
+    const rule = await Rule.findById(ruleId);
+    if (!rule) return res.status(404).json({ success: false, message: 'Rule not found' });
+
+    // Find candidate transactions (all that match description; filtering by rule.matchesTransaction)
+    const candidates = await Transaction.find({ description: { $regex: rule.pattern, $options: 'i' } });
+
+    let processed = 0;
+    let matched = 0;
+    let modified = 0;
+    const skippedAlreadyApplied = [];
+    const errors = [];
+
+    const { getIo } = require('../socket');
+    const io = getIo();
+    const jobId = `${rule._id}:${Date.now()}`;
+    for (const tx of candidates) {
+      processed++;
+      if (!rule.matchesTransaction(tx)) continue;
+      matched++;
+      // Skip if already applied to this tx
+      const already = tx.appliedRules && tx.appliedRules.some(ar => ar.ruleId.equals(rule._id));
+      if (already) {
+        skippedAlreadyApplied.push(tx._id);
+        continue;
+      }
       try {
-        // Call the service function with the transaction ID
-        const result = await applyRulesToTransaction(transaction._id);
-        
-        // Update success counter
-        results.successful++;
-        results.details.push({
-          transactionId: transaction._id,
-          status: 'success',
-          appliedRules: result.appliedRules,
-          skippedRules: result.skippedRules
-        });
-      } catch (error) {
-        console.error(`Error processing transaction ${transaction._id}:`, error);
-        results.failed++;
-        results.details.push({
-          transactionId: transaction._id,
-          status: 'error',
-          message: error.message
-        });
+        switch (rule.type) {
+          case 'edit':
+            await applyEditRule(tx, rule);
+            break;
+          case 'merge':
+            await applyMergeRule(tx, rule);
+            break;
+          case 'complementary':
+            await applyComplementaryRule(tx, rule);
+            break;
+        }
+        modified++;
+        if (io) io.emit('rule-apply-progress', { jobId, processed, matched, modified });
+      } catch (e) {
+        errors.push({ id: tx._id, error: e.message });
       }
     }
-    
+
     res.status(200).json({
       success: true,
-      message: 'Rules processing completed',
-      data: results
+      data: { processed, matched, modified, skippedAlreadyAppliedCount: skippedAlreadyApplied.length, errorsCount: errors.length }
     });
   } catch (error) {
     console.error('Error in applyRulesToAllTransactions:', error);

@@ -161,7 +161,7 @@ const AccountList = () => {
       <React.Fragment key={account._id}>
         <tr>
           <td className={`py-0 px-0 whitespace-nowrap ${accountTypeBackgroundColors[account.type]}`}>
-            <Link to={`/accounts/${account._id}`} className="block py-4 px-4 text-gray-900 hover:text-blue-700">
+            <Link to={`/accounts/${account._id}?${searchParams.toString()}`} className="block py-4 px-4 text-gray-900 hover:text-blue-700">
               <div style={{ paddingLeft: `${level * 20}px` }}>
                 {account.name}
               </div>

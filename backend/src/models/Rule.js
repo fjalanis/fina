@@ -67,6 +67,14 @@ const baseRuleSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: ['edit', 'merge', 'complementary']
+  },
+  isInvalid: {
+    type: Boolean,
+    default: false
+  },
+  invalidReason: {
+    type: String,
+    trim: true
   }
 }, { 
   timestamps: true,
@@ -181,17 +189,17 @@ const complementaryRuleSchema = new mongoose.Schema({
     type: [destinationAccountSchema],
     validate: {
       validator: function(accounts) {
+        // Allow invalid rules to bypass destination validation
+        if (this && this.isInvalid) return true;
         // At least one destination account required
         if (accounts.length === 0) return false;
         
-        // Sum of ratios should be 1 if using ratios
-        const usingRatios = accounts.some(acc => acc.ratio !== undefined);
-        if (usingRatios) {
-          const sum = accounts.reduce((total, acc) => total + (acc.ratio || 0), 0);
-          return Math.abs(sum - 1) < 0.0001; // Allow for floating point imprecision
-        }
-        
-        return true;
+        // Enforce ratios-only: every ratio must be > 0 and sum to 1.00
+        const ratios = accounts.map(a => a.ratio || 0);
+        if (ratios.length === 0) return false;
+        if (ratios.some(r => r <= 0)) return false;
+        const sum = ratios.reduce((t, r) => t + r, 0);
+        return Math.abs(sum - 1) < 0.0001; // Allow small FP error
       },
       message: 'Invalid destination accounts configuration'
     }
@@ -206,19 +214,16 @@ complementaryRuleSchema.methods.calculateDestinationAmounts = function(sourceAmo
   
   // Get sum of ratios for proportional distribution
   const totalRatio = this.destinationAccounts.reduce((sum, dest) => {
-    return sum + (dest.ratio || 0);
+    const r = dest.ratio || 0;
+    return sum + (r > 0 ? r : 0);
   }, 0);
+  if (totalRatio <= 0) return [];
   
   // Calculate amounts for each destination account
   this.destinationAccounts.forEach(dest => {
     let amount = 0;
-    
-    // If absolute amount is set, use it
-    if (dest.absoluteAmount && dest.absoluteAmount > 0) {
-      amount = dest.absoluteAmount;
-    } 
-    // If ratio is set and we have a total ratio, calculate proportional amount
-    else if (dest.ratio && dest.ratio > 0 && totalRatio > 0) {
+    // Ratios only: proportional amount
+    if (dest.ratio && dest.ratio > 0 && totalRatio > 0) {
       amount = (dest.ratio / totalRatio) * sourceAmount;
     }
     
