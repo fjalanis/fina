@@ -175,20 +175,6 @@ const TransactionHeader = ({
               placeholder="Extended Details / Memo"
             ></textarea>
           </div>
-          <div className="flex justify-end space-x-2 mt-3">
-            <button 
-              onClick={handleSave} 
-              className="flex items-center px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-            >
-              <FaSave className="inline mr-1"/> Save
-            </button>
-            <button 
-              onClick={onCancel} 
-              className="flex items-center px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition"
-            >
-              <FaTimes className="inline mr-1"/> Cancel
-            </button>
-          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -252,6 +238,20 @@ const TransactionHeader = ({
               placeholder="Country"
             />
           </div>
+        </div>
+        <div className="flex justify-end space-x-2 mt-3">
+          <button 
+            onClick={handleSave} 
+            className="flex items-center px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+          >
+            <FaSave className="inline mr-1"/> Save
+          </button>
+          <button 
+            onClick={onCancel} 
+            className="flex items-center px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+          >
+            <FaTimes className="inline mr-1"/> Cancel
+          </button>
         </div>
         </>
       ) : (

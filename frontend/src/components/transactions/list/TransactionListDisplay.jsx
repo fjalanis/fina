@@ -21,6 +21,8 @@ const TransactionListDisplay = ({ transactions, onViewTransaction, onBalanceTran
     }
   }, [transactions]);
 
+  const balancedCount = Math.max(0, (transactions?.length || 0) - unbalancedCount);
+
   // Apply filtering based on the internal filter state
   const filteredTransactions = transactions.filter(transaction => {
     if (!transaction) return false;
@@ -43,23 +45,33 @@ const TransactionListDisplay = ({ transactions, onViewTransaction, onBalanceTran
         <div className="flex space-x-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-3 py-1 rounded ${
+            className={`px-3 py-1 rounded flex items-center ${
               filter === 'all' 
                 ? 'bg-gray-700 text-white' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            All ({transactions.length}) {/* Base count on raw transactions */}
+            <span>All</span>
+            <span className={`ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
+              filter === 'all' ? 'bg-white text-gray-700' : 'bg-gray-700 text-white'
+            }`}>
+              {transactions.length}
+            </span>
           </button>
           <button
             onClick={() => setFilter('balanced')}
-            className={`px-3 py-1 rounded ${
+            className={`px-3 py-1 rounded flex items-center ${
               filter === 'balanced' 
                 ? 'bg-green-600 text-white' 
                 : 'bg-green-100 text-green-700 hover:bg-green-200'
             }`}
           >
-            Balanced
+            <span>Balanced</span>
+            <span className={`ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
+              filter === 'balanced' ? 'bg-white text-green-700' : 'bg-green-600 text-white'
+            }`}>
+              {balancedCount}
+            </span>
           </button>
           <button
             onClick={() => setFilter('unbalanced')}

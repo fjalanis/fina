@@ -167,7 +167,7 @@ const AccountList = () => {
               </div>
             </Link>
           </td>
-          <td className="py-4 px-4 whitespace-nowrap text-center">
+          <td className="py-4 px-4 whitespace-nowrap text-right tabular-nums">
             <span className="text-sm text-gray-600" title="Includes transactions from all child accounts within the selected date range">
               {Number(account.totalTransactionCount) || 0}
             </span>
@@ -176,13 +176,15 @@ const AccountList = () => {
              <div className={`font-bold text-sm mb-1 ${balance >= 0 ? 'text-gray-900' : 'text-red-600'}`} title="Calculated balance based on account type (Assets/Expenses: Debits-Credits; Others: Credits-Debits)">
               {formatNumber(balance)} {unit}
             </div>
-            <div className="text-gray-600">
-              <span className="text-red-500 mr-2" title="Total debits including children within the selected date range">
-                D: {formatNumber(debits)}
-              </span>
-              <span className="text-green-500" title="Total credits including children within the selected date range">
-                C: {formatNumber(credits)}
-              </span>
+            <div className="text-gray-600 font-mono tabular-nums">
+              <div className="flex justify-end">
+                <span className="text-red-500 w-28 text-right" title="Total debits including children within the selected date range">D:</span>
+                <span className="ml-2 w-24 text-right">{formatNumber(debits)}</span>
+              </div>
+              <div className="flex justify-end">
+                <span className="text-green-500 w-28 text-right" title="Total credits including children within the selected date range">C:</span>
+                <span className="ml-2 w-24 text-right">{formatNumber(credits)}</span>
+              </div>
             </div>
           </td>
         </tr>

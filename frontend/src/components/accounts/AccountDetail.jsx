@@ -422,6 +422,14 @@ const AccountDetail = () => {
 
       <div className="border-t pt-4">
         <h3 className="text-md font-medium mb-3">Related Transactions (Hierarchy, Selected Dates)</h3>
+        <SearchReplaceBar startDate={startDate} endDate={endDate} accounts={descendantAccounts} defaultSourceAccounts={[id]} onSearch={(params)=>{
+          if (!params.accountIds) params.accountIds = [id].join(',');
+          console.log('[SearchReplace][Account] onSearch params', params);
+          fetchTransactions(params).then(resp=>{
+            console.log('[SearchReplace][Account] response count', Array.isArray(resp.data) ? resp.data.length : 'n/a');
+            setAccountTransactions(Array.isArray(resp.data) ? resp.data : []);
+          }).catch(()=>{});
+        }} onEligibilityChange={(pred)=> setEligibility(() => pred)} onCreateRule={(state)=>{ setInitialRuleSearch(state); setShowRuleModal(true); }} />
         {loading && accountTransactions.length === 0 && <div className="flex justify-center p-4"><div className="animate-spin h-6 w-6 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>}
         {error && !loading && <div className="text-red-500 p-3 text-center bg-red-50 rounded">{error}</div>}
          {!loading && !error && (
