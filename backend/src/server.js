@@ -20,7 +20,6 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const assetPriceRoutes = require('./routes/assetPriceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const ruleRoutes = require('./routes/ruleRoutes');
-const massEditRoutes = require('./routes/massEditRoutes');
 
 // Mount routers
 app.use('/api/accounts', accountRoutes);
@@ -28,7 +27,6 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/asset-prices', assetPriceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/rules', ruleRoutes);
-app.use('/api/mass', massEditRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

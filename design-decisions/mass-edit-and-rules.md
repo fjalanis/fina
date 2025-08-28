@@ -57,3 +57,4 @@
 - Implement counterpart detection for MergeInto to truly coalesce two transactions.
 - Add UI layer on the transaction/account pages to expose Query + Action + Eligibility with preview and apply.
 - Keep rules focused on future transactions; remove "apply existing" UI from the rules area and surface "load rule as search" near the transaction search bar.
+
