@@ -31,6 +31,7 @@ const AccountDetail = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [modalMode, setModalMode] = useState(null);
   const [descendantAccounts, setDescendantAccounts] = useState([]);
+  const [accountsIndex, setAccountsIndex] = useState(new Map());
   const [eligibility, setEligibility] = useState(null);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [initialRuleSearch, setInitialRuleSearch] = useState(null);
@@ -122,12 +123,17 @@ const AccountDetail = () => {
   }, [id, fetchAccountDetails, getDescendantIds, startDate, endDate]);
 
   useEffect(() => {
-    // Fetch full accounts and filter by descendants (flattened) for dropdown
+    // Fetch all accounts for breadcrumbs and descendant dropdown
     fetchAccounts().then(resp => {
       const list = resp.data || [];
+      // Build index for ancestor lookup
+      const index = new Map();
+      list.forEach(a => index.set(a._id, a));
+      setAccountsIndex(index);
+
+      // Build descendant dropdown list with depth
       const setIds = new Set(allAccountIds); // includes self+descendants
       const filtered = list.filter(a => setIds.has(a._id));
-      // compute depth for indentation
       const idToNode = new Map();
       filtered.forEach(a => idToNode.set(a._id, { ...a, depth: 0 }));
       filtered.forEach(a => {
@@ -232,26 +238,30 @@ const AccountDetail = () => {
   
   const renderBreadcrumbs = (acc) => {
     const crumbs = [];
-    let current = acc?.parent;
-    while (current) {
-      crumbs.unshift(
-        <span key={current._id}>
-          <Link to={`/accounts/${current._id}`} className="text-blue-600 hover:underline">
-            {current.name}
-          </Link>
+    const trail = [];
+    let currentId = acc?.parent || null;
+    const visited = new Set();
+    while (currentId && !visited.has(currentId)) {
+      const node = accountsIndex.get(currentId);
+      if (!node) break;
+      trail.unshift(node);
+      visited.add(currentId);
+      currentId = node.parent || null;
+    }
+    crumbs.push(
+      <span key="accounts-root">
+        <Link to={`/accounts?${searchParams.toString()}`} className="text-blue-600 hover:underline">Accounts</Link>
+        <span className="mx-1 text-gray-400">/</span>
+      </span>
+    );
+    trail.forEach(node => {
+      crumbs.push(
+        <span key={node._id}>
+          <Link to={`/accounts/${node._id}?${searchParams.toString()}`} className="text-blue-600 hover:underline">{node.name}</Link>
           <span className="mx-1 text-gray-400">/</span>
         </span>
       );
-      current = current.parent;
-    }
-    crumbs.unshift(
-        <span key="accounts-root">
-        <Link to="/accounts" className="text-blue-600 hover:underline">
-            Accounts
-        </Link>
-        <span className="mx-1 text-gray-400">/</span>
-        </span>
-    );
+    });
     return <div className="text-sm text-gray-500 mb-2">{crumbs}</div>;
   };
 
@@ -318,25 +328,31 @@ const AccountDetail = () => {
            </span>
           <span>Created: {new Date(account.createdAt).toLocaleDateString()}</span>
           <span>Updated: {new Date(account.updatedAt).toLocaleDateString()}</span>
+          {(!account.children || account.children.length === 0) && (
+            <>
+              <span>
+                <span className="font-medium">{Number(account.totalTransactionCount) || 0}</span> Txns
+              </span>
+              <span>
+                Balance: <span className={`font-medium ${currentAccountBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{formatNumber(currentAccountBalance)} {currentAccountUnit}</span>
+              </span>
+              <span>
+                D: <span className="text-red-500">{formatNumber(account.totalDebits || 0)}</span>
+              </span>
+              <span>
+                C: <span className="text-green-500">{formatNumber(account.totalCredits || 0)}</span>
+              </span>
+            </>
+          )}
         </div>
 
         <p className="bg-gray-50 p-3 rounded text-gray-700 text-sm">
           {account.description || <span className="text-gray-400 italic">No description provided</span>}
         </p>
       </div>
-        
-      <SearchReplaceBar startDate={startDate} endDate={endDate} accounts={descendantAccounts} defaultSourceAccounts={[id]} onSearch={(params)=>{
-        if (!params.accountIds) params.accountIds = [id].join(',');
-        console.log('[SearchReplace][Account] onSearch params', params);
-        fetchTransactions(params).then(resp=>{
-          console.log('[SearchReplace][Account] response count', Array.isArray(resp.data) ? resp.data.length : 'n/a');
-          setAccountTransactions(Array.isArray(resp.data) ? resp.data : []);
-        }).catch(()=>{});
-      }} onEligibilityChange={(pred)=> setEligibility(() => pred)} onCreateRule={(state)=>{ setInitialRuleSearch(state); setShowRuleModal(true); }} />
-
+      {account.children && account.children.length > 0 && (
       <div className="border-t pt-4">
-          <h3 className="text-md font-medium mb-3">Hierarchy Summary (Selected Dates)</h3>
-          {account.children && account.children.length > 0 ? (
+          <h3 className="text-md font-medium mb-3">Hierarchy Summary</h3>
              <div className="overflow-x-auto text-sm">
                 <table className="min-w-full bg-white">
                     <colgroup>
@@ -404,24 +420,11 @@ const AccountDetail = () => {
                     </tbody>
                 </table>
             </div>
-          ) : (
-            <div className="bg-gray-50 p-3 rounded text-sm text-gray-600 italic">
-               No direct child accounts. Totals below are for "{account.name}" within the selected date range.
-               <span className="ml-4">
-                  <span className="font-medium mx-1">{Number(account.totalTransactionCount) || 0}</span> Txns, 
-                  Balance: 
-                  <span className={`font-medium mx-1 ${currentAccountBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
-                     {formatNumber(currentAccountBalance)} {currentAccountUnit}
-                   </span> 
-                  (D: <span className="text-red-500">{formatNumber(account.totalDebits || 0)}</span>
-                   C: <span className="text-green-500">{formatNumber(account.totalCredits || 0)}</span>)
-               </span>
-            </div>
-          )}
       </div>
+      )}
 
       <div className="border-t pt-4">
-        <h3 className="text-md font-medium mb-3">Related Transactions (Hierarchy, Selected Dates)</h3>
+        <h3 className="text-md font-medium mb-3">Related Transactions</h3>
         <SearchReplaceBar startDate={startDate} endDate={endDate} accounts={descendantAccounts} defaultSourceAccounts={[id]} onSearch={(params)=>{
           if (!params.accountIds) params.accountIds = [id].join(',');
           console.log('[SearchReplace][Account] onSearch params', params);
