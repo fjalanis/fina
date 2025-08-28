@@ -437,10 +437,11 @@ const AccountDetail = () => {
         {error && !loading && <div className="text-red-500 p-3 text-center bg-red-50 rounded">{error}</div>}
          {!loading && !error && (
             <TransactionListDisplay
-            transactions={eligibility ? accountTransactions.filter(t=> eligibility(t)) : accountTransactions}
-            onViewTransaction={(transaction) => handleOpenTransactionModal(transaction, 'view')}
-            onBalanceTransaction={(transaction) => handleOpenTransactionModal(transaction, 'balance')}
-            onEditTransaction={(transaction) => handleOpenTransactionModal(transaction, 'edit')}
+              query={{ accountIds: allAccountIds, startDate, endDate }}
+              eligibility={eligibility}
+              onViewTransaction={(transaction) => handleOpenTransactionModal(transaction, 'view')}
+              onBalanceTransaction={(transaction) => handleOpenTransactionModal(transaction, 'balance')}
+              onEditTransaction={(transaction) => handleOpenTransactionModal(transaction, 'edit')}
             />
          )}
         {!loading && !error && accountTransactions.length === 0 && (

@@ -39,6 +39,11 @@ export const fetchTransactions = async (params = {}) => {
     queryParams.append('category', params.category);
   }
 
+  // Pagination and counts
+  if (params.page) queryParams.append('page', params.page);
+  if (params.limit) queryParams.append('limit', params.limit);
+  if (params.includeCounts) queryParams.append('includeCounts', params.includeCounts);
+
   // Enforce app-wide default if dates missing (last 30 days)
   if (!params.startDate || !params.endDate) {
     const now = new Date();

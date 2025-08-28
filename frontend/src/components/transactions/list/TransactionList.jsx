@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { fetchTransactions, fetchTransactionById } from '../../../services/transactionService';
 import Modal from '../../common/Modal';
@@ -11,6 +11,11 @@ import RuleModal from '../../rules/RuleModal';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [serverCounts, setServerCounts] = useState(null); // { total, balanced, unbalanced }
+  const loadingMoreRef = useRef(false);
+  const sentinelRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const startDate = searchParams.get('startDate');
@@ -24,22 +29,70 @@ const TransactionList = () => {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [initialRuleSearch, setInitialRuleSearch] = useState(null);
 
-  const getTransactions = useCallback(async () => {
+  const getTransactions = useCallback(async (opts = {}) => {
     try {
-      setLoading(true);
-      const response = await fetchTransactions({ startDate, endDate });
-      setTransactions(Array.isArray(response.data) ? response.data : []);
+      const nextPage = opts.reset ? 1 : page;
+      if (opts.reset) {
+        setTransactions([]);
+        setHasMore(true);
+      }
+      if (!hasMore && !opts.reset) return;
+      if (loadingMoreRef.current) return;
+      loadingMoreRef.current = true;
+      if (opts.reset) setLoading(true);
+      const response = await fetchTransactions({ startDate, endDate, page: nextPage, limit: 50, includeCounts: true });
+      const newItems = Array.isArray(response.data) ? response.data : [];
+      setTransactions(prev => {
+        if (opts.reset) return newItems;
+        // De-duplicate by _id while preserving order
+        const seen = new Set(prev.map(t => t?._id));
+        const merged = [...prev];
+        newItems.forEach(item => {
+          const id = item?._id;
+          if (!id || !seen.has(id)) {
+            merged.push(item);
+            if (id) seen.add(id);
+          }
+        });
+        return merged;
+      });
+      const meta = response.meta || {};
+      if (meta.total !== undefined) {
+        setServerCounts({ total: meta.total, balanced: meta.balanced, unbalanced: meta.unbalanced });
+      }
+      const totalPages = meta.pages || (newItems.length < 50 ? nextPage : nextPage + 1);
+      const more = nextPage < totalPages && newItems.length > 0;
+      setHasMore(more);
+      if (!opts.reset && more) setPage(nextPage + 1);
     } catch (err) {
       toast.error('Failed to load transactions. Please try again.');
       console.error('Error fetching transactions:', err);
-      setTransactions([]);
+      if (opts.reset) setTransactions([]);
+      setHasMore(false);
     } finally {
-      setLoading(false);
+      if (opts.reset) setLoading(false);
+      loadingMoreRef.current = false;
     }
+  }, [startDate, endDate, page, hasMore]);
+
+  useEffect(() => {
+    // Reset when date range changes
+    setPage(1);
+    getTransactions({ reset: true });
   }, [startDate, endDate]);
 
   useEffect(() => {
-    getTransactions();
+    // IntersectionObserver to load next page
+    if (!sentinelRef.current) return;
+    const el = sentinelRef.current;
+    const observer = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (first.isIntersecting) {
+        getTransactions();
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [getTransactions]);
 
   useEffect(() => {
@@ -125,9 +178,13 @@ const TransactionList = () => {
     <div className="bg-white rounded-lg shadow p-6">
       <SearchReplaceBar startDate={startDate} endDate={endDate} accounts={allAccounts} onSearch={(params)=>{
         console.log('[SearchReplace] onSearch params', params);
-        fetchTransactions(params).then(resp=>{
-          console.log('[SearchReplace] response count', Array.isArray(resp.data) ? resp.data.length : 'n/a');
+        // Perform a reset search using new filters
+        fetchTransactions({ ...params, includeCounts: true, page: 1, limit: 50 }).then(resp=>{
           setTransactions(Array.isArray(resp.data) ? resp.data : []);
+          const meta = resp.meta || {};
+          setServerCounts(meta.total !== undefined ? { total: meta.total, balanced: meta.balanced, unbalanced: meta.unbalanced } : null);
+          setPage(2);
+          setHasMore((resp.data || []).length === 50 && (meta.pages ? 1 < meta.pages : true));
         }).catch(()=>{});
       }} onEligibilityChange={(pred) => setEligibility(() => pred)} onCreateRule={(state)=>{ setInitialRuleSearch(state); setShowRuleModal(true); }} />
       <div className="flex justify-between items-center mb-6">
@@ -143,11 +200,14 @@ const TransactionList = () => {
       </div>
 
       <TransactionListDisplay
-          transactions={eligibility ? transactions.filter(t => eligibility(t)) : transactions}
+          query={{ startDate, endDate }}
+          counts={serverCounts}
+          eligibility={eligibility}
           onViewTransaction={(transaction) => handleOpenModal(transaction, 'view')}
           onBalanceTransaction={(transaction) => handleOpenModal(transaction, 'balance')}
           onEditTransaction={(transaction) => handleOpenModal(transaction, 'edit')}
       />
+      <div ref={sentinelRef} className="h-8"></div>
       
       {isModalOpen && (
         <TransactionBalanceModal

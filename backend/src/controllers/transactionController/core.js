@@ -114,6 +114,10 @@ exports.getTransactions = async (req, res) => {
   try {
     
     const { startDate, endDate, accountId, accountIds, description, entryType, owner, category } = req.query;
+    // Pagination and meta flags
+    const pageParam = parseInt(req.query.page, 10) || 1;
+    const limitParam = parseInt(req.query.limit, 10) || 50;
+    const includeCounts = String(req.query.includeCounts || 'false') === 'true';
     const query = {};
     
     // Fail fast if no date range
@@ -165,14 +169,22 @@ exports.getTransactions = async (req, res) => {
     }
     
     console.log('MongoDB query:', JSON.stringify(query));
-    
-    const transactions = await Transaction.find(query)
+
+    // Base cursor with population and sorting
+    let cursor = Transaction.find(query)
       .populate({
         path: 'entries.account',
         select: 'name type unit' // Add unit
       })
       .sort({ date: -1 });
-    
+
+    // Apply pagination
+    const page = pageParam < 1 ? 1 : pageParam;
+    const limit = Math.min(Math.max(limitParam, 1), 500);
+    const skip = (page - 1) * limit;
+    cursor = cursor.skip(skip).limit(limit);
+    const transactions = await cursor.exec();
+
     if (transactions.length === 0) {
       // If no transactions found, log the total count in the database
       const totalCount = await Transaction.countDocuments({});
@@ -182,10 +194,53 @@ exports.getTransactions = async (req, res) => {
         const sampleTransactions = await Transaction.find().limit(3);
       }
     }
-      
+
+    // Optionally compute counts (total/balanced/unbalanced) for the given filters
+    let meta = { page, limit };
+    if (includeCounts) {
+      // total documents count respecting the same top-level query (not paginated)
+      const total = await Transaction.countDocuments(query);
+      // Balanced vs unbalanced via aggregation over entries
+      const pipeline = [
+        { $match: query },
+        { $unwind: '$entries' },
+        {
+          $group: {
+            _id: '$_id',
+            debits: { $sum: { $cond: [{ $eq: ['$entries.type', 'debit'] }, '$entries.amount', 0] } },
+            credits: { $sum: { $cond: [{ $eq: ['$entries.type', 'credit'] }, '$entries.amount', 0] } }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            net: { $subtract: ['$debits', '$credits'] }
+          }
+        },
+        {
+          $project: {
+            isBalanced: { $lt: [{ $abs: '$net' }, 0.01] }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            balanced: { $sum: { $cond: ['$isBalanced', 1, 0] } },
+            unbalanced: { $sum: { $cond: ['$isBalanced', 0, 1] } }
+          }
+        }
+      ];
+      const agg = await Transaction.aggregate(pipeline);
+      const balanced = agg[0]?.balanced || 0;
+      const unbalanced = agg[0]?.unbalanced || 0;
+      const pages = Math.max(1, Math.ceil(total / limit));
+      meta = { ...meta, total, balanced, unbalanced, pages, hasMore: page < pages };
+    }
+
     res.json({
       success: true,
-      data: transactions
+      data: transactions,
+      meta
     });
   } catch (error) {
     console.error('Error getting transactions:', error);

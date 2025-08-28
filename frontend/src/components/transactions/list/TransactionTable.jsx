@@ -120,8 +120,16 @@ const TransactionTable = memo(({
                     }
                 });
             }
-            const overallDifference = calculateDifference(debitTotal, creditTotal);
-            const overallIsBalanced = Math.abs(overallDifference) < 0.01;
+            let overallDifference = calculateDifference(debitTotal, creditTotal);
+            let overallIsBalanced = Math.abs(overallDifference) < 0.01;
+            // If caller provided a precomputed balance flag (unit-aware), honor it
+            if (typeof transaction.__isBalanced === 'boolean') {
+                overallIsBalanced = transaction.__isBalanced;
+                if (overallIsBalanced) {
+                    // Force difference to zero to avoid "needs +" hints for balanced rows
+                    overallDifference = 0;
+                }
+            }
             // --- Centralized Balance Calculation --- END
 
             // Default display mode - THIS IS NOW THE ONLY PATH
