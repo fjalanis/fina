@@ -193,40 +193,44 @@ const TransactionTable = memo(({
                     </td>
 
                     {/* Description Column */}
-                    <td className={`px-6 py-4 text-sm text-gray-500 ${unbalancedBgClass}`} title={transaction.description}>
+                    <td className={`px-6 py-4 text-sm text-gray-500 ${unbalancedBgClass} border-l-4 border-white`} title={transaction.description}>
                       {transaction.description || '-'} 
                     </td>
 
                     {/* Debit Column (Default View) */}
-                    <td className={`px-6 py-4 whitespace-nowrap text-right ${unbalancedBgClass}`}>
+                    <td className={`px-6 py-4 whitespace-nowrap text-right ${unbalancedBgClass} border-l-4 border-white`}>
                       <div className="text-sm text-red-600 font-medium">
-                        {formatAmountWithBalance(transaction.debitInfo?.amount ?? 0, transaction.difference, true)}
+                        {((transaction.debitInfo?.amount ?? 0) > 0)
+                          ? formatAmountWithBalance(transaction.debitInfo?.amount ?? 0, transaction.difference, true)
+                          : (<span className="opacity-0">0</span>)}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {transaction.debitInfo?.detail ? (
+                      <div className="text-xs text-gray-500 mt-1 min-h-[16px]">
+                        {((transaction.debitInfo?.amount ?? 0) > 0 && transaction.debitInfo?.detail) ? (
                           <>
                             {transaction.debitInfo.detail.prefix}
                             <span className={`ml-1 px-2 py-0.5 rounded-full ${transaction.debitInfo.detail.colorClass}`}>
                               {transaction.debitInfo.detail.name}
                             </span>
                           </>
-                        ) : ''}
+                        ) : (<span className="opacity-0">&nbsp;</span>)}
                       </div>
                     </td>
                     {/* Credit Column (Default View) */}
-                    <td className={`px-6 py-4 whitespace-nowrap text-right ${unbalancedBgClass}`}>
+                    <td className={`px-6 py-4 whitespace-nowrap text-right ${unbalancedBgClass} border-l-4 border-white`}>
                       <div className="text-sm text-green-600 font-medium">
-                        {formatAmountWithBalance(transaction.creditInfo?.amount ?? 0, transaction.difference, false)}
+                        {((transaction.creditInfo?.amount ?? 0) > 0)
+                          ? formatAmountWithBalance(transaction.creditInfo?.amount ?? 0, transaction.difference, false)
+                          : (<span className="opacity-0">0</span>)}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {transaction.creditInfo?.detail ? (
+                      <div className="text-xs text-gray-500 mt-1 min-h-[16px]">
+                        {((transaction.creditInfo?.amount ?? 0) > 0 && transaction.creditInfo?.detail) ? (
                           <>
                             {transaction.creditInfo.detail.prefix}
                             <span className={`ml-1 px-2 py-0.5 rounded-full ${transaction.creditInfo.detail.colorClass}`}>
                               {transaction.creditInfo.detail.name}
                             </span>
                           </>
-                        ) : ''}
+                        ) : (<span className="opacity-0">&nbsp;</span>)}
                       </div>
                     </td>
                   </tr>
