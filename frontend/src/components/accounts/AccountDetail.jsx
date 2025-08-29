@@ -5,6 +5,7 @@ import { fetchTransactions, fetchTransactionById } from '../../services/transact
 import Modal from '../common/Modal';
 import AccountForm from './AccountForm';
 import TransactionListDisplay from '../transactions/list/TransactionListDisplay';
+import AccountList from './AccountList';
 import TransactionBalanceModal from '../transactions/balancing/TransactionBalanceModal';
 import SearchReplaceBar from '../common/SearchReplaceBar';
 import { fetchAccounts } from '../../services/accountService';
@@ -351,76 +352,10 @@ const AccountDetail = () => {
         </p>
       </div>
       {account.children && account.children.length > 0 && (
-      <div className="border-t pt-4">
+        <div className="border-t pt-4">
           <h3 className="text-md font-medium mb-3">Hierarchy Summary</h3>
-             <div className="overflow-x-auto text-sm">
-                <table className="min-w-full bg-white">
-                    <colgroup>
-                        <col className="w-full" /> 
-                        <col className="w-auto whitespace-nowrap" /> 
-                        <col className="w-auto whitespace-nowrap px-4" />
-                    </colgroup>
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="py-2 px-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <span title="Transactions within the selected date range (direct children only)">Txns</span>
-                            </th>
-                            <th className="py-2 px-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Financial Summary</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {account.children.map(child => {
-                             const childBalance = calculateBalance(child);
-                             const childUnit = child.unit || 'USD';
-                             return (
-                                <tr key={child._id} className="hover:bg-gray-50">
-                                    <td className="py-2 px-3">
-                                        <Link to={`/accounts/${child._id}?${searchParams.toString()}`} className="text-blue-600 hover:underline">
-                                        {child.name}
-                                        </Link>
-                                        <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${accountTypeColors[child.type]}`}>
-                                            {child.type}
-                                        </span>
-                                    </td>
-                                    <td className="py-2 px-3 text-center text-gray-600">
-                                        {Number(child.totalTransactionCount) || 0}
-                                    </td>
-                                    <td className="py-2 px-3 text-right text-xs">
-                                        <div className={`font-medium text-sm ${childBalance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
-                                            {formatNumber(childBalance)} {childUnit}
-                                        </div>
-                                        <div className="text-gray-500">
-                                            <span className="text-red-500 mr-2" title="Debits">
-                                                D: {formatNumber(child.totalDebits || 0)}
-                                            </span>
-                                            <span className="text-green-500" title="Credits">
-                                                C: {formatNumber(child.totalCredits || 0)}
-                                            </span>
-                                        </div>
-                                    </td>
-                                </tr>
-                             );
-                         })}
-                        <tr className="bg-gray-50 font-medium">
-                             <td className="py-2 px-3 text-right text-gray-700">Total (Account + Children)</td>
-                             <td className="py-2 px-3 text-center text-gray-700">{Number(account.totalTransactionCount) || 0}</td>
-                             <td className="py-2 px-3 text-right text-xs">
-                                <div className="text-gray-700 text-sm invisible"> {/* Placeholder */} N/A </div>
-                                 <div className="text-gray-500">
-                                     <span className="text-red-500 mr-2" title="Total Debits (Hierarchy)">
-                                         D: {formatNumber(account.totalDebits || 0)}
-                                     </span>
-                                     <span className="text-green-500" title="Total Credits (Hierarchy)">
-                                         C: {formatNumber(account.totalCredits || 0)}
-                                     </span>
-                                 </div>
-                             </td>
-                         </tr>
-                    </tbody>
-                </table>
-            </div>
-      </div>
+          <AccountList rootAccountId={account._id} embedded title="" />
+        </div>
       )}
 
       <div className="border-t pt-4">

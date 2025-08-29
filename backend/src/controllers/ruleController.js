@@ -237,10 +237,10 @@ exports.testRule = async (req, res) => {
 
 // Shared function to apply rules to a transaction
 const applyRuleToTransactionInternal = async (transaction) => {
-  // Calculate current balance
-  const currentBalance = transaction.entries.reduce((sum, entry) => sum + entry.amount, 0);
+  // Calculate current transaction net (sum of entry amounts; zero means balanced)
+  const transactionNet = transaction.entries.reduce((sum, entry) => sum + entry.amount, 0);
   
-  if (Math.abs(currentBalance) < 0.01) {
+  if (Math.abs(transactionNet) < 0.01) {
     // Transaction is already balanced (within rounding error)
     await transaction.save();
     
@@ -302,7 +302,7 @@ const applyRuleToTransactionInternal = async (transaction) => {
   }
   
   // Check if transaction is now balanced
-  const newBalance = transaction.entries.reduce((sum, entry) => sum + entry.amount, 0);
+  const newTransactionNet = transaction.entries.reduce((sum, entry) => sum + entry.amount, 0);
   
   await transaction.save();
   
@@ -313,7 +313,7 @@ const applyRuleToTransactionInternal = async (transaction) => {
       transaction,
       appliedRule: appliedRule._id,
       createdEntries,
-      isNowBalanced: Math.abs(newBalance) < 0.01
+      isNowBalanced: Math.abs(newTransactionNet) < 0.01
     }
   };
 };
